@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Candidate Profile - TalentFlow AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #eaedf0; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 min-h-screen flex flex-col font-display">
+<!-- Header / Top Navigation -->
+<header class="sticky top-0 z-30 flex items-center justify-between border-b border-solid border-primary/10 bg-white px-6 py-3">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 text-primary">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-xl">flowsheet</span>
+</div>
+<h2 class="text-primary text-lg font-bold leading-tight tracking-tight">TalentFlow AI</h2>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-600 hover:text-primary text-sm font-medium" href="#">Candidates</a>
+<a class="text-slate-600 hover:text-primary text-sm font-medium" href="#">Jobs</a>
+<a class="text-primary text-sm font-bold border-b-2 border-primary py-4 -mb-4" href="#">Talent Pools</a>
+<a class="text-slate-600 hover:text-primary text-sm font-medium" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<label class="relative hidden sm:block">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+<span class="material-symbols-outlined text-lg">search</span>
+</span>
+<input class="form-input w-64 rounded-lg border-none bg-slate-100 pl-10 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Search talent..." type="text"/>
+</label>
+<button class="p-2 rounded-full hover:bg-slate-100 text-slate-600">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 overflow-hidden">
+<img alt="Recruiter profile" class="h-full w-full object-cover" data-alt="Professional headshot of a recruiter" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZnhQD6v-MALxWM1Sg4_Ym1tFiFVRQKi4qqCou8y1GfK9UUHjs7RWDeTLr4unxV7jxYizFxKKKuQH5SEOyn-1lg4GbzFkwklx5nrc9cSSXUMMZ2nWVB9YJV6AlSJuAWbZcV5ucSSRhRyz_UyibLE2wOZ3wNZyHtFgWipQ20JwQwP87a7kKtWJFaN42199UhCJTvS0epCGWS3kngkOVnooj4aWU06DFrDq8clRAKw6aIC_6cg5qcP_gAknEVzrK9Sw0cLIDjaFv3h7O"/>
+</div>
+</div>
+</header>
+<!-- Main Content Layout -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<!-- Candidate Identity Bar -->
+<div class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-center gap-5">
+<div class="relative">
+<img alt="Candidate profile photo" class="w-16 h-16 rounded-full object-cover border-2 border-slate-50 shadow-sm" data-alt="Professional portrait of Alex Rivers" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-ztzz6eRaEsTmvIm2Q07EW7WGjSQLcFnZAcdYKPmv9GtrT4vst_v6M9beIAWgFqjNOmXTfErNK8Wrx_nTbBErks7ZIbM9a0rmZX69QF8QT_eByevjWUMjGcERdNRtQcBjYGA7id7bTWAJDVX4rLz1a7HULCOD3L1qnbiv1vCXZX3Ro6VVbeQ6Zm9d2P_vq1R6OQ1O3Z-vZcWLVwaDFGq5O-0nvaxBGZRpQ-w1MgM5_zUE5F0CQxhD7YvVNHLNLfi_7ADbN7DqzIfQ"/>
+<div class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+</div>
+<div>
+<div class="flex items-center gap-3">
+<h1 class="text-2xl font-bold text-slate-900 tracking-tight">Alex Rivers</h1>
+<span class="px-2.5 py-0.5 rounded-full bg-primary text-white text-xs font-bold uppercase tracking-wider">Shortlisted</span>
+</div>
+<div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-slate-500">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">work</span> Senior Frontend Engineer @ TechCorp</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">link</span> LinkedIn Sourced</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">schedule</span> 4 days ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">mail</span>
+                    Message
+                </button>
+<div class="h-8 w-px bg-slate-200 mx-1"></div>
+<button class="px-4 py-2 rounded-lg bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">close</span>
+                    Reject
+                </button>
+<button class="px-6 py-2 rounded-lg bg-primary text-white font-bold text-sm hover:opacity-90 shadow-sm flex items-center gap-2">
+                    Move to Interview
+                    <span class="material-symbols-outlined text-lg">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Detail View Split -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Left Sidebar (Meta & Tags) -->
+<aside class="w-72 bg-slate-50 border-r border-slate-200 p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar">
+<!-- Talent Pool Tags -->
+<div>
+<h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Talent Pool Tags</h3>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 group">
+<span class="text-sm font-medium text-slate-700">Silver Medalist</span>
+<span class="material-symbols-outlined text-slate-400 text-sm opacity-0 group-hover:opacity-100 cursor-pointer">close</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 group">
+<span class="text-sm font-medium text-slate-700">Future Fit</span>
+<span class="material-symbols-outlined text-slate-400 text-sm opacity-0 group-hover:opacity-100 cursor-pointer">close</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 group">
+<span class="text-sm font-medium text-slate-700">Nurture</span>
+<span class="material-symbols-outlined text-slate-400 text-sm opacity-0 group-hover:opacity-100 cursor-pointer">close</span>
+</div>
+<button class="mt-2 text-primary text-xs font-bold flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-sm">add</span> Add Tag
+                        </button>
+</div>
+</div>
+<!-- Sourcing Info -->
+<div>
+<h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Sourcing Context</h3>
+<div class="space-y-4">
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Recruiter</span>
+<p class="text-sm font-semibold text-slate-800">Sarah Jenkins</p>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Requirement</span>
+<a class="text-sm font-semibold text-primary hover:underline flex items-center gap-1" href="#">
+                                #ENG-2024-012 <span class="material-symbols-outlined text-xs">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Compliance -->
+<div class="mt-auto pt-8">
+<div class="p-4 rounded-xl bg-green-50 border border-green-100">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-green-600 text-lg">verified_user</span>
+<span class="text-xs font-bold text-green-700 uppercase">GDPR Compliant</span>
+</div>
+<p class="text-[11px] text-green-800 leading-relaxed mb-3">
+                            Consent active until <strong>Oct 24, 2025</strong>. 1 year remaining.
+                        </p>
+<button class="w-full py-1.5 bg-white border border-green-200 rounded-lg text-xs font-bold text-green-700 hover:bg-green-100">
+                            Renew Consent
+                        </button>
+</div>
+</div>
+</aside>
+<!-- Middle Pane: Resume / Parsed View -->
+<div class="flex-1 flex flex-col bg-white overflow-hidden">
+<div class="flex items-center justify-between px-6 py-2 border-b border-slate-100">
+<div class="flex bg-slate-100 p-1 rounded-lg">
+<button class="px-4 py-1.5 text-xs font-bold rounded-md bg-white text-primary shadow-sm">Parsed Data</button>
+<button class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700">Original Resume</button>
+</div>
+<div class="flex gap-2">
+<button class="p-2 text-slate-400 hover:text-slate-600"><span class="material-symbols-outlined">download</span></button>
+<button class="p-2 text-slate-400 hover:text-slate-600"><span class="material-symbols-outlined">print</span></button>
+</div>
+</div>
+<!-- Parsed Content -->
+<div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
+<!-- Experience Section -->
+<section class="mb-10">
+<h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">history_edu</span>
+                            Professional Experience
+                        </h2>
+<div class="space-y-8 relative before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-0 before:w-0.5 before:bg-slate-100">
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-white border-4 border-primary/20 flex items-center justify-center">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-bold text-slate-900">Senior Frontend Engineer</h3>
+<span class="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded">2020 — Present</span>
+</div>
+<p class="text-sm font-semibold text-primary mb-2">TechCorp Inc.</p>
+<ul class="text-sm text-slate-600 space-y-2 list-disc list-inside">
+<li>Leading development of core React-based analytics dashboard architecture.</li>
+<li>Mentoring junior engineers and implementing CI/CD best practices.</li>
+<li>Reduced TTI by 45% through aggressive bundle optimization.</li>
+</ul>
+</div>
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-white border-4 border-slate-100 flex items-center justify-center">
+<div class="w-2 h-2 rounded-full bg-slate-300"></div>
+</div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-bold text-slate-900">Frontend Developer</h3>
+<span class="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded">2017 — 2020</span>
+</div>
+<p class="text-sm font-semibold text-primary mb-2">Creative Flow Agency</p>
+<p class="text-sm text-slate-600">Built responsive web applications for Fortune 500 clients using Vue.js and Tailwind CSS. Managed stakeholders and design-to-code pipelines.</p>
+</div>
+</div>
+</section>
+<!-- Skills Section -->
+<section>
+<h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">psychology</span>
+                            Technical Skills
+                        </h2>
+<div class="grid grid-cols-2 gap-6">
+<div>
+<h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Core Stack</h4>
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 bg-primary/5 text-primary text-xs font-bold rounded-lg border border-primary/10">React.js</span>
+<span class="px-3 py-1 bg-primary/5 text-primary text-xs font-bold rounded-lg border border-primary/10">TypeScript</span>
+<span class="px-3 py-1 bg-primary/5 text-primary text-xs font-bold rounded-lg border border-primary/10">Next.js</span>
+<span class="px-3 py-1 bg-primary/5 text-primary text-xs font-bold rounded-lg border border-primary/10">Tailwind CSS</span>
+</div>
+</div>
+<div>
+<h4 class="text-xs font-bold text-slate-400 uppercase mb-3">DevOps &amp; Tools</h4>
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg">AWS</span>
+<span class="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg">Docker</span>
+<span class="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg">GitLab CI</span>
+<span class="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg">Jest</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+<!-- Right Pane: AI Assist & Activity -->
+<aside class="w-96 bg-slate-50 border-l border-slate-200 flex flex-col overflow-hidden">
+<!-- AI Assist Panel -->
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<div class="p-6 border-b border-slate-200 bg-white">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-indigo-600 fill-1">auto_awesome</span>
+<h3 class="font-bold text-slate-900">AI Assist</h3>
+<span class="ml-auto text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold uppercase">Beta</span>
+</div>
+<!-- Fit Reasoning -->
+<div class="mb-8">
+<div class="flex items-center justify-between mb-3">
+<h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Fit Reasoning</h4>
+<span class="text-xs font-bold text-indigo-600">92% Match</span>
+</div>
+<div class="p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 space-y-3">
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-indigo-500 text-sm mt-0.5">check_circle</span>
+<p class="text-sm text-slate-700 leading-snug">Strong domain alignment with <strong>4+ years</strong> in enterprise SaaS environments.</p>
+</div>
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-indigo-500 text-sm mt-0.5">check_circle</span>
+<p class="text-sm text-slate-700 leading-snug">Technical stack is an exact <strong>1:1 match</strong> for our current requirements (React/TS).</p>
+</div>
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-slate-400 text-sm mt-0.5">info</span>
+<p class="text-sm text-slate-700 leading-snug">Likely passive candidate; emphasizes "architecture" and "mentorship" in recent role.</p>
+</div>
+</div>
+</div>
+<!-- Suggested Interview Questions -->
+<div>
+<h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Suggested Questions</h4>
+<div class="space-y-3">
+<div class="group relative p-3 rounded-lg bg-white border border-slate-200 hover:border-primary/30 transition-colors">
+<p class="text-sm text-slate-600 pr-6">"How did you approach bundle size optimization at TechCorp, and what trade-offs did you consider?"</p>
+<button class="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-primary transition-opacity">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+</div>
+<div class="group relative p-3 rounded-lg bg-white border border-slate-200 hover:border-primary/30 transition-colors">
+<p class="text-sm text-slate-600 pr-6">"Can you describe a situation where you had to mentor a team member through a difficult technical architectural shift?"</p>
+<button class="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-primary transition-opacity">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Activity Timeline -->
+<div class="p-6">
+<h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Activity Timeline</h3>
+<div class="space-y-6 relative before:content-[''] before:absolute before:left-4 before:top-2 before:bottom-0 before:w-px before:bg-slate-200">
+<!-- Timeline Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-0 size-8 bg-primary rounded-full flex items-center justify-center text-white ring-4 ring-slate-50">
+<span class="material-symbols-outlined text-base">person_add</span>
+</div>
+<div>
+<p class="text-sm font-bold text-slate-900 leading-tight">Moved to Shortlist</p>
+<p class="text-xs text-slate-500 mb-1">by Sarah Jenkins • Oct 14, 2024</p>
+<div class="p-2 rounded bg-slate-100 text-xs text-slate-600 italic">
+                                        "Excellent technical background. High priority candidate."
+                                    </div>
+</div>
+</div>
+<!-- Timeline Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-0 size-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 ring-4 ring-slate-50">
+<span class="material-symbols-outlined text-base">outgoing_mail</span>
+</div>
+<div>
+<p class="text-sm font-bold text-slate-900 leading-tight">Outreach Email Sent</p>
+<p class="text-xs text-slate-500">System Automation • Oct 13, 2024</p>
+</div>
+</div>
+<!-- Timeline Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-0 size-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 ring-4 ring-slate-50">
+<span class="material-symbols-outlined text-base">search</span>
+</div>
+<div>
+<p class="text-sm font-bold text-slate-900 leading-tight">Profile Sourced</p>
+<p class="text-xs text-slate-500">via LinkedIn Extractor • Oct 12, 2024</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</body></html>

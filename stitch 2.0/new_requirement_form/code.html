@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>New Job Requirement | RecruitPro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 min-h-screen">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-50 w-full bg-white border-b border-slate-200 px-6 lg:px-10 py-3 flex items-center justify-between">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<div class="bg-primary text-white p-1.5 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">rocket_launch</span>
+</div>
+<h1 class="text-primary font-bold text-xl tracking-tight">RecruitPro</h1>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-600 hover:text-primary text-sm font-medium" href="#">Dashboard</a>
+<a class="text-primary border-b-2 border-primary text-sm font-semibold pb-1" href="#">Jobs</a>
+<a class="text-slate-600 hover:text-primary text-sm font-medium" href="#">Candidates</a>
+<a class="text-slate-600 hover:text-primary text-sm font-medium" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/20 w-64" placeholder="Search jobs..." type="text"/>
+</div>
+<button class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
+<img alt="User profile" data-alt="Corporate professional headshot for user profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8h9c9044jfsuAuyk8tX3ebZUh5O03np2Uw-WoAoJm-55YYqz6MhbTIyFMYp8slXkmjtM5PrEBP_PLuUfZZXVlyrkdlRtuW3LqI_bHBmyuEJeUBa7w-Kpogrb0kRHQYb7cCYX__3gvsJyEQb9mfkAUJBKUorLQc350F0Um47zK1hOCPnJEPb83UyH3U_10kAVOYYncPzDVq6_o4mvy-yWYDklC3exI1SMzszZvFGR0mI6R3TQCHI_Z8rcft6VLgAZ68RdZXfn0eEGI"/>
+</div>
+</div>
+</header>
+<main class="max-w-5xl mx-auto px-4 py-8">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+<div>
+<nav class="flex items-center gap-2 text-slate-500 text-xs mb-2">
+<a class="hover:text-primary" href="#">Jobs</a>
+<span class="material-symbols-outlined text-[10px]">chevron_right</span>
+<span class="text-slate-400">New Requirement</span>
+</nav>
+<h2 class="text-3xl font-extrabold text-primary tracking-tight">Create Job Opening</h2>
+<p class="text-slate-500 mt-1">Configure the role details, requirements, and hiring workflow.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
+                    Save Draft
+                </button>
+<button class="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-opacity-90 shadow-sm">
+                    Publish Opening
+                </button>
+</div>
+</div>
+<!-- Progress Tabs -->
+<div class="bg-white border border-slate-200 rounded-xl mb-8 overflow-hidden">
+<div class="flex flex-wrap border-b border-slate-100">
+<button class="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-4 border-b-2 border-primary bg-slate-50/50">
+<span class="w-6 h-6 rounded-full bg-primary text-white text-[10px] flex items-center justify-center font-bold">1</span>
+<span class="text-sm font-bold text-primary">Basic Details</span>
+</button>
+<button class="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-4 border-b-2 border-transparent hover:bg-slate-50">
+<span class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-[10px] flex items-center justify-center font-bold">2</span>
+<span class="text-sm font-medium text-slate-500">Role Requirements</span>
+</button>
+<button class="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-4 border-b-2 border-transparent hover:bg-slate-50">
+<span class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-[10px] flex items-center justify-center font-bold">3</span>
+<span class="text-sm font-medium text-slate-500">Headcount &amp; Budget</span>
+</button>
+<button class="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-4 border-b-2 border-transparent hover:bg-slate-50">
+<span class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-[10px] flex items-center justify-center font-bold">4</span>
+<span class="text-sm font-medium text-slate-500">Interview Plan</span>
+</button>
+<button class="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-4 border-b-2 border-transparent hover:bg-slate-50">
+<span class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-[10px] flex items-center justify-center font-bold">5</span>
+<span class="text-sm font-medium text-slate-500">Review</span>
+</button>
+</div>
+<!-- Form Content -->
+<div class="p-8">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+<!-- Left: Form Fields -->
+<div class="lg:col-span-2 space-y-8">
+<div>
+<h3 class="text-lg font-bold text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-xl">info</span>
+                                General Information
+                            </h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="col-span-full">
+<label class="block text-sm font-semibold text-slate-700 mb-1.5">Job Title</label>
+<input class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all" placeholder="e.g. Senior Software Engineer" type="text"/>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 mb-1.5">Department</label>
+<select class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
+<option>Engineering</option>
+<option>Product Management</option>
+<option>Design</option>
+<option>Marketing</option>
+<option>Sales</option>
+</select>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 mb-1.5">Hiring Manager</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">expand_more</span>
+<input class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all" placeholder="Search teammate..." type="text"/>
+</div>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 mb-1.5">Location</label>
+<select class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
+<option>Remote (Global)</option>
+<option>Hybrid (London, UK)</option>
+<option>On-site (New York, US)</option>
+</select>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 mb-1.5">Employment Type</label>
+<select class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
+<option>Full-time</option>
+<option>Contract</option>
+<option>Part-time</option>
+<option>Internship</option>
+</select>
+</div>
+</div>
+</div>
+<hr class="border-slate-100"/>
+<div>
+<h3 class="text-lg font-bold text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-xl">description</span>
+                                Role Description
+                            </h3>
+<div class="space-y-4">
+<label class="block text-sm font-semibold text-slate-700">Internal Notes (Brief Overview)</label>
+<textarea class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all" placeholder="Briefly describe the purpose of this role and its impact on the team..." rows="4"></textarea>
+<div class="flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
+<span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+<p class="text-xs text-primary/80">Need help? <a class="font-bold underline" href="#">Generate a full job description</a> with AI based on these details.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Quick Summary/Helper Card -->
+<div class="space-y-6">
+<div class="bg-slate-50 border border-slate-200 rounded-xl p-6">
+<h4 class="font-bold text-primary mb-4">Draft Summary</h4>
+<div class="space-y-4">
+<div class="flex justify-between items-center text-sm">
+<span class="text-slate-500">Progress</span>
+<span class="text-primary font-bold">20%</span>
+</div>
+<div class="w-full bg-slate-200 rounded-full h-2">
+<div class="bg-primary h-2 rounded-full w-1/5"></div>
+</div>
+<ul class="space-y-3 pt-4">
+<li class="flex items-center gap-2 text-sm text-green-600 font-medium">
+<span class="material-symbols-outlined text-base">check_circle</span>
+                                        Header information
+                                    </li>
+<li class="flex items-center gap-2 text-sm text-slate-400">
+<span class="material-symbols-outlined text-base">radio_button_unchecked</span>
+                                        Compensation details
+                                    </li>
+<li class="flex items-center gap-2 text-sm text-slate-400">
+<span class="material-symbols-outlined text-base">radio_button_unchecked</span>
+                                        Interview stages
+                                    </li>
+</ul>
+</div>
+</div>
+<div class="relative rounded-xl overflow-hidden group cursor-pointer border border-slate-200 h-48 bg-cover bg-center" data-alt="Modern office collaborative workspace background" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBWlxWmd-s6j_nACMvToM2zXwHX6AQ0OCrWfuEFpyiNp3ZbbTAXnRJaS1nU3iuaiSGMV7Ji_pZzQajm79t44um3TYAtWWirSYl2sznTyE63ftJzmdNR9T3wK_qFK5MfodaPFDjISXUlFFsT07qb1m8QwOtmouFk9OWdYBb_xm_epLr84CnKQ31Zm4SniPNNdpOpDbdHSymVOPONtfSFzXLOyA_5Y_Y0jWaOIdYjjb3A4q8y0M6T87_slm3ihMLAG5MoFHzm5pm8ZrXI')">
+<div class="absolute inset-0 bg-primary/40 group-hover:bg-primary/50 transition-colors flex flex-col justify-end p-4">
+<p class="text-white text-xs font-bold uppercase tracking-widest mb-1">Office Spotlight</p>
+<h5 class="text-white font-bold leading-tight">London HQ, UK</h5>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-white text-sm">location_on</span>
+<span class="text-white/80 text-[10px]" data-location="London, UK">London</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sticky Form Footer Actions -->
+<div class="bg-slate-50 border-t border-slate-100 p-6 flex items-center justify-between">
+<button class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-400 cursor-not-allowed">
+<span class="material-symbols-outlined">arrow_back</span>
+                    Back
+                </button>
+<div class="flex items-center gap-4">
+<p class="hidden md:block text-xs text-slate-400 italic">Changes are autosaved to draft</p>
+<button class="flex items-center gap-2 px-8 py-3 bg-primary text-white rounded-lg font-bold hover:bg-opacity-95 transition-all shadow-lg shadow-primary/10">
+                        Continue to Requirements
+                        <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Role Requirements Sneak Peek (Example of what's next) -->
+<div class="opacity-50 pointer-events-none">
+<h3 class="text-lg font-bold text-slate-400 mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-xl">psychology</span>
+                Coming Next: Skill Mapping
+            </h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="p-6 border border-slate-200 rounded-xl bg-white border-dashed">
+<div class="w-10 h-10 rounded bg-slate-100 mb-4"></div>
+<div class="h-4 bg-slate-100 rounded w-3/4 mb-2"></div>
+<div class="h-4 bg-slate-100 rounded w-1/2"></div>
+</div>
+<div class="p-6 border border-slate-200 rounded-xl bg-white border-dashed">
+<div class="w-10 h-10 rounded bg-slate-100 mb-4"></div>
+<div class="h-4 bg-slate-100 rounded w-3/4 mb-2"></div>
+<div class="h-4 bg-slate-100 rounded w-1/2"></div>
+</div>
+<div class="p-6 border border-slate-200 rounded-xl bg-white border-dashed">
+<div class="w-10 h-10 rounded bg-slate-100 mb-4"></div>
+<div class="h-4 bg-slate-100 rounded w-3/4 mb-2"></div>
+<div class="h-4 bg-slate-100 rounded w-1/2"></div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="max-w-5xl mx-auto px-4 py-12 mt-12 border-t border-slate-200">
+<div class="flex flex-col md:flex-row items-center justify-between gap-6">
+<div class="flex items-center gap-2">
+<div class="bg-primary/10 text-primary p-1 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">rocket_launch</span>
+</div>
+<span class="font-bold text-primary">RecruitPro</span>
+</div>
+<div class="flex items-center gap-8 text-sm text-slate-500 font-medium">
+<a class="hover:text-primary" href="#">Help Center</a>
+<a class="hover:text-primary" href="#">Privacy Policy</a>
+<a class="hover:text-primary" href="#">Recruitment Guide</a>
+</div>
+<p class="text-xs text-slate-400">© 2024 RecruitPro HR Solutions. All rights reserved.</p>
+</div>
+</footer>
+</body></html>

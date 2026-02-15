@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Interviewer Feedback Portal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .star-rating {
+            direction: rtl;
+            display: inline-flex;
+        }
+        .star-rating input {
+            display: none;
+        }
+        .star-rating label {
+            color: #d1d5db;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: color 0.2s;
+        }
+        .star-rating label:hover,
+        .star-rating label:hover ~ label,
+        .star-rating input:checked ~ label {
+            color: #1a2b3c;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 antialiased">
+<div class="relative flex min-h-screen flex-col overflow-x-hidden">
+<!-- Header / Navigation -->
+<header class="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 lg:px-20 py-3 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="bg-primary p-1.5 rounded-lg text-white">
+<span class="material-symbols-outlined text-xl">rate_review</span>
+</div>
+<h1 class="text-primary text-lg font-bold tracking-tight">Interviewer Portal</h1>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+<a class="hover:text-primary transition-colors" href="#">Dashboard</a>
+<a class="hover:text-primary transition-colors" href="#">Schedules</a>
+<a class="text-primary font-bold" href="#">Feedback</a>
+</nav>
+<div class="flex items-center gap-4 border-l pl-6 border-slate-200">
+<button class="relative p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500"></span>
+</button>
+<div class="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20">
+                        JD
+                    </div>
+</div>
+</div>
+</header>
+<main class="flex-1 max-w-5xl mx-auto w-full px-4 py-8 lg:px-10">
+<!-- Context & Role Header -->
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<nav class="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+<span>Active Interviews</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary">Technical Assessment</span>
+</nav>
+<h2 class="text-3xl font-black text-slate-900 tracking-tight">Jane Doe</h2>
+<p class="text-slate-500 font-medium">Candidate for <span class="text-primary">Senior Full Stack Engineer</span></p>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all">
+<span class="material-symbols-outlined text-lg">description</span>
+                        View Full JD
+                    </button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Sidebar Context (JD Essentials & Resume Summary) -->
+<div class="lg:col-span-1 space-y-6">
+<!-- Resume Summary Card -->
+<div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+<h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">assignment_ind</span>
+                            Resume Summary
+                        </h3>
+<div class="space-y-4">
+<p class="text-sm text-slate-600 leading-relaxed">
+                                8+ years experience in React and Node.js. Previously at TechCorp and InnovateSoft. Expertise in distributed systems and cloud architecture. Strong background in microservices.
+                            </p>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">React</span>
+<span class="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">Node.js</span>
+<span class="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">AWS</span>
+<span class="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">Docker</span>
+</div>
+</div>
+</div>
+<!-- Limited JD Summary -->
+<div class="bg-slate-900 rounded-xl p-5 text-white shadow-lg">
+<h3 class="text-sm font-bold mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-400 text-xl">target</span>
+                            Role Essentials
+                        </h3>
+<ul class="space-y-3 text-sm text-slate-300">
+<li class="flex gap-2">
+<span class="material-symbols-outlined text-blue-400 text-xs mt-1">check_circle</span>
+                                Lead development of core platform services.
+                            </li>
+<li class="flex gap-2">
+<span class="material-symbols-outlined text-blue-400 text-xs mt-1">check_circle</span>
+                                Mentor junior developers and drive code quality.
+                            </li>
+<li class="flex gap-2">
+<span class="material-symbols-outlined text-blue-400 text-xs mt-1">check_circle</span>
+                                Tech stack: React, TypeScript, GraphQL, Node.
+                            </li>
+</ul>
+</div>
+<!-- Role Restriction Alert -->
+<div class="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+<span class="material-symbols-outlined text-amber-600">visibility_off</span>
+<p class="text-xs text-amber-800 leading-normal">
+<strong>Privacy Shield Active:</strong> You cannot see other interviewers' feedback until you submit your own assessment.
+                        </p>
+</div>
+</div>
+<!-- Main Feedback Form -->
+<div class="lg:col-span-2 space-y-6">
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+<div class="border-b border-slate-100 p-6 flex justify-between items-center bg-slate-50/50">
+<h3 class="text-lg font-bold text-slate-900">Skill-wise Assessment</h3>
+<div class="flex items-center gap-2 text-xs text-slate-500 font-medium">
+<span class="material-symbols-outlined text-sm">info</span>
+                                All fields are mandatory
+                            </div>
+</div>
+<div class="p-6 space-y-8">
+<!-- Skill 1 -->
+<div class="space-y-4">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<label class="text-sm font-bold text-slate-800">Technical Proficiency (Full Stack)</label>
+<div class="star-rating">
+<input id="star1-5" name="skill1" type="radio" value="5"/><label class="material-symbols-outlined" for="star1-5">star</label>
+<input id="star1-4" name="skill1" type="radio" value="4"/><label class="material-symbols-outlined" for="star1-4">star</label>
+<input id="star1-3" name="skill1" type="radio" value="3"/><label class="material-symbols-outlined" for="star1-3">star</label>
+<input id="star1-2" name="skill1" type="radio" value="2"/><label class="material-symbols-outlined" for="star1-2">star</label>
+<input id="star1-1" name="skill1" type="radio" value="1"/><label class="material-symbols-outlined" for="star1-1">star</label>
+</div>
+</div>
+<div class="relative">
+<textarea class="w-full min-h-[100px] p-3 text-sm border-slate-200 rounded-lg focus:ring-primary focus:border-primary transition-all resize-none" placeholder="Justify your rating with specific examples from the interview..."></textarea>
+<div class="flex justify-between mt-1 px-1">
+<p class="text-[10px] text-red-500 font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">error</span>
+                                            Mandatory comment length: 100 characters
+                                        </p>
+<p class="text-[10px] text-slate-400 font-medium">0 / 100</p>
+</div>
+</div>
+</div>
+<!-- Skill 2 -->
+<div class="space-y-4">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<label class="text-sm font-bold text-slate-800">Problem Solving &amp; Architecture</label>
+<div class="star-rating">
+<input id="star2-5" name="skill2" type="radio" value="5"/><label class="material-symbols-outlined" for="star2-5">star</label>
+<input id="star2-4" name="skill2" type="radio" value="4"/><label class="material-symbols-outlined" for="star2-4">star</label>
+<input id="star2-3" name="skill2" type="radio" value="3"/><label class="material-symbols-outlined" for="star2-3">star</label>
+<input id="star2-2" name="skill2" type="radio" value="2"/><label class="material-symbols-outlined" for="star2-2">star</label>
+<input id="star2-1" name="skill2" type="radio" value="1"/><label class="material-symbols-outlined" for="star2-1">star</label>
+</div>
+</div>
+<div class="relative">
+<textarea class="w-full min-h-[100px] p-3 text-sm border-slate-200 rounded-lg focus:ring-primary focus:border-primary transition-all resize-none" placeholder="Discuss their approach to the coding challenge and system design..."></textarea>
+<div class="flex justify-between mt-1 px-1">
+<p class="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">info</span>
+                                            Describe their scalability considerations
+                                        </p>
+<p class="text-[10px] text-slate-400 font-medium">0 / 100</p>
+</div>
+</div>
+</div>
+<!-- Skill 3 -->
+<div class="space-y-4">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<label class="text-sm font-bold text-slate-800">Cultural Alignment &amp; Comm.</label>
+<div class="star-rating">
+<input id="star3-5" name="skill3" type="radio" value="5"/><label class="material-symbols-outlined" for="star3-5">star</label>
+<input id="star3-4" name="skill3" type="radio" value="4"/><label class="material-symbols-outlined" for="star3-4">star</label>
+<input id="star3-3" name="skill3" type="radio" value="3"/><label class="material-symbols-outlined" for="star3-3">star</label>
+<input id="star3-2" name="skill3" type="radio" value="2"/><label class="material-symbols-outlined" for="star3-2">star</label>
+<input id="star3-1" name="skill3" type="radio" value="1"/><label class="material-symbols-outlined" for="star3-1">star</label>
+</div>
+</div>
+<div class="relative">
+<textarea class="w-full min-h-[100px] p-3 text-sm border-slate-200 rounded-lg focus:ring-primary focus:border-primary transition-all resize-none" placeholder="How did they handle feedback? Do they align with core values?"></textarea>
+<div class="flex justify-between mt-1 px-1">
+<p class="text-[10px] text-slate-400 font-medium">Character count ensures meaningful qualitative data</p>
+<p class="text-[10px] text-slate-400 font-medium">0 / 100</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Final Recommendation Section -->
+<div class="bg-slate-50 border-t border-slate-200 p-6 space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-sm font-bold text-slate-900">Interview Outcome</label>
+<select class="w-full p-2.5 bg-white border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary">
+<option value="completed">Completed</option>
+<option value="no-show">Candidate No-show</option>
+<option value="technical-issue">Technical Issue / Interrupted</option>
+<option value="rescheduled">Rescheduled</option>
+</select>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-bold text-slate-900">Overall Recommendation</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="px-3 py-2 text-[11px] font-bold border border-slate-200 rounded-lg bg-white hover:border-emerald-500 hover:text-emerald-600 transition-all text-center uppercase tracking-wide">Strong Hire</button>
+<button class="px-3 py-2 text-[11px] font-bold border border-slate-200 rounded-lg bg-white hover:border-primary hover:text-primary transition-all text-center uppercase tracking-wide">Hire</button>
+<button class="px-3 py-2 text-[11px] font-bold border border-slate-200 rounded-lg bg-white hover:border-orange-500 hover:text-orange-600 transition-all text-center uppercase tracking-wide">No Hire</button>
+<button class="px-3 py-2 text-[11px] font-bold border border-slate-200 rounded-lg bg-white hover:border-red-600 hover:text-red-700 transition-all text-center uppercase tracking-wide">Strong No Hire</button>
+</div>
+</div>
+</div>
+<div class="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200">
+<p class="text-xs text-slate-500 italic">
+                                    Draft saved at 14:32 PM
+                                </p>
+<div class="flex gap-3 w-full sm:w-auto">
+<button class="flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                        Save Draft
+                                    </button>
+<button class="flex-1 sm:flex-none px-8 py-2.5 text-sm font-bold text-white bg-primary rounded-lg shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
+                                        Submit Feedback
+                                    </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-white border-t border-slate-200 px-6 py-4 mt-auto">
+<div class="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+<p class="text-[11px] text-slate-400 font-medium">© 2024 TechRecruit Interviewer Portal. Confidential Information.</p>
+<div class="flex gap-6 text-[11px] text-slate-400 font-medium">
+<a class="hover:underline" href="#">Privacy Policy</a>
+<a class="hover:underline" href="#">Support</a>
+</div>
+</div>
+</footer>
+</div>
+</body></html>

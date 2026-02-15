@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Recruiter Pipeline | Candidate Kanban</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .kanban-column {
+            min-width: 320px;
+            max-width: 320px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-primary transition-colors duration-200">
+<div class="relative flex h-screen flex-col overflow-hidden">
+<!-- Top Navigation Bar -->
+<header class="flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white px-6 dark:border-gray-800 dark:bg-background-dark">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<div class="flex h-8 w-8 items-center justify-center rounded bg-primary text-white">
+<span class="material-symbols-outlined text-xl">account_tree</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-primary dark:text-white">Recruiter Pipeline</h1>
+</div>
+<nav class="hidden items-center gap-6 lg:flex">
+<a class="text-sm font-semibold text-primary/60 hover:text-primary dark:text-gray-400 dark:hover:text-white" href="#">Dashboard</a>
+<a class="border-b-2 border-primary text-sm font-semibold text-primary dark:text-white" href="#">Jobs</a>
+<a class="text-sm font-semibold text-primary/60 hover:text-primary dark:text-gray-400 dark:hover:text-white" href="#">Candidates</a>
+<a class="text-sm font-semibold text-primary/60 hover:text-primary dark:text-gray-400 dark:hover:text-white" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+<input class="h-10 w-64 rounded-lg border-none bg-gray-100 pl-10 text-sm focus:ring-2 focus:ring-primary/20 dark:bg-gray-800 dark:text-white" placeholder="Search candidates..." type="text"/>
+</div>
+<button class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow-sm dark:border-gray-700">
+<img alt="User Profile" class="h-full w-full object-cover" data-alt="Close up professional portrait of a recruiter" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7FT_f5MevEfwfomeideyUL0UbdepEN0tKTMrGVdsMdtiMuiuOFA5kmvU__y_BS7R5xrPfkgZkoe-ZIJfYZg2Oe3nxYcbAIk6DByRV45Ery3Y9IGVP4OSIAf_rFrMbW_CrilZjLr9HiB2Qy1U3nip1kUT8S8QPXPM5FZdDTs6Zn_jkhTG2zYiOJWxcatviSvsRESFWKrYClchU7rHsB9F-0FzBzzVGasg-HGPJGrGzBx24bRK8SQqb5LPwj5Z2kzmTpI8-VvJtZCEc"/>
+</div>
+</div>
+</header>
+<!-- Filter Sub-header -->
+<div class="flex h-14 w-full items-center justify-between bg-white px-6 shadow-sm dark:bg-background-dark/50 border-b border-gray-200 dark:border-gray-800">
+<div class="flex items-center gap-3 overflow-x-auto no-scrollbar">
+<button class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+<span class="material-symbols-outlined text-lg">work</span>
+                    Software Engineer
+                    <span class="material-symbols-outlined text-lg">expand_more</span>
+</button>
+<button class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+<span class="material-symbols-outlined text-lg">person</span>
+                    Assigned: Me
+                    <span class="material-symbols-outlined text-lg">expand_more</span>
+</button>
+<button class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+<span class="material-symbols-outlined text-lg">star</span>
+                    High Match (&gt;85%)
+                </button>
+<div class="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-2"></div>
+<button class="text-sm font-medium text-primary/60 hover:text-primary dark:text-gray-400">Clear all</button>
+</div>
+<button class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-primary/90 transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg">person_add</span>
+                Add Candidate
+            </button>
+</div>
+<!-- Kanban Board Container -->
+<main class="flex-1 overflow-x-auto p-6 custom-scrollbar bg-background-light dark:bg-background-dark">
+<div class="flex h-full gap-6">
+<!-- Stage 1: Sourced -->
+<div class="kanban-column flex flex-col gap-4">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<h3 class="text-sm font-bold uppercase tracking-wider text-primary dark:text-gray-300">Sourced</h3>
+<span class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[10px] font-bold dark:bg-gray-700 dark:text-gray-400">12</span>
+</div>
+<button class="text-gray-400 hover:text-primary dark:hover:text-white"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4">
+<!-- Candidate Card -->
+<div class="group relative flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all">
+<div class="flex items-start justify-between">
+<div class="flex gap-3">
+<div class="h-10 w-10 overflow-hidden rounded-lg bg-primary/10">
+<img alt="Alex Rivera" class="h-full w-full object-cover" data-alt="Portrait of a young man smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuGXHt-4WArvh72gUTrR2O_K8K0RQisYP9COKY__kFIi8dwnl2zkqSVPtH_YdYYG7VGW4xaLGSKHqKA-W_OG319jCNu0zo02bK_hCzj29cfm0dznFm5rQjYkB-yBCdsy9hdULX_BtB8MXdM09Yid0FvifqyONxw47yMwfcTrjcDY8PiGI9EN_xwbmOc6PDeL0gbRwpZ0LG8KV8QSlTBArgok7Z_TdJUEgTE6tXdqt8JgN3fZCZ7D7tSqOT3AH1lntHDanIsYvMi5-3"/>
+</div>
+<div>
+<h4 class="text-sm font-bold text-primary dark:text-white">Alex Rivera</h4>
+<div class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-[14px]">link</span>
+                                            LinkedIn
+                                        </div>
+</div>
+</div>
+<div class="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/30 dark:text-green-400">95% Match</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="text-[12px] text-gray-600 dark:text-gray-400">Senior Fullstack Engineer • 8yr exp</div>
+</div>
+<button class="mt-1 w-full rounded border border-primary bg-white py-1.5 text-[12px] font-bold text-primary hover:bg-primary/5 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700 transition-colors">
+                                Review Profile
+                            </button>
+</div>
+<!-- Candidate Card 2 -->
+<div class="group relative flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all">
+<div class="flex items-start justify-between">
+<div class="flex gap-3">
+<div class="h-10 w-10 overflow-hidden rounded-lg bg-primary/10">
+<img alt="Sarah Chen" class="h-full w-full object-cover" data-alt="Portrait of a professional woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXs8-5ziYN6hRZPRyT1khvPmDwnw_8FqNaUBj6WPHOv3fTMdzjQ7p2qWMe-5a0G3iwFXBe7PdzBMObFqmWvx6UTxGYgF0jiLo5cEHHQNcxce1mGvAIpB1y-ym62V958QZzY3Ld79gnbruNy_ic64gB503jDYMfwxPzTNTINlc_8IQzTNgUBgmXcALXgr7ZAtHDBM4SKpjW3QipEL9vLK56tJJcO9ihso1dtQpRxvnxLeckNF0vCk5Hvim8_enSqX7XXdo0Z-m-plxQ"/>
+</div>
+<div>
+<h4 class="text-sm font-bold text-primary dark:text-white">Sarah Chen</h4>
+<div class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-[14px]">share</span>
+                                            Referral
+                                        </div>
+</div>
+</div>
+<div class="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/30 dark:text-green-400">92% Match</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="text-[12px] text-gray-600 dark:text-gray-400">React Specialist • Meta Alum</div>
+</div>
+<button class="mt-1 w-full rounded border border-primary bg-white py-1.5 text-[12px] font-bold text-primary hover:bg-primary/5 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700 transition-colors">
+                                Review Profile
+                            </button>
+</div>
+</div>
+</div>
+<!-- Stage 2: Screening -->
+<div class="kanban-column flex flex-col gap-4">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<h3 class="text-sm font-bold uppercase tracking-wider text-primary dark:text-gray-300">Screening</h3>
+<span class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[10px] font-bold dark:bg-gray-700 dark:text-gray-400">8</span>
+</div>
+<button class="text-gray-400 hover:text-primary dark:hover:text-white"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4">
+<div class="group relative flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all">
+<div class="flex items-start justify-between">
+<div class="flex gap-3">
+<div class="h-10 w-10 overflow-hidden rounded-lg bg-primary/10">
+<img alt="Jordan Smyth" class="h-full w-full object-cover" data-alt="Candidate avatar profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvu5nk469CcFD8086ryz_VixTjEoXxq_PenQvu31Ybr0Irm0VhOHtcTM_XLgxcEY_8a3_ZcoOKx-VzVC0hI1TH7ljQlcxqUgxA1l9GIG5pJ8EDwbbiZSjz787KF9lSSS8r6tFZc_p64dYx58lmAlK8wK0RgkY2CZlYIazGGWBZlBh3YLuMgC_WgEc28i54hEEoczTLwWS4TuMvO6aRh4ryi-En4k6kKHrO-S0zy8Y2nXbN71t0lmA1UQAu9u3OPneQFk5ZGukk1Cxc"/>
+</div>
+<div>
+<h4 class="text-sm font-bold text-primary dark:text-white">Jordan Smyth</h4>
+<div class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-[14px]">description</span>
+                                            Job Board
+                                        </div>
+</div>
+</div>
+<div class="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-bold text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">88% Match</div>
+</div>
+<div class="flex items-center gap-2 rounded bg-primary/5 p-2 dark:bg-primary/20">
+<span class="material-symbols-outlined text-primary text-sm dark:text-white">phone</span>
+<p class="text-[11px] font-medium text-primary dark:text-gray-200">Phone Screen: Tomorrow 2PM</p>
+</div>
+<button class="mt-1 w-full rounded bg-primary py-1.5 text-[12px] font-bold text-white shadow hover:bg-primary/90 transition-all">
+                                Send Assessment
+                            </button>
+</div>
+</div>
+</div>
+<!-- Stage 3: Shortlisted -->
+<div class="kanban-column flex flex-col gap-4">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<h3 class="text-sm font-bold uppercase tracking-wider text-primary dark:text-gray-300">Shortlisted</h3>
+<span class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[10px] font-bold dark:bg-gray-700 dark:text-gray-400">5</span>
+</div>
+<button class="text-gray-400 hover:text-primary dark:hover:text-white"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4">
+<div class="group relative flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all border-l-4 border-l-primary">
+<div class="flex items-start justify-between">
+<div class="flex gap-3">
+<div class="h-10 w-10 overflow-hidden rounded-lg bg-primary/10">
+<img alt="Taylor Reed" class="h-full w-full object-cover" data-alt="Candidate profile headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9w7VC44tzM1zBSbiX3VJt_o8zxeoeDEoGqtF88Tzx1VbLQftO5GuvgZkJ2Tq48FFlMQBxS9Yppbeb-IJFfhnaWGywR-x58j14ceVWjpXpOcv-MFwjCINiAD03RTm0g5DsWijiTQRNzEgcbfe7X2omLFHJp5dFyrD66r7KqZPFDHhk_HfVcVJ3oHdQ-3Vt_3NZ-u1w-paeTECVHzQ3jv7V-yMmiGvjCri4GXr25TKFDEC0UkZXnkERqqpeqmfngida85lWOrKDRKMR"/>
+</div>
+<div>
+<h4 class="text-sm font-bold text-primary dark:text-white">Taylor Reed</h4>
+<div class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-[14px]">palette</span>
+                                            Portfolio
+                                        </div>
+</div>
+</div>
+<div class="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/30 dark:text-green-400">97% Match</div>
+</div>
+<div class="flex items-center gap-2 rounded bg-green-50 p-2 dark:bg-green-900/10">
+<span class="material-symbols-outlined text-green-600 text-sm">check_circle</span>
+<p class="text-[11px] font-medium text-green-800 dark:text-green-400">Manager Approved</p>
+</div>
+<button class="mt-1 w-full rounded bg-primary py-1.5 text-[12px] font-bold text-white shadow hover:bg-primary/90 transition-all">
+                                Schedule Interview
+                            </button>
+</div>
+</div>
+</div>
+<!-- Stage 4: Interview -->
+<div class="kanban-column flex flex-col gap-4">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<h3 class="text-sm font-bold uppercase tracking-wider text-primary dark:text-gray-300">Interview</h3>
+<span class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[10px] font-bold dark:bg-gray-700 dark:text-gray-400">3</span>
+</div>
+<button class="text-gray-400 hover:text-primary dark:hover:text-white"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4">
+<div class="group relative flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all">
+<div class="flex items-start justify-between">
+<div class="flex gap-3">
+<div class="h-10 w-10 overflow-hidden rounded-lg bg-primary/10">
+<img alt="Morgan Vance" class="h-full w-full object-cover" data-alt="Candidate profile headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuUxIsVy_vliDsFddFJ5Pis6Usk30O0jyI9vpFNwlUxveMWP_DGzLiAaqOLATlPX2DBd0IqlaYD3sGm645Ly5YI75d-tnZfvUDLxJVHKVvUXQpKrxi7UMe1qI8YXKhdELoG-G3Vf_QD_RbTSYhxlVWbhyP7lqTmOcohPfRwyKEAkfC41Fx8JuZPvnH8lo82zEQcJfm3cxBeAEF4WkGwSoR1yNUpGjkTFm9rJ5Pih-k2aD2jQFguWKL3xk02rZfMB0DSQiCMCc3WXr1"/>
+</div>
+<div>
+<h4 class="text-sm font-bold text-primary dark:text-white">Morgan Vance</h4>
+<div class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-[14px]">link</span>
+                                            LinkedIn
+                                        </div>
+</div>
+</div>
+<div class="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-bold text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">85% Match</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between text-[11px] text-gray-500">
+<span>Technical Round 2</span>
+<span class="font-bold text-orange-600">Live Now</span>
+</div>
+<div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+<div class="h-full w-2/3 bg-primary"></div>
+</div>
+</div>
+<button class="mt-1 w-full rounded border border-primary bg-white py-1.5 text-[12px] font-bold text-primary hover:bg-primary/5 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700 transition-colors">
+                                View Feedback
+                            </button>
+</div>
+</div>
+</div>
+<!-- Stage 5: Offer -->
+<div class="kanban-column flex flex-col gap-4">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<h3 class="text-sm font-bold uppercase tracking-wider text-primary dark:text-gray-300">Offer</h3>
+<span class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[10px] font-bold dark:bg-gray-700 dark:text-gray-400">2</span>
+</div>
+<button class="text-gray-400 hover:text-primary dark:hover:text-white"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4">
+<div class="group relative flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all border-l-4 border-l-green-500">
+<div class="flex items-start justify-between">
+<div class="flex gap-3">
+<div class="h-10 w-10 overflow-hidden rounded-lg bg-primary/10">
+<img alt="Casey Miller" class="h-full w-full object-cover" data-alt="Candidate profile headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC947ZfIO5dvYMUDXB4xlS-MHZWp7da4te7NvbR4rKENYnHqz96B7mm5exgJQ2ATUHqvSpiAKT4K0q0X9sFRn-farbMvnfQbtFWlLOvTP-JaNG_OR4cVJbuTzUcAteSS9u-H50e8pWJTRUjo9thrpUr-oy7dqi_Y1CNyxtoZD8C2VM64i3o3RcUWP83ugFlvOEVrw1lyEiJk2fZEdk7DKLuPwUsJa7l-v28xFzGM2LymYWhmBRe2fCrnQa4Gk4htdE3adczi9eTSQmG"/>
+</div>
+<div>
+<h4 class="text-sm font-bold text-primary dark:text-white">Casey Miller</h4>
+<div class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-[14px]">description</span>
+                                            Internal
+                                        </div>
+</div>
+</div>
+<div class="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/30 dark:text-green-400">99% Match</div>
+</div>
+<div class="flex items-center gap-2 rounded bg-green-50 p-2 dark:bg-green-900/10">
+<span class="material-symbols-outlined text-green-600 text-sm">file_present</span>
+<p class="text-[11px] font-medium text-green-800 dark:text-green-400">Contract Sent (2d ago)</p>
+</div>
+<button class="mt-1 w-full rounded bg-primary py-1.5 text-[12px] font-bold text-white shadow hover:bg-primary/90 transition-all">
+                                Follow Up
+                            </button>
+</div>
+</div>
+</div>
+<!-- Empty Column Placeholder -->
+<div class="kanban-column flex flex-col gap-4">
+<div class="flex items-center px-1">
+<h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-600">Hired</h3>
+</div>
+<div class="flex h-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/20">
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-700 text-4xl">celebration</span>
+<p class="mt-2 text-[12px] font-medium text-gray-400 dark:text-gray-600">No candidates yet</p>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

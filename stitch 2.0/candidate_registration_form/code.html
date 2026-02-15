@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Candidate Registration - TalentGate</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-primary font-display">
+<div class="flex min-h-screen flex-col lg:flex-row">
+<!-- Left Sidebar: Progress Stepper -->
+<aside class="w-full lg:w-[400px] bg-primary text-white p-8 lg:p-12 flex flex-col justify-between lg:fixed lg:h-full">
+<div>
+<div class="flex items-center gap-3 mb-12">
+<div class="size-8 bg-white/10 rounded flex items-center justify-center">
+<svg class="text-white w-6 h-6" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M6 6H42L36 24L42 42H6L12 24L6 6Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-xl font-bold tracking-tight">TalentGate</h2>
+</div>
+<div class="space-y-8">
+<div class="flex flex-col">
+<h1 class="text-2xl font-bold mb-2">Join our network</h1>
+<p class="text-white/60 text-sm">Complete your profile to unlock exclusive career opportunities.</p>
+</div>
+<nav class="space-y-6">
+<!-- Step 1: Active -->
+<div class="flex items-start gap-4 group">
+<div class="flex flex-col items-center">
+<div class="size-8 rounded-full bg-white text-primary flex items-center justify-center font-bold text-sm ring-4 ring-white/20">
+                                    1
+                                </div>
+<div class="w-px h-12 bg-white/20 my-1"></div>
+</div>
+<div class="pt-1">
+<p class="text-sm font-semibold text-white">Personal Info</p>
+<p class="text-xs text-white/50">Basic contact details</p>
+</div>
+</div>
+<!-- Step 2: Pending -->
+<div class="flex items-start gap-4 group">
+<div class="flex flex-col items-center">
+<div class="size-8 rounded-full border-2 border-white/30 text-white/50 flex items-center justify-center font-bold text-sm">
+                                    2
+                                </div>
+<div class="w-px h-12 bg-white/20 my-1"></div>
+</div>
+<div class="pt-1">
+<p class="text-sm font-semibold text-white/50">Professional Details</p>
+<p class="text-xs text-white/30">Experience &amp; Skills</p>
+</div>
+</div>
+<!-- Step 3: Pending -->
+<div class="flex items-start gap-4 group">
+<div class="flex flex-col items-center">
+<div class="size-8 rounded-full border-2 border-white/30 text-white/50 flex items-center justify-center font-bold text-sm">
+                                    3
+                                </div>
+<div class="w-px h-12 bg-white/20 my-1"></div>
+</div>
+<div class="pt-1">
+<p class="text-sm font-semibold text-white/50">Resume Upload</p>
+<p class="text-xs text-white/30">CV and Summary</p>
+</div>
+</div>
+<!-- Step 4: Pending -->
+<div class="flex items-start gap-4 group">
+<div class="flex flex-col items-center">
+<div class="size-8 rounded-full border-2 border-white/30 text-white/50 flex items-center justify-center font-bold text-sm">
+                                    4
+                                </div>
+</div>
+<div class="pt-1">
+<p class="text-sm font-semibold text-white/50">Compliance &amp; Legal</p>
+<p class="text-xs text-white/30">Terms and Privacy</p>
+</div>
+</div>
+</nav>
+</div>
+</div>
+<div class="mt-12 pt-8 border-t border-white/10 hidden lg:block">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-white/10 bg-center bg-cover" data-alt="Default user profile placeholder" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDrW7DB7dkVxxYPHnQh3tx9RLjKqOVadcTqndB37XNUoLOmig05JD9dCy5aJnpFTrBHGp4nIP83oQ1CrYzDYgzPdo2FnqlfNEd8bFi_iJBPzCSVdhVcpZm9pncE7-NUkSXsGyJ7GQ6K8wlkpCP3aXIGQrxzkKC0bzQPvLSaoBFKEhuCeF_onoqqP0b1ekMDnDzllwmaZuAh3N2kI7lBQ7iPRGS2FjuVsEueV99a8B7YX4LCXqhUrwf1Jo4QixSru7Ywbdd6skBQbE4t')"></div>
+<div>
+<p class="text-xs font-medium text-white/40">Registered as Guest</p>
+<p class="text-sm font-semibold text-white">In Progress</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Right Side: Form Content -->
+<main class="flex-1 lg:ml-[400px] flex flex-col min-h-screen bg-white dark:bg-background-dark">
+<!-- Header for mobile/top nav -->
+<header class="flex items-center justify-between px-6 py-4 border-b border-gray-100 lg:px-12">
+<div class="flex items-center gap-4">
+<span class="text-xs font-bold uppercase tracking-widest text-primary/40 lg:hidden">Registration</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="text-sm font-medium text-primary/60 hover:text-primary transition-colors" href="#">Help</a>
+<a class="text-sm font-medium text-primary/60 hover:text-primary transition-colors" href="#">Support</a>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto px-6 py-12 lg:px-24 lg:py-20 scrollbar-hide">
+<div class="max-w-2xl mx-auto">
+<!-- Form Step 1: Personal Information -->
+<section>
+<div class="mb-10">
+<h2 class="text-3xl font-black text-primary tracking-tight mb-2">Personal Information</h2>
+<p class="text-primary/60 text-lg">Please provide your basic contact details to get started with your application.</p>
+</div>
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-sm font-semibold text-primary ml-1">First Name</label>
+<input class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-background-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400" placeholder="e.g. John" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-semibold text-primary ml-1">Last Name</label>
+<input class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-background-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400" placeholder="e.g. Doe" type="text"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-semibold text-primary ml-1">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 text-[20px]">mail</span>
+<input class="w-full pl-12 pr-4 py-3.5 rounded-lg border border-gray-200 bg-background-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400" placeholder="john.doe@example.com" type="email"/>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-sm font-semibold text-primary ml-1">Phone Number</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 text-[20px]">phone</span>
+<input class="w-full pl-12 pr-4 py-3.5 rounded-lg border border-gray-200 bg-background-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400" placeholder="+1 (555) 000-0000" type="tel"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-semibold text-primary ml-1">Location</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 text-[20px]">location_on</span>
+<input class="w-full pl-12 pr-4 py-3.5 rounded-lg border border-gray-200 bg-background-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400" placeholder="City, Country" type="text"/>
+</div>
+</div>
+</div>
+<div class="pt-8">
+<div class="p-4 bg-primary/5 rounded-xl border border-primary/10 flex items-start gap-4">
+<span class="material-symbols-outlined text-primary">info</span>
+<p class="text-sm text-primary/70 leading-relaxed">
+                                        Your contact information will only be shared with potential employers after you've approved a request.
+                                    </p>
+</div>
+</div>
+</form>
+</section>
+</div>
+</div>
+<!-- Footer Navigation Bar -->
+<footer class="sticky bottom-0 bg-white border-t border-gray-100 p-6 lg:px-24 flex items-center justify-between">
+<button class="px-6 py-3 rounded-lg text-sm font-bold text-primary/60 hover:bg-gray-50 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                    Back
+                </button>
+<div class="flex items-center gap-4">
+<button class="px-6 py-3 rounded-lg text-sm font-bold text-primary/60 hover:bg-gray-50 transition-colors">
+                        Save Draft
+                    </button>
+<button class="px-8 py-3 rounded-lg bg-primary text-white text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2">
+                        Next Step
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

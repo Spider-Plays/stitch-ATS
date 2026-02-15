@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RecruiterOS - Candidate Pipeline</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .kanban-column {
+            min-width: 320px;
+            max-width: 320px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1a2b3c33;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #1a2b3c66;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-primary">
+<div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-primary/10 bg-white px-6 py-3 lg:px-10">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 text-primary">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-xl">layers</span>
+</div>
+<h2 class="text-primary text-xl font-extrabold leading-tight tracking-tight">RecruiterOS</h2>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-primary/70 hover:text-primary text-sm font-semibold transition-colors" href="#">Dashboard</a>
+<a class="text-primary border-b-2 border-primary text-sm font-bold py-1" href="#">Jobs</a>
+<a class="text-primary/70 hover:text-primary text-sm font-semibold transition-colors" href="#">Candidates</a>
+<a class="text-primary/70 hover:text-primary text-sm font-semibold transition-colors" href="#">Interviews</a>
+</nav>
+</div>
+<div class="flex flex-1 justify-end gap-4 items-center">
+<label class="hidden sm:flex flex-col min-w-40 h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full bg-primary/5 border border-primary/10 overflow-hidden">
+<div class="text-primary/50 flex items-center justify-center pl-3">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 border-none bg-transparent focus:ring-0 text-sm placeholder:text-primary/40 px-2" placeholder="Search pipeline..." value=""/>
+</div>
+</label>
+<div class="flex gap-2">
+<button class="flex items-center justify-center rounded-lg size-10 bg-primary/5 text-primary hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[22px]">notifications</span>
+</button>
+<button class="flex items-center justify-center rounded-lg size-10 bg-primary/5 text-primary hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[22px]">settings</span>
+</button>
+</div>
+<div class="bg-primary/20 rounded-full size-10 flex items-center justify-center overflow-hidden border border-primary/10">
+<img alt="Recruiter profile picture" class="object-cover w-full h-full" data-alt="Professional male recruiter headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAV9WLVaXCQLynwSuJRk33wjx_ohEcGt99d8kXM9r3EurnxhOnr52OD5WHLkxMBlexCdStzREYxg4xvdEpk3hw-QRrvvZV998jp3ji7rZ1eILqwnlBW6ZDWxhU9CSg-8y-rVAbxBnecxI5cclmhC8BBZIZ-mDCXW_7_DdpLfGgB1ih1GeX3Z7pqntPLlEhjUlVqiBXpOcDByePWR2e93gmLNPxK7y32qvNwZ7hK9urTN4WzJaFJxniCczULI83Zv8XHpQ4DdbfpGy4_"/>
+</div>
+</div>
+</header>
+<!-- Job Requirement Context Header -->
+<div class="bg-white border-b border-primary/5 px-6 lg:px-10 py-6">
+<div class="flex flex-wrap justify-between items-start gap-4">
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-3">
+<p class="text-primary text-3xl font-black leading-tight tracking-tight">Senior Fullstack Engineer</p>
+<span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full tracking-wider">LIVE</span>
+</div>
+<div class="flex items-center gap-4 text-primary/60 text-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">fingerprint</span> REQ-1029</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">calendar_today</span> Created 12 days ago</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">location_on</span> remote</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-3">
+<div class="flex items-center gap-3">
+<span class="text-xs font-bold text-primary/50 uppercase tracking-widest">Assigned Team</span>
+<div class="flex -space-x-3 overflow-hidden">
+<img alt="Team member" class="inline-block h-10 w-10 rounded-full ring-2 ring-white" data-alt="Female recruiter avatar portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZ0wUstKHQOxOUiVccFyK7DXLs9quOEnfZGCCdCHwB3ZezF4MtCBH_9nBVVoFCjmM0_6i-A3SPPrrN75ZHQb0PbAaHcu-cHkWYXj7Kh-4kcTMmd9WZ5ZGASu5FfnvZqY09sIqfe7JnXcFANRpv_Bb-MeL2xxYlKx42b6Cg3Ku8zP-RL82vB4QSqSTOeMKDztNghmFtA--fzExphAGhOG8DcfkjISUaBjemD7k2tg-Wj7_qHSip1YfIIs7cs9T6JSpmkIX6aI27cilg"/>
+<img alt="Team member" class="inline-block h-10 w-10 rounded-full ring-2 ring-white" data-alt="Male hiring manager avatar portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJPP4Ahe6cIc-tHZEiOvhmeLqKLXvf2tfERptpciWACvrLKXYztQznJIwlhaAE3-NYHSUtAmERo8hYcwEj_5x8PADhEPWBg1HBW4v6hdDHOsy2cwzZzeoJj-lGzay_-wDhtOYO2uONyT8tRRICylZ15-QsmzlZrK9eXcirfP9UTwaxNJmCojccUcJbEIIcPjgKa253u3y0kfV-r12UxViIqAy6yT-BLKWlYAmnhp6SBPLyvd_7HjYzQNVHKryv98Sjvy_Vjcvs--FZ"/>
+<div class="inline-block h-10 w-10 rounded-full ring-2 ring-white bg-primary flex items-center justify-center text-white text-xs font-bold">+2</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center justify-center gap-2 rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-sm">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+<span>Add Candidate</span>
+</button>
+<button class="flex items-center justify-center gap-2 rounded-lg h-10 px-4 border border-primary/20 bg-white text-primary text-sm font-bold hover:bg-primary/5 transition-all">
+<span class="material-symbols-outlined text-[18px]">upload_file</span>
+<span>Bulk Upload</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Pipeline Filters & View Controls -->
+<div class="flex items-center justify-between px-6 lg:px-10 py-4 bg-background-light">
+<div class="flex gap-4">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-primary/10 text-sm font-medium text-primary hover:shadow-sm transition-all">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+<span>Filters</span>
+</button>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-primary/10 text-sm font-medium text-primary hover:shadow-sm transition-all">
+<span class="material-symbols-outlined text-[18px]">sort</span>
+<span>Sort: Newest</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-xs font-bold text-primary/40 uppercase tracking-widest bg-primary/5 px-4 py-2 rounded-lg">
+<span class="material-symbols-outlined text-sm">visibility</span>
+<span>Recruiter View Only</span>
+</div>
+</div>
+<!-- Kanban Board Container -->
+<main class="flex-1 overflow-x-auto custom-scrollbar bg-background-light p-6 lg:px-10 pt-0">
+<div class="flex gap-6 h-full items-start">
+<!-- Column: Sourced -->
+<div class="kanban-column flex flex-col gap-4 h-full">
+<div class="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/10">
+<h3 class="font-bold text-sm flex items-center gap-2 text-primary uppercase tracking-wider">
+                                Sourced <span class="bg-primary/10 px-2 py-0.5 rounded text-xs">4</span>
+</h3>
+<button class="text-primary/50 hover:text-primary"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<div class="flex flex-col gap-4 overflow-y-auto pr-1">
+<!-- Card 1 -->
+<div class="bg-white p-4 rounded-xl border border-primary/10 shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-3">
+<h4 class="font-bold text-primary group-hover:text-primary transition-colors">Sarah Jenkins</h4>
+<div class="flex flex-col items-end">
+<span class="text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">88% MATCH</span>
+</div>
+</div>
+<div class="flex items-center gap-2 mb-4">
+<span class="px-2 py-0.5 bg-primary/5 text-primary/60 text-[10px] font-bold rounded border border-primary/10 uppercase">LinkedIn</span>
+<span class="text-[10px] text-primary/40">• 2h ago</span>
+</div>
+<div class="flex items-center justify-between mt-4 pt-4 border-t border-primary/5">
+<div class="flex items-center gap-2">
+<img alt="Recruiter" class="size-6 rounded-full" data-alt="Small avatar of the assigned recruiter" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYEr9713gQCcKq_fI1s-538YmlsEOuTg1Zmu_7sY_oFtREH1cvUAOv1rr7XaXzToy9yfOCkIUYIqm6BaPsQGrMdOFnOBLWDxs8PwXj2Y-KpnQGmNyVTndaBRaprPjGSnypobyPAjE9gtlQlsCPgdj33GERwUvMnHBrGBLUj4MPWJ92FyLS5K7aPsTnyu6KUkyEKwrIQABri_igLRgqTrl4BCS4vkhr6mninTtbJ4YgcWN9ecPvZF78-3KhioDo9CRmuVhQT6yErazi"/>
+<span class="text-[11px] font-semibold text-primary/60 italic">Next: Initial Call</span>
+</div>
+<span class="material-symbols-outlined text-primary/20 group-hover:text-primary transition-colors text-xl">arrow_forward</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white p-4 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-3">
+<h4 class="font-bold text-primary">Marcus Wong</h4>
+<div class="flex flex-col items-end">
+<span class="text-[10px] font-black text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-100">74% MATCH</span>
+</div>
+</div>
+<div class="flex items-center gap-2 mb-4">
+<span class="px-2 py-0.5 bg-primary/5 text-primary/60 text-[10px] font-bold rounded border border-primary/10 uppercase">Referral</span>
+<span class="text-[10px] text-primary/40">• 1d ago</span>
+</div>
+<div class="flex items-center justify-between mt-4 pt-4 border-t border-primary/5">
+<div class="flex items-center gap-2">
+<img alt="Recruiter" class="size-6 rounded-full" data-alt="Small avatar of the assigned recruiter" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpkTLGBuhQUK4vhK2JD5zJd8AsvF71gxEVR0fiUGk6tM-GCwVIA9PDnqXvdICL7UeltVG4Ggfr3lUwZDmSDHPrLeUofsTPwOZZLW8pCng11fwTSinV2iB6wqNr6_TQlVKHx3AFS8OKnPlRaDT2bPD7-zpGtS6Ul5PE4xWVbnMj8bZM5rgAovzq5VSkCmnQd68uQNnr5umcQJVzfRs3qdKbdk29HRid51fP6dy0h2fooXbEQgTflBAO9WVXKoqIY9fcHBjjJpKGd0Jv"/>
+<span class="text-[11px] font-semibold text-primary/60 italic">Next: CV Review</span>
+</div>
+<span class="material-symbols-outlined text-primary/20 text-xl">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Recruiter Screening -->
+<div class="kanban-column flex flex-col gap-4 h-full">
+<div class="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/10">
+<h3 class="font-bold text-sm flex items-center gap-2 text-primary uppercase tracking-wider">
+                                Screening <span class="bg-primary/10 px-2 py-0.5 rounded text-xs">2</span>
+</h3>
+</div>
+<div class="flex flex-col gap-4 overflow-y-auto pr-1">
+<div class="bg-white p-4 rounded-xl border-l-4 border-l-primary border border-primary/10 shadow-sm">
+<div class="flex justify-between items-start mb-3">
+<h4 class="font-bold text-primary">Elena Rodriguez</h4>
+<span class="text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">92% MATCH</span>
+</div>
+<div class="flex items-center gap-2 mb-4">
+<span class="px-2 py-0.5 bg-primary/5 text-primary/60 text-[10px] font-bold rounded border border-primary/10 uppercase">Hiring Site</span>
+<span class="text-[10px] text-primary/40">• 3d ago</span>
+</div>
+<div class="flex items-center justify-between mt-4 pt-4 border-t border-primary/5">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-[16px]">call</span>
+<span class="text-[11px] font-bold">Today, 2:30 PM</span>
+</div>
+<button class="text-xs font-bold text-primary underline underline-offset-4 decoration-primary/20 hover:decoration-primary">Join Call</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Shortlisted -->
+<div class="kanban-column flex flex-col gap-4 h-full">
+<div class="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/10">
+<h3 class="font-bold text-sm flex items-center gap-2 text-primary uppercase tracking-wider">
+                                Shortlisted <span class="bg-primary/10 px-2 py-0.5 rounded text-xs">1</span>
+</h3>
+</div>
+<div class="flex flex-col gap-4 overflow-y-auto pr-1">
+<div class="bg-white p-4 rounded-xl border border-primary/10 shadow-sm opacity-90 hover:opacity-100 transition-all">
+<div class="flex justify-between items-start mb-3">
+<h4 class="font-bold text-primary">David Chen</h4>
+<span class="text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">84% MATCH</span>
+</div>
+<p class="text-[11px] text-primary/60 line-clamp-2 mb-4">Previously at Stripe. Senior React expert with Go experience.</p>
+<div class="flex items-center justify-between mt-4 pt-4 border-t border-primary/5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary/40">assignment_turned_in</span>
+<span class="text-[11px] font-semibold text-primary/60 italic">Next: HM Review</span>
+</div>
+<span class="material-symbols-outlined text-primary/20 text-xl">drag_indicator</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Interview Rounds -->
+<div class="kanban-column flex flex-col gap-4 h-full">
+<div class="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/10">
+<h3 class="font-bold text-sm flex items-center gap-2 text-primary uppercase tracking-wider">
+                                Interviews <span class="bg-primary/10 px-2 py-0.5 rounded text-xs">3</span>
+</h3>
+</div>
+<div class="flex flex-col gap-4 overflow-y-auto pr-1">
+<div class="bg-white border border-primary/10 rounded-xl shadow-sm p-4 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-2">
+<span class="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+</div>
+<h4 class="font-bold text-primary mb-1">Amelia Vance</h4>
+<div class="flex items-center gap-2 mb-3">
+<span class="text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full">95% AI</span>
+<span class="text-[10px] text-primary/40">Round 2: Technical</span>
+</div>
+<div class="bg-primary/5 p-3 rounded-lg mb-3">
+<div class="flex items-center gap-2 text-[11px] font-bold text-primary mb-1">
+<span class="material-symbols-outlined text-[14px]">event</span>
+                                        Tomorrow at 10:00 AM
+                                    </div>
+<div class="flex items-center gap-2 text-[10px] text-primary/60">
+<span class="material-symbols-outlined text-[14px]">person</span>
+                                        Interviewer: Tom H.
+                                    </div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary text-white text-[10px] font-bold py-1.5 rounded-lg">Reschedule</button>
+<button class="flex-1 border border-primary/20 text-primary text-[10px] font-bold py-1.5 rounded-lg">Feedback</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Decision -->
+<div class="kanban-column flex flex-col gap-4 h-full">
+<div class="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/10">
+<h3 class="font-bold text-sm flex items-center gap-2 text-primary uppercase tracking-wider">
+                                Decision <span class="bg-primary/10 px-2 py-0.5 rounded text-xs">0</span>
+</h3>
+</div>
+<div class="flex flex-col gap-4 items-center justify-center h-48 border-2 border-dashed border-primary/10 rounded-xl">
+<span class="material-symbols-outlined text-primary/20 text-4xl">inbox</span>
+<span class="text-xs font-medium text-primary/30">Drag here for final review</span>
+</div>
+</div>
+<!-- Column: Offer -->
+<div class="kanban-column flex flex-col gap-4 h-full">
+<div class="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/10">
+<h3 class="font-bold text-sm flex items-center gap-2 text-primary uppercase tracking-wider">
+                                Offer <span class="bg-primary/10 px-2 py-0.5 rounded text-xs">1</span>
+</h3>
+</div>
+<div class="flex flex-col gap-4 overflow-y-auto pr-1">
+<div class="bg-white p-4 rounded-xl border-l-4 border-l-green-500 border border-primary/10 shadow-sm">
+<div class="flex justify-between items-start mb-3">
+<h4 class="font-bold text-primary">Julian Thorne</h4>
+<span class="text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">89%</span>
+</div>
+<div class="flex flex-col gap-2 mb-4">
+<div class="flex items-center justify-between text-[11px]">
+<span class="text-primary/60 font-medium">Status</span>
+<span class="text-primary font-bold">Sent 1d ago</span>
+</div>
+<div class="w-full bg-primary/5 h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-2/3"></div>
+</div>
+</div>
+<button class="w-full bg-primary/5 hover:bg-primary/10 text-primary text-[11px] font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+                                    View Offer Details
+                                </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Action Bar (Floating for Mobile/Small Screens) -->
+<footer class="md:hidden fixed bottom-4 left-4 right-4 bg-white shadow-2xl border border-primary/10 rounded-2xl p-4 flex justify-between items-center z-50">
+<button class="p-3 bg-primary text-white rounded-full">
+<span class="material-symbols-outlined">add</span>
+</button>
+<div class="flex gap-4">
+<button class="p-3 text-primary/60"><span class="material-symbols-outlined">search</span></button>
+<button class="p-3 text-primary/60"><span class="material-symbols-outlined">filter_list</span></button>
+<button class="p-3 text-primary/60"><span class="material-symbols-outlined">account_circle</span></button>
+</div>
+</footer>
+</div>
+</div>
+<!-- Quick Move Stage Modal (Hidden by default) -->
+<div class="hidden fixed inset-0 bg-primary/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+<div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 border border-primary/10">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-bold">Move Stage: Sarah Jenkins</h3>
+<button class="text-primary/40 hover:text-primary"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div class="space-y-4">
+<div>
+<label class="block text-xs font-bold text-primary/50 uppercase mb-2">Target Stage</label>
+<select class="w-full rounded-lg border-primary/10 focus:ring-primary focus:border-primary text-sm font-medium">
+<option>Sourced</option>
+<option selected="">Recruiter Screening</option>
+<option>Shortlisted</option>
+<option>Interview Rounds</option>
+<option>Decision</option>
+<option>Offer</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-primary/50 uppercase mb-2">Add Note (Optional)</label>
+<textarea class="w-full rounded-lg border-primary/10 focus:ring-primary focus:border-primary text-sm min-h-[100px]" placeholder="Add a reason for moving this candidate..."></textarea>
+</div>
+<div class="flex gap-3 pt-4">
+<button class="flex-1 bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary/90">Confirm Move</button>
+<button class="flex-1 bg-primary/5 text-primary font-bold py-3 rounded-lg hover:bg-primary/10">Cancel</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enterprise ATS - Notifications</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec5b13",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#221610",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #472724;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased">
+<!-- Main Container -->
+<div class="relative flex h-screen w-full overflow-hidden bg-background-light dark:bg-background-dark">
+<!-- Sidebar (inspired by example) -->
+<aside class="flex w-64 flex-col bg-[#221311] text-white border-r border-[#472724]">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="size-8 bg-primary rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined">layers</span>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-tight">Enterprise ATS</h2>
+</div>
+<nav class="flex flex-col gap-2">
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#472724]">
+<span class="material-symbols-outlined text-white">dashboard</span>
+<p class="text-sm font-medium">Dashboard</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#472724]/50 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-slate-400">work</span>
+<p class="text-sm font-medium text-slate-300">Jobs</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#472724]/50 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-slate-400">group</span>
+<p class="text-sm font-medium text-slate-300">Candidates</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#472724]/50 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-slate-400">calendar_today</span>
+<p class="text-sm font-medium text-slate-300">Interviews</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#472724]/50 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-slate-400">bar_chart</span>
+<p class="text-sm font-medium text-slate-300">Reports</p>
+</div>
+</nav>
+</div>
+<div class="mt-auto p-4 border-t border-[#472724]">
+<div class="flex gap-3 items-center">
+<img alt="Admin Profile" class="size-10 rounded-full object-cover" data-alt="User profile avatar of HR administrator" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOLw98XGsg1Lfy1R2BSoL6ACL2liDxkU6lJZRtdE31HbKneo7mzKjIoH-4gyA1fLcasb57Wu8ekuZnaeq5jP5tD42Y3Nl3s_qdMGUQSbhir0EAHzhNUg4k961pXQJMoTbzV3akZfqAl87sRkjlYSqKt5_-SP5MHPhMs-R8dfHaDlJrP5aZEnUFXi9ElRViwtahRuuXgMw1rjEPUecgRjo7hhQ5TEI5fe3_ekCuYJCE6iKLHIbzy6V9zvjwvMeyEYfCXcYkVaqa92hY"/>
+<div class="flex flex-col">
+<h1 class="text-white text-sm font-semibold">ATS Admin</h1>
+<p class="text-[#c89893] text-xs">HR Management</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col relative">
+<!-- Top Navigation Bar -->
+<header class="flex h-16 items-center justify-between border-b border-slate-200 dark:border-[#472724] bg-white dark:bg-[#221311] px-8">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+<input class="w-full bg-slate-100 dark:bg-[#472724] border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white placeholder-slate-400" placeholder="Search candidates, jobs, or reports..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
+<span class="material-symbols-outlined text-lg">add</span>
+<span>Create Job</span>
+</button>
+<div class="flex items-center gap-1">
+<button class="relative p-2 rounded-xl bg-slate-100 dark:bg-[#472724] text-slate-600 dark:text-white hover:bg-slate-200 dark:hover:bg-[#5d322e] transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-primary rounded-full border-2 border-white dark:border-[#221311]"></span>
+</button>
+<button class="p-2 rounded-xl bg-slate-100 dark:bg-[#472724] text-slate-600 dark:text-white hover:bg-slate-200 dark:hover:bg-[#5d322e] transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Dashboard Background Content (Simplified) -->
+<div class="p-8 flex-1 overflow-y-auto">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h1 class="text-3xl font-bold text-slate-900 dark:text-white">Recruitment Overview</h1>
+<p class="text-slate-500 dark:text-slate-400 mt-1">Manage your active listings and upcoming interviews.</p>
+</div>
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">Live System Status</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="h-32 rounded-xl border border-slate-200 dark:border-[#472724] bg-white dark:bg-[#2c1916] p-4 flex flex-col justify-between">
+<p class="text-slate-500 text-sm font-medium">Active Jobs</p>
+<p class="text-3xl font-bold">24</p>
+</div>
+<div class="h-32 rounded-xl border border-slate-200 dark:border-[#472724] bg-white dark:bg-[#2c1916] p-4 flex flex-col justify-between">
+<p class="text-slate-500 text-sm font-medium">Total Candidates</p>
+<p class="text-3xl font-bold">1,402</p>
+</div>
+<div class="h-32 rounded-xl border border-slate-200 dark:border-[#472724] bg-white dark:bg-[#2c1916] p-4 flex flex-col justify-between">
+<p class="text-slate-500 text-sm font-medium">Interviews Today</p>
+<p class="text-3xl font-bold text-primary">8</p>
+</div>
+</div>
+</div>
+<!-- NOTIFICATION SLIDE-OVER (DRAWER) OVERLAY -->
+<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity"></div>
+<div class="absolute right-0 top-0 bottom-0 w-full max-w-[420px] bg-white dark:bg-[#221610] z-50 shadow-2xl flex flex-col border-l border-slate-200 dark:border-[#472724]">
+<!-- Panel Header -->
+<div class="p-6 border-b border-slate-200 dark:border-[#472724]">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            Notifications
+                            <span class="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">12</span>
+</h2>
+<div class="flex items-center gap-2">
+<button class="text-xs font-semibold text-primary hover:underline transition-all">Mark all as read</button>
+<button class="p-1 hover:bg-slate-100 dark:hover:bg-[#472724] rounded-lg transition-colors">
+<span class="material-symbols-outlined text-xl">close</span>
+</button>
+</div>
+</div>
+<!-- Tab Navigation -->
+<div class="flex gap-4 border-b border-slate-100 dark:border-[#331d1a]">
+<button class="pb-3 text-sm font-bold text-primary border-b-2 border-primary">All</button>
+<button class="pb-3 text-sm font-medium text-slate-500 dark:text-slate-400 border-b-2 border-transparent hover:text-slate-700 dark:hover:text-white transition-colors">Action Required</button>
+<button class="pb-3 text-sm font-medium text-slate-500 dark:text-slate-400 border-b-2 border-transparent hover:text-slate-700 dark:hover:text-white transition-colors">Updates</button>
+<button class="pb-3 text-sm font-medium text-slate-500 dark:text-slate-400 border-b-2 border-transparent hover:text-slate-700 dark:hover:text-white transition-colors">System</button>
+</div>
+</div>
+<!-- Notification List Content -->
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<!-- Section: Action Required -->
+<div class="px-6 py-4">
+<h3 class="text-[11px] font-bold text-slate-400 dark:text-[#c89893] uppercase tracking-wider mb-3">Action Required</h3>
+<div class="space-y-3">
+<!-- Card: Feedback Pending -->
+<div class="group relative bg-slate-50 dark:bg-[#2c1916] rounded-xl p-4 border border-slate-100 dark:border-[#472724] hover:border-primary/50 dark:hover:border-primary/50 transition-all cursor-pointer">
+<div class="absolute left-0 top-4 bottom-4 w-1 bg-primary rounded-r"></div>
+<div class="flex gap-3">
+<div class="flex-shrink-0 mt-1">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">rate_review</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-semibold text-slate-900 dark:text-white leading-tight">Interview feedback pending for <span class="text-primary">Alex Rivera</span></p>
+<span class="text-[10px] font-medium text-slate-400">2m ago</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-[#c89893] mt-1">Senior Frontend Engineer Role • Round 2</p>
+<div class="flex gap-2 mt-3">
+<button class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg font-bold hover:bg-primary/90 transition-colors">Write Feedback</button>
+<button class="text-xs bg-slate-200 dark:bg-[#472724] text-slate-700 dark:text-white px-3 py-1.5 rounded-lg font-bold hover:bg-slate-300 dark:hover:bg-[#5d322e] transition-colors">Postpone</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Card: Approval Needed -->
+<div class="group relative bg-slate-50 dark:bg-[#2c1916] rounded-xl p-4 border border-slate-100 dark:border-[#472724] hover:border-primary/50 dark:hover:border-primary/50 transition-all cursor-pointer">
+<div class="absolute left-0 top-4 bottom-4 w-1 bg-primary rounded-r"></div>
+<div class="flex gap-3">
+<div class="flex-shrink-0 mt-1">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">verified_user</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-semibold text-slate-900 dark:text-white leading-tight">HR Approval needed for <span class="text-primary">Senior DevOps Engineer</span> role</p>
+<span class="text-[10px] font-medium text-slate-400">1h ago</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-[#c89893] mt-1">Pending budget sign-off for Q3 hiring plan.</p>
+<div class="flex gap-2 mt-3">
+<button class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg font-bold">Approve</button>
+<button class="text-xs bg-slate-200 dark:bg-[#472724] text-slate-700 dark:text-white px-3 py-1.5 rounded-lg font-bold">Review Req</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: Updates -->
+<div class="px-6 py-4">
+<h3 class="text-[11px] font-bold text-slate-400 dark:text-[#c89893] uppercase tracking-wider mb-3">Updates</h3>
+<div class="space-y-4">
+<!-- Card: New Application -->
+<div class="flex gap-3 hover:bg-slate-50 dark:hover:bg-[#2c1916]/50 p-2 rounded-xl transition-colors cursor-pointer group">
+<div class="flex-shrink-0 relative">
+<img alt="Candidate" class="size-10 rounded-full object-cover grayscale group-hover:grayscale-0 transition-all" data-alt="Candidate profile picture for new applicant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4YB_vtiWA1DOTQl200JDfxwkcc_UsE1QQyFK6BqsMnerd4-_1f8KJu-jBLPVUNLY1WeRgTvoruD4x042GEh9JE-bTAPlK3giKz4WhhP_Gx08iMmcXKo_L6RKHjYqFcpB8Nt88D6JLglJLGvLIikLH4yU79VSLhQ5wiwbgfc8wJ0tNOLx0DQVZanizyGDkU6ZuL1qyKeppjvsXJOcBfnYCtgS4WgfXsLLxM4Eyv9bJ9wTDn_xkL5D8ZhXR0erLskTHOYqtJ9_j8Z0I"/>
+<div class="absolute -bottom-1 -right-1 size-4 bg-green-500 border-2 border-white dark:border-[#221610] rounded-full"></div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-medium text-slate-900 dark:text-white">New candidate applied for <span class="font-bold">Backend Developer</span> role</p>
+<span class="text-[10px] font-medium text-slate-400">3h ago</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-[#c89893]">Jordan Smith • 8+ years experience</p>
+</div>
+</div>
+<!-- Card: Reschedule -->
+<div class="flex gap-3 hover:bg-slate-50 dark:hover:bg-[#2c1916]/50 p-2 rounded-xl transition-colors cursor-pointer group">
+<div class="flex-shrink-0 relative">
+<img alt="Amelia Vance" class="size-10 rounded-full object-cover" data-alt="Candidate profile picture for rescheduled interview" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTJehzoUoxTp1tz_ReA0hNEiyE8W1IbN1eoLbtrJQHz4aKda-w1cWN2rPhFSgT_nJjhbuI-39fqh8axJSYfWBglER1jCUelQFnVGMovElwO7lYPWAw6tjlH36rXkkOiPUXsF4EWmLUPJpGxr8lhBhB7p8FIev_hVN1iRZtTqtfpxsMXa0P0oOq_a6s6ybmUvDK_TNe2ZdJpl70rsAyPw__0XEZzxTlQd0aPJNF-rJ_wMy-Ye-1qGdkHUga77awZZYq4s3v5D3IvUjH"/>
+<div class="absolute -bottom-1 -right-1 size-4 bg-amber-500 border-2 border-white dark:border-[#221610] rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-white">schedule</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-medium text-slate-900 dark:text-white"><span class="font-bold">Amelia Vance</span> rescheduled her interview</p>
+<span class="text-[10px] font-medium text-slate-400">5h ago</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-[#c89893]">Moved to tomorrow, 10:30 AM</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: System -->
+<div class="px-6 py-4">
+<h3 class="text-[11px] font-bold text-slate-400 dark:text-[#c89893] uppercase tracking-wider mb-3">System</h3>
+<div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex gap-3">
+<div class="flex-shrink-0 text-amber-500">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-bold text-amber-800 dark:text-amber-500">SLA Warning: Job Req #4402</p>
+<span class="text-[10px] font-medium text-amber-600/60">12h ago</span>
+</div>
+<p class="text-xs text-amber-700 dark:text-amber-500/80 mt-1 leading-relaxed">This requisition has been open for 45 days with no active candidate movements. Action is required to meet Q2 targets.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Panel Footer -->
+<div class="p-4 border-t border-slate-200 dark:border-[#472724] bg-slate-50 dark:bg-[#2c1916]">
+<button class="w-full bg-primary text-white py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all">
+                        View all notifications
+                    </button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

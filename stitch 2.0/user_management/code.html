@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<title>Enterprise ATS - User Management</title>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 font-display">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 bg-primary text-white flex flex-col shrink-0">
+<div class="p-6 flex items-center gap-3">
+<div class="size-10 bg-white/10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white">corporate_fare</span>
+</div>
+<div>
+<h1 class="text-sm font-bold leading-none">Enterprise ATS</h1>
+<p class="text-xs text-white/60 mt-1 uppercase tracking-wider">Admin Console</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:bg-white/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:bg-white/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">work</span>
+<span class="text-sm font-medium">Jobs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:bg-white/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-sm font-medium">Candidates</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:bg-white/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="text-sm font-medium">Reports</span>
+</a>
+<div class="pt-4 pb-2">
+<p class="px-3 text-[10px] font-bold text-white/40 uppercase tracking-widest">System</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 bg-white/10 text-white rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-4 mt-auto border-t border-white/10">
+<div class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer">
+<div class="size-8 rounded-full bg-primary/40 border border-white/20 bg-cover bg-center" data-alt="User profile avatar circle" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuApZwSdc-Su76FaxOZqIS2gPUZpMg-8z5iGLFTxbYJdxTK4CCzZz6XQRr5CnQGfJ-eXi7pqtsGb4Kjk4eZbPi627mgIejgFZs89_6xu5b_oePP5I5zXgRmxBW6qow2I9LuQIk2fugXBm6fLyTdX9DXpDb4knrbCJO3hn9-m5b6yk3aEex2bUGlKbOzGf6lfAjMyBaiDTWO92r38W_3hTWW6ct7Lnx-XU08YdsqCoDlBRFwQpY8kY0jNiwwR4DO4tXx0IUjnZ9dbyHK8')"></div>
+<div class="flex-1 overflow-hidden">
+<p class="text-xs font-bold truncate">Alexander Wright</p>
+<p class="text-[10px] text-white/60 truncate">alex.w@enterprise.com</p>
+</div>
+<span class="material-symbols-outlined text-white/40 text-sm">unfold_more</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+<!-- Top Header Navigation -->
+<header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+<div class="flex items-center gap-4">
+<nav class="flex text-sm text-slate-500 gap-2 items-center">
+<span>Settings</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-slate-900 font-medium">User Management</span>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+<input class="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary/20" placeholder="Search team members..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="size-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="size-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Scrollable Area -->
+<main class="flex-1 overflow-y-auto p-8">
+<div class="max-w-6xl mx-auto">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">User Administration</h2>
+<p class="text-slate-500 mt-1">Manage your team's access levels, roles, and security permissions.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 border border-slate-200 bg-white text-slate-700 font-semibold rounded-lg text-sm flex items-center gap-2 hover:bg-slate-50">
+<span class="material-symbols-outlined text-lg">download</span>
+                            Export
+                        </button>
+<button class="px-4 py-2 bg-primary text-white font-semibold rounded-lg text-sm flex items-center gap-2 hover:bg-primary/90 shadow-sm">
+<span class="material-symbols-outlined text-lg">person_add</span>
+                            Invite New User
+                        </button>
+</div>
+</div>
+<!-- Tabs -->
+<div class="border-b border-slate-200 mb-6">
+<div class="flex gap-8">
+<a class="pb-4 text-sm font-bold text-primary border-b-2 border-primary flex items-center gap-2" href="#">
+                            Team Members
+                            <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold">42</span>
+</a>
+<a class="pb-4 text-sm font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-700 transition-colors flex items-center gap-2" href="#">
+                            Roles &amp; Permissions
+                        </a>
+<a class="pb-4 text-sm font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-700 transition-colors flex items-center gap-2" href="#">
+                            Audit Logs
+                        </a>
+</div>
+</div>
+<!-- Content Area: Team Members Table -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+<div class="flex gap-4">
+<select class="text-sm border-slate-200 rounded-lg py-1.5 focus:ring-primary/20">
+<option>All Roles</option>
+<option>Administrator</option>
+<option>HR Manager</option>
+<option>Recruiter</option>
+</select>
+<select class="text-sm border-slate-200 rounded-lg py-1.5 focus:ring-primary/20">
+<option>All Statuses</option>
+<option>Active</option>
+<option>Pending</option>
+<option>Disabled</option>
+</select>
+</div>
+<p class="text-xs text-slate-500 font-medium italic">Showing 1-10 of 42 users</p>
+</div>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+<th class="px-6 py-4">User Details</th>
+<th class="px-6 py-4">Role</th>
+<th class="px-6 py-4">Department</th>
+<th class="px-6 py-4">Status</th>
+<th class="px-6 py-4">Last Login</th>
+<th class="px-6 py-4 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<!-- User 1 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-slate-200 bg-cover bg-center border border-slate-100" data-alt="Avatar of Sarah Jenkins" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDZoypdtL3Rg2JX8hZV60Pa4UbtuItIGh_3y_ogABz85_NXLokCoVDwUqeJwavu2thNC4ApY8V-a_YHhDF2gF6LL3ABmLysYj34XdQZTCHSLIW8NY6M4aMQ_foTpMjTb_5Kf6LKZmruVQu0NFv3Wh6wwHZO6PshjNkDpswlTABkQDnU2smggo2JT_BfBVeAZ2EAhUu2Jmu_TZaSW6SEQHNM73RU89gLmg2NAitRfJdRfkvZJszhWqQZR5h-E9JKLB1dssV8PYmzh0X6')"></div>
+<div>
+<p class="text-sm font-bold text-slate-900 leading-none">Sarah Jenkins</p>
+<p class="text-xs text-slate-500 mt-1">sarah.j@enterprise.com</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm font-medium text-slate-700">Administrator</span>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm text-slate-600">Operations</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-500">
+                                    2 hours ago
+                                </td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- User 2 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-slate-200 bg-cover bg-center border border-slate-100" data-alt="Avatar of Michael Chen" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCcI4UZiX4BLiPMtzgp79Hmj5rSyOo1OUcblEA2KkU8SOsLylXDjxWK87PYbYaq_6Fl-ew6R3CQTu7RjRqrOEZE6UcbdBmlbx2MY2JdH0VDIVr82h8DeeztvjbfkFIDqLXMMUGvze_lSPLotApgsNBekrKryFI4cSi9o3HSSZdTcc-7jzbvCE_ZB3mZ5B6pVpVFoFFujEbI138UOpK4PO_5WbfZYjSGZ3SbDMYPJqUAzk7Ji4GFzXxAzJlcq7uC5JTq2O1jLAMoa1TW')"></div>
+<div>
+<p class="text-sm font-bold text-slate-900 leading-none">Michael Chen</p>
+<p class="text-xs text-slate-500 mt-1">m.chen@enterprise.com</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm font-medium text-slate-700">HR Manager</span>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm text-slate-600">Human Resources</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-500">
+                                    Yesterday, 4:12 PM
+                                </td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- User 3 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-slate-200 bg-cover bg-center border border-slate-100" data-alt="Avatar of Emily Davis" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCKZfBD-KP4eKiVnDy3DQJn4v2CHptRUEfJjaRl325dOoi-tFysytI3Lchp7ez_gVd6PoiOAQvlooriCfsG6Tl_QJkeNEBMjtxnXUmEjHUY_do7sMGeMjmD4tw8ftpFxJNrQqeoVWDCmYc-6OWBmLRDlVWNYqG4Ne6oJ5vCimP5Lyf5Hviwb9oCVapANp9m5-ri3WA_3QV6UzvSzw4_yh3n4__0AUD0NTGwKbBFZ0y81DTkpqSSBDgzyS3WBcbs-fEjc0nFTQtBbOMz')"></div>
+<div>
+<p class="text-sm font-bold text-slate-900 leading-none">Emily Davis</p>
+<p class="text-xs text-slate-500 mt-1">e.davis@enterprise.com</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm font-medium text-slate-700">Recruiter</span>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm text-slate-600">Talent Acquisition</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-100">
+<span class="size-1.5 rounded-full bg-amber-500"></span>
+                                        Pending
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400 italic">
+                                    Never logged in
+                                </td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- User 4 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-slate-200 bg-cover bg-center border border-slate-100" data-alt="Avatar of Robert Wilson" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC_vYLiqCfXmXasFt0rKBl2fDmVgVVlpbN15BuQnoQv4feomMe0x7SVlHhbussB7KV2KizVc60kEQNl0WbIUxcRkTjcL0k0OgKIM6iawCUU-LGDxSKV1i7bKMdR8Do7ebvEQoFIZQOXthuNSkXxNUVVTFuqFOJVrOJLu4-r-kxK0TRAZEgX7SxUYkH23Q2JS8gjTg698_QxYgq6csMsmhohPPTmpP3_Nvon3FqoemQ40wqnfoUaM2N30OQyi0YCE1v1UQPEiLX9KzzI')"></div>
+<div>
+<p class="text-sm font-bold text-slate-900 leading-none">Robert Wilson</p>
+<p class="text-xs text-slate-500 mt-1">r.wilson@enterprise.com</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm font-medium text-slate-700">Interviewer</span>
+</td>
+<td class="px-6 py-4">
+<span class="text-sm text-slate-600">Engineering</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-600 border border-slate-200">
+<span class="size-1.5 rounded-full bg-slate-400"></span>
+                                        Disabled
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-500">
+                                    Jan 15, 2024
+                                </td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="px-6 py-4 border-t border-slate-200 bg-slate-50/30 flex items-center justify-between">
+<button class="px-3 py-1 text-xs font-bold text-slate-600 hover:text-primary transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">chevron_left</span> Previous
+                        </button>
+<div class="flex gap-1">
+<button class="size-8 rounded flex items-center justify-center text-xs font-bold bg-primary text-white">1</button>
+<button class="size-8 rounded flex items-center justify-center text-xs font-bold text-slate-600 hover:bg-slate-200">2</button>
+<button class="size-8 rounded flex items-center justify-center text-xs font-bold text-slate-600 hover:bg-slate-200">3</button>
+<span class="px-2">...</span>
+<button class="size-8 rounded flex items-center justify-center text-xs font-bold text-slate-600 hover:bg-slate-200">5</button>
+</div>
+<button class="px-3 py-1 text-xs font-bold text-slate-600 hover:text-primary transition-colors flex items-center gap-1">
+                            Next <span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Role Highlights Grid -->
+<div class="mt-12 mb-6">
+<h3 class="text-lg font-bold text-slate-900 mb-4">Quick Access: Active Roles</h3>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">admin_panel_settings</span>
+<span class="text-xs font-bold text-slate-400">03 Users</span>
+</div>
+<h4 class="font-bold text-slate-900">Admins</h4>
+<p class="text-xs text-slate-500 mt-1">Full system access and configurations.</p>
+</div>
+<div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">assignment_ind</span>
+<span class="text-xs font-bold text-slate-400">08 Users</span>
+</div>
+<h4 class="font-bold text-slate-900">HR Managers</h4>
+<p class="text-xs text-slate-500 mt-1">Manage team members and job pipelines.</p>
+</div>
+<div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">search_check</span>
+<span class="text-xs font-bold text-slate-400">14 Users</span>
+</div>
+<h4 class="font-bold text-slate-900">Recruiters</h4>
+<p class="text-xs text-slate-500 mt-1">Source candidates and manage interviews.</p>
+</div>
+<div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-dashed flex flex-col items-center justify-center text-slate-400 hover:text-primary hover:border-primary cursor-pointer transition-all">
+<span class="material-symbols-outlined mb-1">add_circle</span>
+<span class="text-sm font-bold">New Role</span>
+</div>
+</div>
+</div>
+<!-- Recent Activity / Audit Log Preview -->
+<div class="mt-8 mb-12">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-bold text-slate-900">Recent System Audit Logs</h3>
+<a class="text-xs font-bold text-primary hover:underline" href="#">View All Activity</a>
+</div>
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+<div class="px-6 py-4 flex items-start gap-4">
+<div class="size-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-blue-600 text-lg">edit</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-medium text-slate-900">
+<span class="font-bold">Sarah Jenkins</span> changed the role of <span class="font-bold">Emily Davis</span> from <span class="text-slate-500 italic">Unassigned</span> to <span class="font-bold text-primary">Recruiter</span>.
+                                </p>
+<p class="text-xs text-slate-400 mt-1">Today at 10:45 AM • IP: 192.168.1.1</p>
+</div>
+</div>
+<div class="px-6 py-4 flex items-start gap-4">
+<div class="size-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-amber-600 text-lg">person_add</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-medium text-slate-900">
+                                    New invitation sent to <span class="font-bold">r.wilson@enterprise.com</span> by <span class="font-bold">Alexander Wright</span>.
+                                </p>
+<p class="text-xs text-slate-400 mt-1">Yesterday at 3:30 PM • IP: 192.168.1.5</p>
+</div>
+</div>
+<div class="px-6 py-4 flex items-start gap-4">
+<div class="size-8 rounded-lg bg-rose-50 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-rose-600 text-lg">lock_reset</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-medium text-slate-900">
+                                    Password reset requested for <span class="font-bold">Michael Chen</span>.
+                                </p>
+<p class="text-xs text-slate-400 mt-1">Jan 22, 2024 at 11:20 AM • System Generated</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Side Slide-over Drawer (Invite User - Hidden/Illustrative) -->
+<!-- This would normally be toggled with JS, shown here as a layout reference -->
+<div class="fixed inset-y-0 right-0 w-[400px] bg-white shadow-2xl border-l border-slate-200 z-50 transform translate-x-full hidden">
+<div class="h-full flex flex-col">
+<div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+<h3 class="font-bold text-slate-900">Invite New Team Member</h3>
+<button class="material-symbols-outlined text-slate-400 hover:text-slate-600">close</button>
+</div>
+<div class="p-6 flex-1 space-y-6 overflow-y-auto">
+<div>
+<label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
+<input class="w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="e.g. John Doe" type="text"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Work Email</label>
+<input class="w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="john.d@enterprise.com" type="email"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Assigned Role</label>
+<select class="w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary">
+<option>Select a role...</option>
+<option>Administrator</option>
+<option>HR Manager</option>
+<option>Recruiter</option>
+<option>Interviewer</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Department</label>
+<select class="w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary">
+<option>Select department...</option>
+<option>Engineering</option>
+<option>Sales</option>
+<option>Human Resources</option>
+<option>Operations</option>
+</select>
+</div>
+<div class="pt-4 border-t border-slate-100">
+<p class="text-xs text-slate-500 leading-relaxed italic">
+                        An invitation email will be sent to the user with a temporary password and instructions to complete their profile.
+                    </p>
+</div>
+</div>
+<div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex gap-3">
+<button class="flex-1 py-2.5 bg-primary text-white font-bold rounded-lg shadow-sm hover:bg-primary/90 transition-all">Send Invitation</button>
+<button class="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-100 transition-all">Cancel</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

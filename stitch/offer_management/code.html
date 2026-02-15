@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HR Secure | Offer Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a2b3c",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#15191d",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-primary font-display">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between border-b border-primary/10 bg-white px-8 py-3 sticky top-0 z-50">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<div class="bg-primary text-white p-1.5 rounded">
+<span class="material-symbols-outlined text-2xl">shield_person</span>
+</div>
+<h1 class="text-primary text-lg font-bold tracking-tight">HR Secure <span class="font-normal text-primary/60 mx-1">|</span> Offer Management</h1>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-primary/70 hover:text-primary text-sm font-medium transition-colors" href="#">Dashboard</a>
+<a class="text-primary/70 hover:text-primary text-sm font-medium transition-colors" href="#">Candidates</a>
+<a class="text-primary font-semibold text-sm border-b-2 border-primary pb-1" href="#">Offers</a>
+<a class="text-primary/70 hover:text-primary text-sm font-medium transition-colors" href="#">Headcount</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden lg:flex items-center bg-primary/5 border border-primary/10 rounded-lg px-3 py-1.5">
+<span class="material-symbols-outlined text-primary/40 text-sm mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-48 placeholder:text-primary/40" placeholder="Search candidates..." type="text"/>
+</div>
+<div class="flex items-center gap-2 border-l border-primary/10 pl-4">
+<button class="p-2 text-primary/60 hover:bg-primary/5 rounded-full relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+</button>
+<div class="flex items-center gap-3 ml-2">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-primary">Sarah Jenkins</p>
+<p class="text-[10px] text-primary/60 uppercase tracking-wider font-semibold">HR Manager</p>
+</div>
+<img alt="User profile" class="w-10 h-10 rounded-full object-cover border-2 border-primary/10" data-alt="Professional portrait of an HR Manager" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAX2VXCNr61cmAEE_xH5og08IMykXp-9qNrtkq4wCOnKBg3DewWNk-l0EEZ30kK128-XtEVJrItLXnID5nQ7cdTM1FB8fKEEzNiSSgn0BBR8FdVpjo3lWe1T389aRnf5sjsvJWYI0K2Q-wmt57uFsDLktUisbGvBNyLTT-jBxzOV7zzHkJk136PoSanODRbK4b462Vl_jM7VXvcIFJYY8m0Nl1YjWi1EUklwIM447mr8UDUBtqhZFXzAzSSCXqg--oK6qFtOMnc8A8v"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-[1400px] mx-auto p-6 lg:p-10">
+<!-- Breadcrumbs & Status Banner -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-xs font-medium text-primary/50 uppercase tracking-widest">
+<span>Recruitment</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span>Executive Offers</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary">Alex Rivera</span>
+</div>
+<h2 class="text-3xl font-black text-primary tracking-tight">Offer Package: Alex Rivera</h2>
+<p class="text-primary/60 font-medium">Senior Software Engineer • Engineering Dept • Headcount ID: #ENG-2024-042</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-sm font-semibold">
+<span class="material-symbols-outlined text-lg">verified_user</span>
+                    Headcount Validation Pending
+                </div>
+<button class="bg-primary text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+                    Request Approval
+                </button>
+</div>
+</div>
+<!-- Progress Tracker -->
+<div class="bg-white border border-primary/10 rounded-xl p-6 mb-8 shadow-sm">
+<div class="flex items-center justify-between relative">
+<!-- Line -->
+<div class="absolute top-1/2 left-0 w-full h-0.5 bg-primary/5 -translate-y-1/2 z-0"></div>
+<div class="absolute top-1/2 left-0 w-1/4 h-0.5 bg-primary -translate-y-1/2 z-0"></div>
+<!-- Steps -->
+<div class="relative z-10 flex flex-col items-center bg-white px-4">
+<div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center mb-2 shadow-md">
+<span class="material-symbols-outlined text-lg">check</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-tighter text-primary">Draft</span>
+<span class="text-[10px] text-primary/40">Jan 10, 2024</span>
+</div>
+<div class="relative z-10 flex flex-col items-center bg-white px-4">
+<div class="w-10 h-10 rounded-full bg-white border-2 border-primary text-primary flex items-center justify-center mb-2 ring-4 ring-primary/5">
+<span class="material-symbols-outlined text-lg">hourglass_empty</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-tighter text-primary">Validation</span>
+<span class="text-[10px] text-primary/40">In Progress</span>
+</div>
+<div class="relative z-10 flex flex-col items-center bg-white px-4 opacity-40">
+<div class="w-10 h-10 rounded-full bg-white border-2 border-primary/20 text-primary/40 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-lg">send</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-tighter">Sent</span>
+<span class="text-[10px]">--</span>
+</div>
+<div class="relative z-10 flex flex-col items-center bg-white px-4 opacity-40">
+<div class="w-10 h-10 rounded-full bg-white border-2 border-primary/20 text-primary/40 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-lg">forum</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-tighter">Negotiation</span>
+<span class="text-[10px]">--</span>
+</div>
+<div class="relative z-10 flex flex-col items-center bg-white px-4 opacity-40">
+<div class="w-10 h-10 rounded-full bg-white border-2 border-primary/20 text-primary/40 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-lg">assignment_turned_in</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-tighter">Accepted</span>
+<span class="text-[10px]">--</span>
+</div>
+</div>
+</div>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Left Column: Financial Data & Document -->
+<div class="lg:col-span-8 space-y-8">
+<!-- Financial Summary Cards -->
+<section>
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary/60">payments</span>
+                            Compensation Details
+                        </h3>
+<span class="text-xs font-bold text-primary/40 uppercase bg-primary/5 px-2 py-1 rounded">Locked for Editing</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-white border border-primary/10 p-6 rounded-xl shadow-sm hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-2">
+<p class="text-sm font-medium text-primary/60">Annual Base Salary</p>
+<span class="material-symbols-outlined text-primary/30 text-sm">info</span>
+</div>
+<p class="text-2xl font-black text-primary tracking-tight">$185,000</p>
+<p class="text-xs text-green-600 font-bold mt-1">+12% vs. Market Avg</p>
+</div>
+<div class="bg-white border border-primary/10 p-6 rounded-xl shadow-sm hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-2">
+<p class="text-sm font-medium text-primary/60">Equity (RSUs)</p>
+<span class="material-symbols-outlined text-primary/30 text-sm">info</span>
+</div>
+<p class="text-2xl font-black text-primary tracking-tight">2,500 Units</p>
+<p class="text-xs text-primary/40 font-bold mt-1">4-Year Vesting Schedule</p>
+</div>
+<div class="bg-white border border-primary/10 p-6 rounded-xl shadow-sm hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-2">
+<p class="text-sm font-medium text-primary/60">Signing Bonus</p>
+<span class="material-symbols-outlined text-primary/30 text-sm">info</span>
+</div>
+<p class="text-2xl font-black text-primary tracking-tight">$25,000</p>
+<p class="text-xs text-primary/40 font-bold mt-1">One-time Payment</p>
+</div>
+</div>
+</section>
+<!-- Document Preview -->
+<section class="bg-white border border-primary/10 rounded-xl overflow-hidden shadow-sm">
+<div class="bg-primary/5 px-6 py-4 border-b border-primary/10 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary/60">description</span>
+<h3 class="font-bold text-sm">Offer Letter Preview</h3>
+</div>
+<div class="flex gap-2">
+<button class="text-primary/60 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl">file_download</span>
+</button>
+<button class="text-primary/60 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl">print</span>
+</button>
+</div>
+</div>
+<div class="p-10 bg-gray-100/50 flex justify-center">
+<div class="bg-white w-full max-w-[600px] shadow-2xl p-12 min-h-[800px] border border-gray-200">
+<div class="flex justify-between items-start mb-12">
+<div class="w-12 h-12 bg-primary flex items-center justify-center text-white rounded">
+<span class="material-symbols-outlined">corporate_fare</span>
+</div>
+<div class="text-right text-[10px] text-primary/60 uppercase leading-relaxed">
+<p>HR Secure Corporate</p>
+<p>One Financial Plaza</p>
+<p>New York, NY 10004</p>
+</div>
+</div>
+<div class="space-y-6 text-sm text-primary leading-relaxed">
+<p class="font-bold">January 12, 2024</p>
+<p>Dear Alex Rivera,</p>
+<p>We are delighted to extend this offer for the position of <span class="font-bold">Senior Software Engineer</span> with HR Secure. Your background and technical expertise are an excellent match for our Engineering team.</p>
+<p>Should you accept this offer, your annual base salary will be <span class="font-bold">$185,000</span>, payable in accordance with our standard payroll cycle. Additionally, you will be eligible for a grant of <span class="font-bold">2,500 RSUs</span> and a one-time signing bonus of <span class="font-bold">$25,000</span>.</p>
+<p>Your expected start date is February 1, 2024. This offer is contingent upon successful completion of headcount validation and background screening.</p>
+<div class="pt-12">
+<p>Sincerely,</p>
+<div class="mt-8 border-b border-primary/20 w-48 pb-2">
+<p class="italic font-serif text-lg">Sarah Jenkins</p>
+</div>
+<p class="mt-2 text-xs font-bold uppercase tracking-widest opacity-60">Director of Human Resources</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Internal Notes & Audit -->
+<div class="lg:col-span-4 space-y-8">
+<!-- Internal Negotiation Notes (HR ONLY) -->
+<section class="bg-primary/5 border border-primary/10 rounded-xl p-6 flex flex-col h-full min-h-[600px]">
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-lg font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary/60">lock</span>
+                            Internal Notes
+                        </h3>
+<span class="text-[10px] bg-primary text-white px-2 py-0.5 rounded font-bold uppercase tracking-widest">HR Private</span>
+</div>
+<div class="flex-1 space-y-4 overflow-y-auto mb-6 pr-2">
+<div class="bg-white p-4 rounded-lg shadow-sm border border-primary/5">
+<div class="flex justify-between items-start mb-2">
+<p class="text-xs font-bold text-primary">Sarah Jenkins</p>
+<p class="text-[10px] text-primary/40">Jan 10, 14:22</p>
+</div>
+<p class="text-xs text-primary/80 leading-relaxed">Candidate mentioned competing offer from TechGlobal. Base salary is $5k higher there, but our equity package is stronger.</p>
+</div>
+<div class="bg-white p-4 rounded-lg shadow-sm border border-primary/5">
+<div class="flex justify-between items-start mb-2">
+<p class="text-xs font-bold text-primary">Mark Thompson (VP Eng)</p>
+<p class="text-[10px] text-primary/40">Jan 11, 09:15</p>
+</div>
+<p class="text-xs text-primary/80 leading-relaxed">Approval granted for signing bonus increase from $15k to $25k to close the deal. High priority hire.</p>
+</div>
+<div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+<div class="flex justify-between items-start mb-2">
+<p class="text-xs font-bold text-blue-800">System Activity</p>
+<p class="text-[10px] text-blue-400">Jan 11, 11:30</p>
+</div>
+<p class="text-xs text-blue-700 leading-relaxed italic">Offer status updated from "Draft" to "Awaiting Validation".</p>
+</div>
+</div>
+<div class="mt-auto">
+<label class="block text-[10px] font-bold uppercase tracking-widest text-primary/40 mb-2">Add Secure Note</label>
+<textarea class="w-full bg-white border-primary/10 rounded-lg text-sm focus:ring-primary focus:border-primary placeholder:text-primary/20" placeholder="Type internal note..." rows="3"></textarea>
+<button class="mt-3 w-full bg-primary/10 text-primary font-bold py-2 rounded-lg text-xs hover:bg-primary/20 transition-all">
+                            Save Private Note
+                        </button>
+</div>
+</section>
+<!-- Activity & Audit Trail -->
+<section class="bg-white border border-primary/10 rounded-xl p-6 shadow-sm">
+<h3 class="text-sm font-bold flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary/60 text-lg">history</span>
+                        Audit Log
+                    </h3>
+<div class="space-y-4">
+<div class="flex gap-3">
+<div class="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></div>
+<div>
+<p class="text-xs text-primary font-medium">Headcount request submitted</p>
+<p class="text-[10px] text-primary/40">2 hours ago by Sarah Jenkins</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
+<div>
+<p class="text-xs text-primary font-medium">Equity values modified</p>
+<p class="text-[10px] text-primary/40">Yesterday at 4:30 PM</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="w-1.5 h-1.5 rounded-full bg-gray-300 mt-1.5 shrink-0"></div>
+<div>
+<p class="text-xs text-primary font-medium">Offer record created</p>
+<p class="text-[10px] text-primary/40">Jan 10, 2024</p>
+</div>
+</div>
+</div>
+<button class="mt-6 w-full text-center text-xs font-bold text-primary/60 hover:text-primary underline">View Full Audit Trail</button>
+</section>
+<!-- Secure Link Generator (For Recruiters) -->
+<section class="bg-slate-800 text-white rounded-xl p-6 shadow-xl">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-slate-400">link</span>
+<h3 class="text-sm font-bold uppercase tracking-wider">External View Access</h3>
+</div>
+<p class="text-xs text-slate-400 leading-relaxed mb-4">Generate a restricted, read-only link for recruitment partners. Financial editing is disabled in this view.</p>
+<div class="flex items-center bg-slate-700 rounded-lg p-2 border border-slate-600">
+<input class="bg-transparent border-none focus:ring-0 text-xs text-slate-300 flex-1" readonly="" type="text" value="hr-secure.co/v/4a92b..."/>
+<button class="bg-primary text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-primary/80 transition-all">COPY LINK</button>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- Footer Security Notice -->
+<footer class="max-w-[1400px] mx-auto px-10 py-8 border-t border-primary/5 flex flex-col md:flex-row justify-between items-center gap-4 text-primary/40">
+<div class="flex items-center gap-2 text-xs">
+<span class="material-symbols-outlined text-sm">lock</span>
+<span>AES-256 Encrypted Session</span>
+<span class="mx-2">•</span>
+<span>GDPR/CCPA Compliant</span>
+</div>
+<div class="flex items-center gap-6 text-[10px] font-bold uppercase tracking-widest">
+<a class="hover:text-primary transition-colors" href="#">Security Policy</a>
+<a class="hover:text-primary transition-colors" href="#">Privacy Center</a>
+<a class="hover:text-primary transition-colors" href="#">Help &amp; Documentation</a>
+</div>
+</footer>
+</body></html>
