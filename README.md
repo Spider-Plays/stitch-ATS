@@ -46,8 +46,14 @@ Open [http://localhost:3000](http://localhost:3000).
 1. Set `DATABASE_URL` (Neon), `JWT_SECRET`, `CLIENT_ORIGIN` on Render
 2. **Build command** (no demo seed):  
    `npm install && npx prisma generate && npm run build && npx prisma db push`
-3. Run once on Render Shell after deploy:  
-   `npm run db:bootstrap` with your admin env vars
+3. Clear Neon data (free — no Render Shell):  
+   - **Option A:** Neon Console → **SQL Editor** → paste `server/prisma/clear-all.sql` → Run  
+   - **Option B:** On your PC, set `DATABASE_URL` in `server/.env` to your Neon string, then `npm run db:clear --prefix server`  
+4. Create your admin from your PC:  
+   ```bash
+   cd server
+   # ADMIN_EMAIL=... ADMIN_PASSWORD=... ADMIN_NAME=... npm run db:bootstrap
+   ```
 4. Netlify serves the React app; `netlify.toml` proxies `/api` to Render
 
 ## Project layout
