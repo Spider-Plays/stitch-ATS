@@ -15,6 +15,14 @@ export const app = express()
 app.use(cors({ origin: env.clientOrigin, credentials: true }))
 app.use(express.json())
 
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'Stitch ATS API',
+    health: '/api/health',
+    hint: 'Open your Netlify site for the app UI — this URL is the API only.',
+  })
+})
+
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true })
 })
