@@ -32,7 +32,8 @@ export const api = {
         create: userService.create,
         update: userService.update,
         updateRole: userService.updateRole,
-        toggleStatus: userService.toggleStatus
+        toggleStatus: userService.toggleStatus,
+        invite: userService.invite
     },
     interviews: {
         list: interviewService.getAll,

@@ -47,6 +47,21 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run db:clear` | Delete all users and hiring data |
 | `npm run db:seed` | Seed users from `src/config/users.ts` (empty by default) |
 
+## Email (Resend)
+
+Team invites are sent from **Admin → User Management → Invite New User**.
+
+1. Create an API key at [resend.com](https://resend.com/api-keys)
+2. Add to **Render** (and `server/.env` locally):
+
+| Variable | Example |
+|----------|---------|
+| `RESEND_API_KEY` | `re_...` |
+| `EMAIL_FROM` | `Stitch ATS <onboarding@resend.dev>` (testing) |
+| `APP_NAME` | `Stitch ATS` |
+
+For production, verify your domain in Resend and set `EMAIL_FROM` to e.g. `Stitch ATS <noreply@yourdomain.com>`.
+
 ## Production (Netlify + Render + Neon)
 
 1. Set `DATABASE_URL` (Neon), `JWT_SECRET`, `CLIENT_ORIGIN` on Render

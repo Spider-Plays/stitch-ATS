@@ -8,10 +8,19 @@ import {
     Download, UserPlus, Briefcase, Lock, Monitor, Clock, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { ApiError } from '../../lib/apiClient';
 import clsx from 'clsx';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+
+const inviteSchema = z.object({
+    email: z.string().email('Enter a valid email'),
+    name: z.string().optional(),
+    role: z.enum(['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER', 'TEAM_LEAD', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE']),
+})
+
+type InviteFormValues = z.infer<typeof inviteSchema>
 
 const UserManagement = () => {
     const { user: currentUser } = useAuth();
@@ -20,6 +29,10 @@ const UserManagement = () => {
     const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>('ALL');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
     const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const inviteForm = useForm<InviteFormValues>({
+        resolver: zodResolver(inviteSchema),
+        defaultValues: { email: '', name: '', role: 'RECRUITER' },
+    })
 
     // Fetch Users
     const { data, isLoading, isError, isFetching, refetch } = useQuery({
@@ -73,12 +86,30 @@ const UserManagement = () => {
         return matchesSearch && matchesRole && matchesStatus;
     });
 
-    // Invite User Form (Mock)
-    const handleInvite = (e: React.FormEvent) => {
-        e.preventDefault();
-        alert('User invitations are not configured yet. Add users via your administrator or database bootstrap.');
-        setIsInviteOpen(false);
-    }
+    const inviteMutation = useMutation({
+        mutationFn: (data: InviteFormValues) => api.users.invite(data),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: ['users'] })
+            setIsInviteOpen(false)
+            inviteForm.reset()
+            if (result.emailSent) {
+                alert(`Invitation sent to ${result.user.email}.`)
+            } else if (result.temporaryPassword) {
+                alert(
+                    `User created. Email is not configured (set RESEND_API_KEY on Render).\n\n` +
+                    `Email: ${result.user.email}\nTemporary password: ${result.temporaryPassword}`
+                )
+            } else {
+                alert(`User ${result.user.email} was created.`)
+            }
+        },
+        onError: (err: unknown) => {
+            const msg = err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Failed to send invite'
+            alert(msg)
+        },
+    })
+
+    const handleInvite = inviteForm.handleSubmit((data) => inviteMutation.mutate(data))
 
     const StatCard = ({ title, value, icon: Icon, colorClass }: any) => (
         <div className="bg-white dark:bg-white/5 p-5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm relative overflow-hidden group">
@@ -263,32 +294,56 @@ const UserManagement = () => {
                                 <XCircle size={24} />
                             </button>
                         </div>
+                        <form onSubmit={handleInvite} className="flex flex-col flex-1 min-h-0">
                         <div className="p-8 flex-1 overflow-y-auto space-y-6">
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">Email Address</label>
-                                    <input type="email" placeholder="colleague@company.com" className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium" />
+                                    <input
+                                        type="email"
+                                        placeholder="colleague@company.com"
+                                        className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium text-primary dark:text-white"
+                                        {...inviteForm.register('email')}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">Name (optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Jane Smith"
+                                        className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium text-primary dark:text-white"
+                                        {...inviteForm.register('name')}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">Role</label>
-                                    <select className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium">
+                                    <select
+                                        className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium text-primary dark:text-white"
+                                        {...inviteForm.register('role')}
+                                    >
                                         <option value="RECRUITER">Recruiter</option>
+                                        <option value="HR_MANAGER">HR Manager</option>
                                         <option value="HIRING_MANAGER">Hiring Manager</option>
                                         <option value="INTERVIEWER">Interviewer</option>
+                                        <option value="TEAM_LEAD">Team Lead</option>
                                         <option value="ADMIN">Admin</option>
                                     </select>
                                 </div>
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-xl text-sm leading-relaxed">
-                                    <p className="font-bold mb-1">Note:</p>
-                                    This feature requires cloud functions to send emails. For now, users must sign up manually, and then you can update their role here.
+                                    An email with a temporary password is sent via Resend. For testing, use <code className="text-xs">onboarding@resend.dev</code> as the sender until your domain is verified.
                                 </div>
                             </div>
                         </div>
                         <div className="p-6 border-t border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02]">
-                            <button onClick={handleInvite} className="w-full py-3 bg-primary dark:bg-white text-white dark:text-primary font-bold rounded-xl hover:opacity-90 shadow-lg shadow-primary/20 dark:shadow-none transition-all">
-                                Send Invitation
+                            <button
+                                type="submit"
+                                disabled={inviteMutation.isPending}
+                                className="w-full py-3 bg-primary dark:bg-white text-white dark:text-primary font-bold rounded-xl hover:opacity-90 shadow-lg shadow-primary/20 dark:shadow-none transition-all disabled:opacity-60"
+                            >
+                                {inviteMutation.isPending ? 'Sending…' : 'Send Invitation'}
                             </button>
                         </div>
+                        </form>
                     </div>
                 </div>
             )}

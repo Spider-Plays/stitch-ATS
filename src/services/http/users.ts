@@ -32,4 +32,15 @@ export const userService = {
       body: JSON.stringify({ status }),
     })
   },
+
+  invite: async (data: {
+    email: string
+    name?: string
+    role: UserRole
+  }): Promise<{ user: User; emailSent: boolean; temporaryPassword?: string }> => {
+    return apiRequest('/users/invite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
 }
