@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { LOCAL_USERS } from '../../config/localUsers'
+import { APP_NAME } from '../../config/branding'
 import { AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 
@@ -59,7 +60,7 @@ const Login = () => {
                         <div className="size-10 bg-white rounded-xl flex items-center justify-center">
                             <span className="material-symbols-outlined text-primary !text-2xl">grid_view</span>
                         </div>
-                        <span className="text-2xl font-black tracking-tight">Stitch</span>
+                        <span className="text-2xl font-black tracking-tight">{APP_NAME}</span>
                     </div>
                 </div>
 
@@ -71,7 +72,7 @@ const Login = () => {
                 </div>
 
                 <div className="relative z-10 flex gap-4 text-sm font-medium text-white/60">
-                    <span>© 2024 Stitch App</span>
+                    <span>© 2024 {APP_NAME}</span>
                     <span>Privacy Policy</span>
                     <span>Terms of Service</span>
                 </div>
@@ -80,10 +81,11 @@ const Login = () => {
             <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white dark:bg-background-dark">
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center lg:text-left">
-                        <div className="lg:hidden flex justify-center mb-8">
+                        <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
                             <div className="size-12 bg-primary rounded-xl flex items-center justify-center">
                                 <span className="material-symbols-outlined text-white !text-2xl">grid_view</span>
                             </div>
+                            <span className="text-2xl font-black text-primary dark:text-white tracking-tight">{APP_NAME}</span>
                         </div>
                         <h2 className="text-3xl font-black text-primary dark:text-white tracking-tight">Welcome back</h2>
                         <p className="mt-2 text-primary/60 dark:text-white/60 font-medium">Please enter your details to sign in.</p>

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { APP_NAME } from '../config/branding'
 import clsx from 'clsx'
 
 const NavItem = ({ to, icon, label, active, theme }: { to: string, icon: string, label: string, active: boolean, theme: 'nexus-blue' | 'nexus-orange' }) => {
@@ -36,7 +37,7 @@ const Sidebar = () => {
     const theme = isRecruiter ? 'nexus-orange' : 'nexus-blue'
     const sidebarBg = isRecruiter ? 'bg-[#221311]' : 'bg-[#1a2b3c]'
     const logoIcon = isRecruiter ? 'rocket_launch' : 'lan'
-    const logoTitle = isRecruiter ? 'ATS Pro' : 'Nexus ATS'
+    const logoTitle = APP_NAME
 
     return (
         <aside className={clsx(

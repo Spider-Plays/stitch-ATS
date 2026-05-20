@@ -17,7 +17,7 @@ app.use(express.json())
 
 app.get('/', (_req, res) => {
   res.json({
-    service: 'Stitch ATS API',
+    service: 'Stitch ATS',
     health: '/api/health',
     hint: 'Open your Netlify site for the app UI — this URL is the API only.',
   })
