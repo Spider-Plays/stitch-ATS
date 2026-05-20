@@ -1,75 +1,55 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { signInWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '../../lib/firebase'
 import { useAuth } from '../../hooks/useAuth'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { LOCAL_USERS } from '../../config/localUsers'
+import { AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 
 const Login = () => {
     const navigate = useNavigate()
     const location = useLocation()
-    const { loginWithGoogle, user } = useAuth()
+    const { login, user } = useAuth()
     const [loading, setLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
     const [showPassword, setShowPassword] = useState(false)
 
     const from = location.state?.from?.pathname || '/'
-    const { register, handleSubmit, formState: { errors } } = useForm()
+    const { register, handleSubmit } = useForm<{ email: string; password: string }>()
 
-    const handleGoogleLogin = async () => {
-        setLoading(true)
-        setAuthError(null)
-        try {
-            await loginWithGoogle()
-        } catch (err: any) {
-            console.error(err)
-            setAuthError('Failed to sign in with Google.')
-            setLoading(false)
-        }
+    const redirectByRole = (role: string) => {
+        if (role === 'ADMIN') navigate('/admin/users')
+        else if (role === 'CANDIDATE') navigate('/portal/dashboard')
+        else if (['RECRUITER', 'TEAM_LEAD', 'HR_MANAGER'].includes(role)) navigate('/dashboard')
+        else if (role === 'INTERVIEWER') navigate('/interviews')
+        else if (role === 'HIRING_MANAGER') navigate('/requirements')
+        else navigate(from === '/' ? '/portal/dashboard' : from, { replace: true })
     }
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: { email: string; password: string }) => {
         setLoading(true)
         setAuthError(null)
 
         try {
-            await signInWithEmailAndPassword(auth, data.email, data.password)
-        } catch (err: any) {
+            const loggedIn = await login(data.email, data.password)
+            redirectByRole(loggedIn.role)
+        } catch (err: unknown) {
             console.error(err)
-            if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-                setAuthError('Invalid email or password.')
-            } else if (err.code === 'auth/too-many-requests') {
-                setAuthError('Too many failed attempts. Please try again later.')
+            const code = err instanceof Error ? err.message : ''
+            if (code === 'ACCOUNT_DISABLED') {
+                setAuthError('This account has been disabled.')
             } else {
-                setAuthError('Failed to sign in. Please try again.')
+                setAuthError('Invalid email or password.')
             }
             setLoading(false)
         }
     }
 
     React.useEffect(() => {
-        if (user) {
-            const role = user.role || 'CANDIDATE';
-            if (role === 'ADMIN') {
-                navigate('/admin/users')
-            } else if (role === 'CANDIDATE') {
-                navigate('/portal/dashboard')
-            } else if (['RECRUITER', 'TEAM_LEAD', 'HR_MANAGER'].includes(role)) {
-                navigate('/dashboard')
-            } else if (role === 'INTERVIEWER') {
-                navigate('/interviews')
-            } else if (role === 'HIRING_MANAGER') {
-                navigate('/requirements')
-            } else {
-                navigate(from === '/' ? '/portal/dashboard' : from, { replace: true })
-            }
-        }
-    }, [user, navigate, from])
+        if (user) redirectByRole(user.role || 'CANDIDATE')
+    }, [user])
 
     return (
         <div className="min-h-screen flex bg-background-light dark:bg-background-dark">
-            {/* Left Side - Hero/Brand */}
             <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary text-white p-12 flex-col justify-between">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=2029&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/95 to-primary/80"></div>
@@ -97,7 +77,6 @@ const Login = () => {
                 </div>
             </div>
 
-            {/* Right Side - Login Form */}
             <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white dark:bg-background-dark">
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center lg:text-left">
@@ -111,9 +90,15 @@ const Login = () => {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="p-4 bg-primary/5 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 text-sm text-primary/60 dark:text-white/60">
-                            <strong>Demo Credentials:</strong><br />
-                            Use <code>admin@stitch.com</code> / <code>password</code> to login as Admin.
+                        <div className="p-4 bg-primary/5 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 text-sm text-primary/60 dark:text-white/60 max-h-48 overflow-y-auto">
+                            <strong className="text-primary dark:text-white">Demo accounts</strong> (password: <code>password</code>)
+                            <ul className="mt-2 space-y-1 font-mono text-xs">
+                                {LOCAL_USERS.map((u) => (
+                                    <li key={u.uid}>
+                                        <span className="text-primary/80 dark:text-white/80">{u.role}</span> — {u.email}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
 
                         {authError && (
@@ -131,8 +116,8 @@ const Login = () => {
                                     <input
                                         type="email"
                                         className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/30"
-                                        placeholder="Enter your email"
-                                        {...register("email")}
+                                        placeholder="admin@stitch.com"
+                                        {...register('email')}
                                     />
                                 </div>
                             </div>
@@ -142,10 +127,10 @@ const Login = () => {
                                 <div className="relative">
                                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40">lock</span>
                                     <input
-                                        type={showPassword ? "text" : "password"}
+                                        type={showPassword ? 'text' : 'password'}
                                         className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/30"
                                         placeholder="••••••••"
-                                        {...register("password")}
+                                        {...register('password')}
                                     />
                                     <button
                                         type="button"
@@ -157,14 +142,6 @@ const Login = () => {
                                         </span>
                                     </button>
                                 </div>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" className="rounded border-primary/20 text-primary focus:ring-primary/20" />
-                                    <span className="text-sm font-bold text-primary/60 dark:text-white/60">Remember me</span>
-                                </label>
-                                <a href="#" className="text-sm font-bold text-primary dark:text-white hover:underline">Forgot password?</a>
                             </div>
 
                             <button
@@ -182,31 +159,10 @@ const Login = () => {
                                 )}
                             </button>
                         </form>
-
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                <div className="w-full border-t border-primary/10 dark:border-white/10"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="bg-white dark:bg-background-dark px-2 text-primary/40 dark:text-white/40 font-bold uppercase tracking-wider text-[10px]">Or continue with</span>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleGoogleLogin}
-                            disabled={loading}
-                            className="w-full py-3.5 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-white/10 transition-all flex items-center justify-center gap-3"
-                        >
-                            <svg className="h-5 w-5" viewBox="0 0 24 24">
-                                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.909 3.292-2.09 4.413-1.212 1.144-2.853 2.047-5.75 2.047-4.524 0-8.23-3.664-8.23-8.21s3.706-8.21 8.23-8.21c2.454 0 4.27.962 5.597 2.222l2.316-2.316C18.423 2.21 15.86 1 12.48 1 6.14 1 1 6.14 1 12.48s5.14 11.48 11.48 11.48c3.424 0 6.01-1.123 8.01-3.218 2.065-2.065 2.715-4.945 2.715-7.303 0-.693-.053-1.36-.16-1.956H12.48z" fill="currentColor"></path>
-                            </svg>
-                            Sign in with Google
-                        </button>
                     </div>
 
                     <p className="text-center text-sm font-medium text-primary/60 dark:text-white/60">
-                        Don't have an account? <Link to="/signup" className="text-primary dark:text-white font-bold hover:underline">Create an account</Link>
+                        User accounts are defined in <code className="text-xs">server/src/config/users.ts</code>
                     </p>
                 </div>
             </div>

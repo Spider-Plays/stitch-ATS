@@ -1,6 +1,5 @@
-import { Requirement, Candidate, RequirementStatus } from '../types'
-import { requirementService, candidateService, userService, interviewService, offerService, feedbackService } from './firebase'
-import { activityLogService } from './firebase/activityLogs'
+import { requirementService, candidateService, userService, interviewService, offerService, feedbackService } from './http'
+import { activityLogService } from './http/activityLogs'
 
 export const api = {
     requirements: {
@@ -57,5 +56,4 @@ export const api = {
         update: offerService.update,
         updateStatus: offerService.updateStatus
     },
-
 }

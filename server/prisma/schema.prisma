@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String
+  name            String
+  role            String
+  department      String?
+  status          String   @default("ACTIVE")
+  themePreference String   @default("system")
+  permissions     String   @default("[]")
+  avatar          String?
+  phoneNumber     String?
+  address         String?
+  resumeUrl       String?
+  authProvider    String   @default("local")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastLogin       DateTime?
+}
+
+model Requirement {
+  id              String   @id @default(cuid())
+  title           String
+  department      String
+  hiringManager   String
+  status          String
+  openings        Int
+  filled          Int      @default(0)
+  priority        String?
+  location        String?
+  description     String?
+  createdBy       String?
+  createdByRole   String?
+  recruiters      String   @default("[]")
+  approval        String?
+  approvalHistory String   @default("[]")
+  versions        String   @default("[]")
+  currentVersion  Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Candidate {
+  id               String   @id @default(cuid())
+  name             String
+  email            String
+  role             String
+  status           String
+  matchScore       Float    @default(0)
+  source           String
+  appliedDate      DateTime @default(now())
+  requirementId    String?
+  jobTitle         String?
+  avatar           String?
+  resumeUrl        String?
+  phone            String?
+  location         String?
+  linkedIn         String?
+  portfolio        String?
+  totalExperience  String?
+  currentCompany   String?
+  currentCTC       String?
+  expectedCTC      String?
+  noticePeriod     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Interview {
+  id             String   @id @default(cuid())
+  candidateId    String
+  requirementId  String
+  scheduledAt    DateTime
+  interviewerIds String   @default("[]")
+  type           String
+  status         String
+  meetingLink    String?
+  duration       Int?
+  location       String?
+  description    String?
+  createdAt      DateTime @default(now())
+}
+
+model Feedback {
+  id                  String   @id @default(cuid())
+  interviewId         String
+  interviewerId       String
+  candidateId         String
+  rating              Int
+  technicalRating     Int?
+  communicationRating Int?
+  comments            String
+  recommendation      String
+  createdAt           DateTime @default(now())
+}
+
+model Offer {
+  id            String   @id @default(cuid())
+  candidateId   String
+  requirementId String
+  baseSalary    Float
+  equity        Float?
+  bonus         Float?
+  status        String
+  history       String   @default("[]")
+  letterContent String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ActivityLog {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  performedBy   String
+  performerName String?
+  performerRole String?
+  details       String?
+  timestamp     DateTime @default(now())
+}
