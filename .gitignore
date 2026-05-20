@@ -9,3 +9,14 @@ server/dist
 server/prisma/dev.db
 server/prisma/dev.db-journal
 server/.env
+
+# Design mockups (not part of the app)
+stitch/
+stitch 2.0/
+code.html
+
+# Legacy Firebase (app uses Neon + Express)
+.firebase/
+firebase.json
+.firebaserc
+firestore.rules
