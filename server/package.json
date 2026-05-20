@@ -10,7 +10,9 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx src/seed.ts",
-    "db:setup": "prisma db push && tsx src/seed.ts"
+    "db:clear": "tsx src/scripts/clear-db.ts",
+    "db:bootstrap": "tsx src/scripts/bootstrap-admin.ts",
+    "db:setup": "prisma db push"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

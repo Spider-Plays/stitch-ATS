@@ -75,7 +75,7 @@ const UserManagement = () => {
     // Invite User Form (Mock)
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
-        alert("Invite sent! (Mock functionality - requires backend/cloud functions)");
+        alert('User invitations are not configured yet. Add users via your administrator or database bootstrap.');
         setIsInviteOpen(false);
     }
 
@@ -118,7 +118,7 @@ const UserManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 shrink-0">
                 <StatCard title="Total Users" value={users.length} icon={Users} colorClass="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" />
                 <StatCard title="Admins" value={users.filter(u => u.role === 'ADMIN').length} icon={Shield} colorClass="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" />
-                <StatCard title="Active Now" value={Math.floor(users.length * 0.8)} icon={Monitor} colorClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" />
+                <StatCard title="Active Users" value={users.filter(u => u.status !== 'DISABLED').length} icon={Monitor} colorClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" />
                 <StatCard title="Pending Invites" value="0" icon={Mail} colorClass="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" />
             </div>
 

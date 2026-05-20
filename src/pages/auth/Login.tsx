@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { LOCAL_USERS } from '../../config/localUsers'
 import { APP_NAME } from '../../config/branding'
 import { AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -92,17 +91,6 @@ const Login = () => {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="p-4 bg-primary/5 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 text-sm text-primary/60 dark:text-white/60 max-h-48 overflow-y-auto">
-                            <strong className="text-primary dark:text-white">Demo accounts</strong> (password: <code>password</code>)
-                            <ul className="mt-2 space-y-1 font-mono text-xs">
-                                {LOCAL_USERS.map((u) => (
-                                    <li key={u.uid}>
-                                        <span className="text-primary/80 dark:text-white/80">{u.role}</span> — {u.email}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
                         {authError && (
                             <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-400 text-sm animate-in fade-in slide-in-from-top-2">
                                 <AlertCircle size={18} className="shrink-0" />
@@ -118,7 +106,7 @@ const Login = () => {
                                     <input
                                         type="email"
                                         className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/30"
-                                        placeholder="admin@stitch.com"
+                                        placeholder="you@company.com"
                                         {...register('email')}
                                     />
                                 </div>
@@ -163,9 +151,6 @@ const Login = () => {
                         </form>
                     </div>
 
-                    <p className="text-center text-sm font-medium text-primary/60 dark:text-white/60">
-                        User accounts are defined in <code className="text-xs">server/src/config/users.ts</code>
-                    </p>
                 </div>
             </div>
         </div>

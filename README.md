@@ -1,6 +1,6 @@
 # Stitch ATS
 
-React frontend + Node.js API with Prisma (SQLite for local dev; switch to PostgreSQL for production).
+React frontend + Node.js API with Prisma (PostgreSQL in production).
 
 ## Architecture
 
@@ -8,52 +8,47 @@ React frontend + Node.js API with Prisma (SQLite for local dev; switch to Postgr
 |--------|------|
 | **Client** | React 18, Vite, TanStack Query, Tailwind |
 | **API** | Express, JWT auth, Zod validation |
-| **Database** | Prisma ORM (SQLite dev / PostgreSQL prod) |
+| **Database** | Prisma ORM + PostgreSQL |
 
 ## Quick start
 
 ```bash
-# Install all dependencies
 npm install
 cd server && npm install && cd ..
 
-# Create DB and seed demo users
-npm run db:setup
+# Create schema (local: set DATABASE_URL in server/.env)
+npm run db:setup --prefix server
 
-# Run API (port 4000) + React (port 3000)
+# Create your first admin (set credentials in the shell)
+cd server
+set ADMIN_EMAIL=you@company.com
+set ADMIN_PASSWORD=your-secure-password
+set ADMIN_NAME=Your Name
+npm run db:bootstrap
+cd ..
+
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Demo accounts
+## Database commands (server/)
 
-Password for all: **`password`**
+| Command | Purpose |
+|---------|---------|
+| `npm run db:setup` | Apply Prisma schema |
+| `npm run db:bootstrap` | Create first admin (`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`) |
+| `npm run db:clear` | Delete all users and hiring data |
+| `npm run db:seed` | Seed users from `src/config/users.ts` (empty by default) |
 
-| Role | Email |
-|------|--------|
-| Admin | `admin@stitch.com` |
-| HR Manager | `hr@stitch.com` |
-| Recruiter | `recruiter@stitch.com` |
-| Team Lead | `lead@stitch.com` |
-| Hiring Manager | `manager@stitch.com` |
-| Interviewer | `interviewer@stitch.com` |
-| Candidate | `candidate@stitch.com` |
+## Production (Netlify + Render + Neon)
 
-Edit users in **`server/src/config/users.ts`**, then run:
-
-```bash
-npm run db:seed --prefix server
-```
-
-## Production scaling
-
-1. Set `DATABASE_URL` to PostgreSQL in `server/.env`
-2. Change `provider` in `server/prisma/schema.prisma` to `postgresql`
-3. Run `npx prisma migrate deploy` in `server/`
-4. Set a strong `JWT_SECRET`
-5. Build client: `npm run build`
-6. Serve API behind a reverse proxy; set `CLIENT_ORIGIN` to your app URL
+1. Set `DATABASE_URL` (Neon), `JWT_SECRET`, `CLIENT_ORIGIN` on Render
+2. **Build command** (no demo seed):  
+   `npm install && npx prisma generate && npm run build && npx prisma db push`
+3. Run once on Render Shell after deploy:  
+   `npm run db:bootstrap` with your admin env vars
+4. Netlify serves the React app; `netlify.toml` proxies `/api` to Render
 
 ## Project layout
 
@@ -61,8 +56,8 @@ npm run db:seed --prefix server
 ATS/
   src/              # React app
   server/
-    prisma/         # Schema & SQLite DB
+    prisma/         # Schema
     src/
       routes/       # REST API
-      config/users.ts
+      scripts/      # clear-db, bootstrap-admin
 ```

@@ -10,6 +10,8 @@
         "build": "npm run build --prefix server && tsc && vite build",
         "build:client": "tsc && vite build",
         "db:setup": "npm run db:setup --prefix server",
+        "db:clear": "npm run db:clear --prefix server",
+        "db:bootstrap": "npm run db:bootstrap --prefix server",
         "preview": "vite preview"
     },
     "dependencies": {

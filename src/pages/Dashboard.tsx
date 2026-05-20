@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button' // Keep Button as it's used in 
 import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
+import { EmptyState } from '../components/ui/EmptyState'
 import clsx from 'clsx'
 // Removed Lucide icons as StatCard now uses material-symbols-outlined
 
@@ -26,9 +27,10 @@ const StatCard = ({ title, value, change, icon, color, isPositive }: any) => (
     </div>
 )
 
-const AdminDashboard = ({ requirements, candidates, user }: any) => {
+const AdminDashboard = ({ requirements, candidates, activityLogs, users, user }: any) => {
     const activeJobs = requirements?.filter((r: any) => r.status !== 'CLOSED' && r.status !== 'DRAFT').length || 0
     const totalCandidates = candidates?.length || 0
+    const teamMembers = (users || []).filter((u: any) => u.role !== 'CANDIDATE').slice(0, 5)
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -38,10 +40,10 @@ const AdminDashboard = ({ requirements, candidates, user }: any) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Active Job Postings" value={activeJobs} change="+12.5%" icon="work" color="bg-primary/10 text-primary dark:text-blue-400" isPositive={true} />
-                <StatCard title="Total Candidates" value={totalCandidates} change="+5.2%" icon="group" color="bg-primary/10 text-primary dark:text-purple-400" isPositive={true} />
-                <StatCard title="Avg. Time-to-Hire" value="18 Days" change="-2 days" icon="schedule" color="bg-primary/10 text-primary dark:text-red-400" isPositive={false} />
-                <StatCard title="System Health" value="Optimal" icon="speed" color="bg-primary/10 text-primary dark:text-green-400" />
+                <StatCard title="Active Job Postings" value={activeJobs} icon="work" color="bg-primary/10 text-primary dark:text-blue-400" />
+                <StatCard title="Total Candidates" value={totalCandidates} icon="group" color="bg-primary/10 text-primary dark:text-purple-400" />
+                <StatCard title="Team Members" value={(users || []).length} icon="groups" color="bg-primary/10 text-primary dark:text-red-400" />
+                <StatCard title="Activity (7d)" value={activityLogs?.length || 0} icon="history" color="bg-primary/10 text-primary dark:text-green-400" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -53,16 +55,11 @@ const AdminDashboard = ({ requirements, candidates, user }: any) => {
                             <option>Request Volume</option>
                         </select>
                     </div>
-                    <div className="p-6">
-                        <div className="h-[250px] w-full flex items-end gap-2 px-2 pb-2">
-                            {[75, 80, 66, 83, 50, 100, 75, 80, 83, 75, 100, 80, 66, 33, 83].map((h, i) => (
-                                <div key={i} className="w-full bg-primary/20 dark:bg-primary/40 rounded-t transition-all hover:bg-primary/50" style={{ height: `${h}%` }}></div>
-                            ))}
-                        </div>
-                        <div className="flex justify-between text-[10px] text-primary/40 dark:text-slate-500 font-bold uppercase mt-4 px-2">
-                            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
-                        </div>
-                    </div>
+                    <EmptyState
+                        icon="monitoring"
+                        title="No performance metrics yet"
+                        description="Charts will appear once hiring activity is recorded."
+                    />
                 </div>
 
                 <div className="bg-white dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm flex flex-col">
@@ -70,20 +67,21 @@ const AdminDashboard = ({ requirements, candidates, user }: any) => {
                         <h3 className="text-lg font-bold text-primary dark:text-white">Recent Admin Activity</h3>
                     </div>
                     <div className="p-4 flex-1 space-y-4">
-                        {[
-                            { name: 'Sarah Koenig', role: 'Recruiter Admin', status: 'online', initial: 'SK' },
-                            { name: 'James Miller', role: 'Compliance Officer', status: 'offline', initial: 'JM' },
-                            { name: 'Linda Wu', role: 'Global Admin', status: 'online', initial: 'LW' }
-                        ].map((adm, i) => (
-                            <div key={i} className="flex items-center gap-3 p-2 hover:bg-primary/5 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer">
-                                <div className="size-8 rounded bg-primary/10 dark:bg-primary/20 flex items-center justify-center font-bold text-primary dark:text-primary-light text-xs">{adm.initial}</div>
-                                <div className="flex-1 overflow-hidden">
-                                    <p className="text-sm font-semibold text-primary dark:text-white truncate">{adm.name}</p>
-                                    <p className="text-xs text-primary/60 dark:text-slate-400">{adm.role}</p>
+                        {teamMembers.length === 0 ? (
+                            <EmptyState icon="group" title="No team members" description="Invite users from User Administration." />
+                        ) : (
+                            teamMembers.map((member: any) => (
+                                <div key={member.uid} className="flex items-center gap-3 p-2 hover:bg-primary/5 dark:hover:bg-white/5 rounded-lg transition-colors">
+                                    <div className="size-8 rounded bg-primary/10 dark:bg-primary/20 flex items-center justify-center font-bold text-primary dark:text-primary-light text-xs">
+                                        {member.name?.charAt(0) || '?'}
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-sm font-semibold text-primary dark:text-white truncate">{member.name}</p>
+                                        <p className="text-xs text-primary/60 dark:text-slate-400">{member.role}</p>
+                                    </div>
                                 </div>
-                                <div className={clsx("size-2 rounded-full", adm.status === 'online' ? "bg-green-500" : "bg-slate-300")} />
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                     <div className="p-4 bg-primary/5 dark:bg-white/5">
                         <button className="w-full bg-primary dark:bg-white dark:text-primary text-white text-sm font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
@@ -111,24 +109,29 @@ const AdminDashboard = ({ requirements, candidates, user }: any) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-primary/5 dark:divide-white/10">
-                            {[
-                                { user: user?.name, action: 'Signed In', entity: 'Session: Web', time: 'Just now', status: 'Success' },
-                                { user: 'Sarah Koenig', action: 'Updated Security Policy', entity: 'Role: Recruiter', time: '2h ago', status: 'Success' },
-                                { user: 'System Auth', action: 'Failed Login Attempt', entity: 'User: j_miller', time: '5h ago', status: 'Warning' }
-                            ].map((row, i) => (
-                                <tr key={i} className="hover:bg-primary/[0.01] dark:hover:bg-white/5 transition-colors">
-                                    <td className="px-6 py-4 text-sm font-semibold text-primary dark:text-white">{row.user}</td>
-                                    <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400">{row.action}</td>
-                                    <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400 font-mono italic">{row.entity}</td>
-                                    <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400">{row.time}</td>
-                                    <td className="px-6 py-4 text-right">
-                                        <span className={clsx(
-                                            "text-[10px] font-bold uppercase px-2 py-1 rounded-full",
-                                            row.status === 'Success' ? "bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400" : "bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400"
-                                        )}>{row.status}</span>
+                            {(activityLogs || []).length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-primary/50 dark:text-slate-400">
+                                        No activity recorded yet.
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                (activityLogs || []).slice(0, 8).map((log: any) => (
+                                    <tr key={log.id} className="hover:bg-primary/[0.01] dark:hover:bg-white/5 transition-colors">
+                                        <td className="px-6 py-4 text-sm font-semibold text-primary dark:text-white">{log.performerName || 'System'}</td>
+                                        <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400">{log.action}</td>
+                                        <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400 font-mono italic">{log.entityType}: {log.entityId}</td>
+                                        <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400">
+                                            {new Date(log.timestamp).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400">
+                                                Logged
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -137,10 +140,17 @@ const AdminDashboard = ({ requirements, candidates, user }: any) => {
     )
 }
 
-const RecruiterDashboard = ({ requirements, candidates, interviews, user }: any) => {
+const PIPELINE_STAGES = ['SOURCED', 'SCREENING', 'SHORTLISTED', 'OFFER', 'HIRED'] as const
+
+const RecruiterDashboard = ({ requirements, candidates, interviews, offers, user }: any) => {
     const activeJobs = requirements?.filter((r: any) => r.status !== 'CLOSED' && r.status !== 'DRAFT').length || 0
     const totalCandidates = candidates?.length || 0
     const interviewsToday = interviews?.filter((i: any) => i.status === 'SCHEDULED').length || 0
+    const pipelineCounts = PIPELINE_STAGES.map((stage) => ({
+        label: stage.charAt(0) + stage.slice(1).toLowerCase(),
+        count: candidates?.filter((c: any) => c.status === stage).length || 0,
+    }))
+    const pipelineTotal = pipelineCounts.reduce((sum, s) => sum + s.count, 0) || 1
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -150,10 +160,10 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, user }: any)
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Assigned Requirements" value={activeJobs} change="+2 this week" icon="assignment" color="bg-primary/10 text-primary" isPositive={true} />
-                <StatCard title="Active Candidates" value={totalCandidates} change="+8% growth" icon="plumbing" color="bg-blue-500/10 text-blue-500" isPositive={true} />
-                <StatCard title="Interviews Today" value={interviewsToday} change="Next in 30m" icon="video_chat" color="bg-purple-500/10 text-purple-500" isPositive={true} />
-                <StatCard title="Avg. Time-to-Hire" value="18 days" change="-2 days vs avg" icon="timer" color="bg-emerald-500/10 text-emerald-500" isPositive={false} />
+                <StatCard title="Assigned Requirements" value={activeJobs} icon="assignment" color="bg-primary/10 text-primary" />
+                <StatCard title="Active Candidates" value={totalCandidates} icon="plumbing" color="bg-blue-500/10 text-blue-500" />
+                <StatCard title="Scheduled Interviews" value={interviewsToday} icon="video_chat" color="bg-purple-500/10 text-purple-500" />
+                <StatCard title="Offers" value={offers?.length || 0} icon="redeem" color="bg-emerald-500/10 text-emerald-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -174,7 +184,11 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, user }: any)
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-white/10 text-sm">
-                                    {requirements?.slice(0, 3).map((req: any, i: number) => (
+                                    {(requirements || []).length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-8 text-center text-slate-500">No requirements yet.</td>
+                                        </tr>
+                                    ) : requirements.slice(0, 3).map((req: any, i: number) => (
                                         <tr key={i} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                             <td className="px-6 py-4">
                                                 <p className="font-semibold">{req.role}</p>
@@ -206,25 +220,29 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, user }: any)
 
                     <div className="bg-white dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
                         <h3 className="text-lg font-bold mb-6">Candidate Pipeline Summary</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {[
-                                { label: 'Sourced', count: 15, pct: 31, color: 'bg-slate-400', border: 'border-slate-300' },
-                                { label: 'Screening', count: 10, pct: 21, color: 'bg-primary', border: 'border-primary' },
-                                { label: 'Shortlisted', count: 8, pct: 16, color: 'bg-blue-500', border: 'border-blue-500' },
-                                { label: 'Offer', count: 2, pct: 4, color: 'bg-green-500', border: 'border-green-500' }
-                            ].map((stat, i) => (
-                                <div key={i} className={clsx("bg-slate-50 dark:bg-white/5 p-4 rounded-xl border-l-4 shadow-sm", stat.border)}>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                                    <div className="flex items-end justify-between mt-1">
-                                        <span className="text-2xl font-black">{stat.count}</span>
-                                        <span className="text-[9px] text-slate-500 font-bold uppercase">{stat.pct}%</span>
-                                    </div>
-                                    <div className="w-full bg-slate-200 dark:bg-white/10 h-1 mt-3 rounded-full overflow-hidden">
-                                        <div className={clsx("h-full transition-all duration-1000", stat.color)} style={{ width: `${stat.pct}%` }}></div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        {totalCandidates === 0 ? (
+                            <EmptyState icon="group" title="No candidates in pipeline" description="Add candidates to see stage breakdown." />
+                        ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {pipelineCounts.map((stat, i) => {
+                                    const pct = Math.round((stat.count / pipelineTotal) * 100)
+                                    const colors = ['bg-slate-400 border-slate-300', 'bg-primary border-primary', 'bg-blue-500 border-blue-500', 'bg-green-500 border-green-500', 'bg-emerald-600 border-emerald-600']
+                                    const [color, border] = colors[i].split(' ')
+                                    return (
+                                        <div key={stat.label} className={clsx('bg-slate-50 dark:bg-white/5 p-4 rounded-xl border-l-4 shadow-sm', border)}>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+                                            <div className="flex items-end justify-between mt-1">
+                                                <span className="text-2xl font-black">{stat.count}</span>
+                                                <span className="text-[9px] text-slate-500 font-bold uppercase">{pct}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-white/10 h-1 mt-3 rounded-full overflow-hidden">
+                                                <div className={clsx('h-full transition-all duration-1000', color)} style={{ width: `${pct}%` }} />
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -232,7 +250,9 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, user }: any)
                     <div className="bg-white dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
                         <h3 className="text-lg font-bold mb-6">Today's Agenda</h3>
                         <div className="space-y-4">
-                            {interviews?.slice(0, 3).map((interview: any, i: number) => (
+                            {(interviews || []).length === 0 ? (
+                                <EmptyState icon="event" title="No interviews scheduled" />
+                            ) : interviews.slice(0, 3).map((interview: any, i: number) => (
                                 <div key={i} className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all group border border-transparent hover:border-primary/20">
                                     <div className="flex flex-col items-center justify-center bg-slate-100 dark:bg-white/10 rounded-lg min-w-[50px] h-[50px] shadow-sm">
                                         <span className="text-xs font-bold text-primary">09:30</span>
@@ -257,7 +277,9 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, user }: any)
                     <div className="bg-white dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
                         <h3 className="text-lg font-bold mb-6">Recent Activity</h3>
                         <div className="space-y-6 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-slate-200 dark:before:bg-white/10">
-                            {candidates?.slice(0, 4).map((c: any, i: number) => (
+                            {(candidates || []).length === 0 ? (
+                                <EmptyState icon="history" title="No recent candidate activity" />
+                            ) : candidates.slice(0, 4).map((c: any, i: number) => (
                                 <div key={i} className="relative pl-6">
                                     <span className="absolute left-0 top-1 size-4 rounded-full bg-primary border-4 border-white dark:border-background-dark shadow-sm"></span>
                                     <p className="text-xs leading-relaxed">
@@ -283,6 +305,16 @@ const Dashboard = () => {
     const { data: candidates } = useQuery({ queryKey: ['candidates'], queryFn: api.candidates.list })
     const { data: interviews } = useQuery({ queryKey: ['interviews'], queryFn: api.interviews.list })
     const { data: offers } = useQuery({ queryKey: ['offers'], queryFn: api.offers.list })
+    const { data: activityLogs } = useQuery({
+        queryKey: ['activityLogs', 'dashboard'],
+        queryFn: () => api.activityLogs.list(20),
+        enabled: isAdminOrHR,
+    })
+    const { data: users } = useQuery({
+        queryKey: ['users', 'dashboard'],
+        queryFn: api.users.list,
+        enabled: isAdminOrHR,
+    })
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
@@ -290,8 +322,8 @@ const Dashboard = () => {
                 <AdminDashboard
                     requirements={requirements}
                     candidates={candidates}
-                    interviews={interviews}
-                    offers={offers}
+                    activityLogs={activityLogs}
+                    users={users}
                     user={user}
                 />
             ) : (
@@ -299,6 +331,7 @@ const Dashboard = () => {
                     requirements={requirements}
                     candidates={candidates}
                     interviews={interviews}
+                    offers={offers}
                     user={user}
                 />
             )}

@@ -3,6 +3,10 @@ import { prisma } from './lib/prisma.js'
 import { SEED_USERS } from './config/users.js'
 
 async function main() {
+  if (SEED_USERS.length === 0) {
+    console.log('No seed users configured. Run npm run db:bootstrap to create an admin.')
+    return
+  }
   console.log('Seeding database...')
   for (const u of SEED_USERS) {
     const passwordHash = await bcrypt.hash(u.password, 10)

@@ -33,6 +33,11 @@ const RequirementsList = () => {
         queryFn: api.requirements.list
     })
 
+    const { data: candidates = [] } = useQuery({
+        queryKey: ['candidates'],
+        queryFn: api.candidates.list
+    })
+
     const filteredRequirements = requirements.filter(req => {
         const matchesSearch = req.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             req.department.toLowerCase().includes(searchTerm.toLowerCase())
@@ -247,8 +252,8 @@ const RequirementsList = () => {
                         <span className="material-symbols-outlined text-primary/30 dark:text-white/20">timer</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-black text-primary dark:text-white">18 Days</span>
-                        <span className="text-xs font-bold text-green-600 flex items-center">-2.4%</span>
+                        <span className="text-2xl font-black text-primary dark:text-white">—</span>
+                        <span className="text-xs font-bold text-primary/40 dark:text-white/40">Not enough data</span>
                     </div>
                 </div>
                 <div className="p-6 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 rounded-xl shadow-sm">
@@ -257,8 +262,8 @@ const RequirementsList = () => {
                         <span className="material-symbols-outlined text-primary/30 dark:text-white/20">groups</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-black text-primary dark:text-white">452</span>
-                        <span className="text-xs font-bold text-green-600 flex items-center">+12%</span>
+                        <span className="text-2xl font-black text-primary dark:text-white">{candidates.length}</span>
+                        <span className="text-xs font-bold text-primary/40 dark:text-white/40">In pipeline</span>
                     </div>
                 </div>
                 <div className="p-6 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 rounded-xl shadow-sm">
