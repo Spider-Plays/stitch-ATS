@@ -12,6 +12,7 @@
     "db:seed": "tsx src/seed.ts",
     "db:clear": "tsx src/scripts/clear-db.ts",
     "db:bootstrap": "tsx src/scripts/bootstrap-admin.ts",
+    "db:verify": "tsx src/scripts/verify-db.ts",
     "db:setup": "prisma db push"
   },
   "dependencies": {

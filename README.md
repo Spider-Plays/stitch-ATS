@@ -16,15 +16,21 @@ React frontend + Node.js API with Prisma (PostgreSQL in production).
 npm install
 cd server && npm install && cd ..
 
-# Create schema (local: set DATABASE_URL in server/.env)
-npm run db:setup --prefix server
+# IMPORTANT: server/.env DATABASE_URL must be your NEON URL (same as Render).
+# Do NOT use file:./dev.db — bootstrap would write to local SQLite, not production.
+cp server/.env.example server/.env
+# Edit server/.env: paste Neon "Pooled connection" string from the console
 
-# Create your first admin (set credentials in the shell)
+npm run db:setup --prefix server
+npm run db:verify --prefix server
+
+# Create your first admin (PowerShell)
 cd server
-set ADMIN_EMAIL=you@company.com
-set ADMIN_PASSWORD=your-secure-password
-set ADMIN_NAME=Your Name
+$env:ADMIN_EMAIL="you@company.com"
+$env:ADMIN_PASSWORD="your-secure-password"
+$env:ADMIN_NAME="Your Name"
 npm run db:bootstrap
+npm run db:verify
 cd ..
 
 npm run dev
