@@ -4,7 +4,14 @@ import AppRoutes from './routes'
 import { AuthProvider } from './contexts/AuthContext'
 import { Toaster } from './components/ui/Toaster'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            retry: false,
+            refetchOnWindowFocus: true,
+        },
+    },
+})
 
 function App() {
     return (

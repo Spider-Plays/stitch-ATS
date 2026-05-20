@@ -37,6 +37,10 @@ export async function apiRequest<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
+    if (res.status === 401) {
+      clearToken()
+      window.dispatchEvent(new Event('auth:session-expired'))
+    }
     throw new ApiError(body.error || res.statusText, res.status)
   }
 

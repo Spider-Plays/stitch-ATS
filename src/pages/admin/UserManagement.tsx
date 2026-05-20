@@ -22,10 +22,11 @@ const UserManagement = () => {
     const [isInviteOpen, setIsInviteOpen] = useState(false);
 
     // Fetch Users
-    const { data: users = [], isLoading } = useQuery({
+    const { data, isLoading, isError, isFetching, refetch } = useQuery({
         queryKey: ['users'],
-        queryFn: api.users.list
+        queryFn: api.users.list,
     });
+    const users = isError ? [] : (data ?? []);
 
     // Mutations
     const updateRoleMutation = useMutation({
@@ -113,6 +114,16 @@ const UserManagement = () => {
                     </button>
                 </div>
             </div>
+
+            {isError && !isFetching && (
+                <div className="mb-6 p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-300 text-sm font-medium">
+                    Could not load users (session may be invalid after a database reset).{' '}
+                    <button type="button" onClick={() => refetch()} className="underline font-bold">
+                        Retry
+                    </button>
+                    {' '}or sign out and sign in again.
+                </div>
+            )}
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 shrink-0">
