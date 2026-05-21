@@ -1,5 +1,9 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
+import {
+  DUPLICATE_CANDIDATE_EMAIL_MESSAGE,
+  findCandidateByEmail,
+} from '../lib/candidateDuplicate.js'
 import { mapCandidate, mapInterview, mapOffer, mapRequirement } from '../utils/mappers.js'
 import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
@@ -67,18 +71,18 @@ router.post('/positions/:id/apply', async (req, res) => {
     return res.status(404).json({ error: 'Position not found or not open for applications' })
   }
 
-  const email = user.email.toLowerCase()
-  const existing = await prisma.candidate.findFirst({
-    where: {
-      email: { equals: email, mode: 'insensitive' },
-      requirementId: requirement.id,
-    },
-  })
+  const existing = await findCandidateByEmail(user.email)
 
   if (existing) {
-    return res.json({
-      alreadyApplied: true,
-      candidate: mapCandidate(existing, { requirement }),
+    if (existing.requirementId === requirement.id) {
+      return res.json({
+        alreadyApplied: true,
+        candidate: mapCandidate(existing, { requirement }),
+      })
+    }
+    return res.status(409).json({
+      error: DUPLICATE_CANDIDATE_EMAIL_MESSAGE,
+      existingCandidateId: existing.id,
     })
   }
 

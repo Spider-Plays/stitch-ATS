@@ -57,11 +57,13 @@ export function SearchableMultiSelect({
 
   const remove = (id: string) => onChange(value.filter((v) => v !== id))
 
+  const showResults = open
+
   return (
     <div ref={rootRef} className={clsx('relative', className)}>
       <div
         className={clsx(
-          'flex flex-wrap gap-2 p-3 rounded-xl border border-primary/10 dark:border-white/10',
+          'flex flex-wrap gap-2 p-3 rounded-t-xl border border-b-0 border-primary/10 dark:border-white/10',
           'bg-primary/[0.02] dark:bg-white/[0.02] min-h-[60px] items-center'
         )}
       >
@@ -86,31 +88,36 @@ export function SearchableMultiSelect({
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="text-sm font-medium text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white px-2 py-1"
-        >
-          {value.length === 0 ? placeholder : '+ Add more'}
-        </button>
+        {value.length === 0 && (
+          <span className="text-sm font-medium text-primary/40 dark:text-white/40 px-2 py-1 pointer-events-none">
+            {placeholder}
+          </span>
+        )}
       </div>
 
-      {open && (
-        <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-primary/5 dark:border-white/5">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-primary/40" size={16} />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={searchPlaceholder}
-                autoFocus
-                className="w-full pl-8 pr-3 py-2 rounded-lg border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] text-sm text-primary dark:text-white outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-          <ul className="max-h-48 overflow-y-auto custom-scrollbar py-1">
+      <div
+        className={clsx(
+          'rounded-b-xl border border-primary/10 dark:border-white/10',
+          'bg-primary/[0.02] dark:bg-white/[0.02]'
+        )}
+      >
+        <div className="relative p-2">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/40" size={16} aria-hidden />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setOpen(true)
+            }}
+            onFocus={() => setOpen(true)}
+            placeholder={searchPlaceholder}
+            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-primary/10 dark:border-white/10 bg-white dark:bg-slate-900 text-sm text-primary dark:text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+
+        {showResults && (
+          <ul className="max-h-48 overflow-y-auto custom-scrollbar py-1 border-t border-primary/5 dark:border-white/5">
             {available.length === 0 ? (
               <li className="px-3 py-4 text-sm text-slate-500 text-center">{emptyLabel}</li>
             ) : (
@@ -130,8 +137,8 @@ export function SearchableMultiSelect({
               ))
             )}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

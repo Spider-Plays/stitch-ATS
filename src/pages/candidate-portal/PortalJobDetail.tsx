@@ -30,6 +30,8 @@ const PortalJobDetail = () => {
         portalMe?.linked &&
         portalMe.candidate.requirementId === id
 
+    const alreadyRegistered = portalMe?.linked === true
+
     const applyMutation = useMutation({
         mutationFn: () => api.portal.applyToPosition(id!),
         onSuccess: (result) => {
@@ -132,19 +134,34 @@ const PortalJobDetail = () => {
                 <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                         onClick={() => applyMutation.mutate()}
-                        disabled={applyMutation.isPending || applied || alreadyOnThisJob}
-                        className={clsx(alreadyOnThisJob && 'opacity-70')}
+                        disabled={
+                            applyMutation.isPending ||
+                            applied ||
+                            alreadyOnThisJob ||
+                            (alreadyRegistered && !alreadyOnThisJob)
+                        }
+                        className={clsx(
+                            (alreadyOnThisJob || alreadyRegistered) && 'opacity-70'
+                        )}
                     >
                         {applyMutation.isPending
                             ? 'Submitting…'
                             : alreadyOnThisJob
                               ? 'Already applied'
-                              : 'Apply for this position'}
+                              : alreadyRegistered
+                                ? 'Profile already registered'
+                                : 'Apply for this position'}
                     </Button>
                 </div>
                 {alreadyOnThisJob && (
                     <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
                         Your profile is linked to this requisition ({job.jobCode}).
+                    </p>
+                )}
+                {alreadyRegistered && !alreadyOnThisJob && (
+                    <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                        You already have a candidate profile in the system. View your dashboard for
+                        application status.
                     </p>
                 )}
             </article>

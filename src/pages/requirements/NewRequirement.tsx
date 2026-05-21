@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import clsx from 'clsx'
 import { useAuth } from '../../hooks/useAuth'
+import { SkillSelectSection } from '../../components/skills/SkillSelectSection'
 
 const schema = z.object({
     jobCode: z.string().max(32).optional(),
@@ -15,7 +16,9 @@ const schema = z.object({
     department: z.string().min(1, "Department is required"),
     hiringManager: z.string().min(1, "Hiring Manager is required"),
     openings: z.number().min(1, "At least 1 opening required"),
-    description: z.string().min(10, "Description must be at least 10 characters"),
+    primarySkills: z.array(z.string()).min(1, 'Select at least one primary skill'),
+    secondarySkills: z.array(z.string()).default([]),
+    jobDescription: z.string().min(20, "Job description must be at least 20 characters"),
     priority: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']).default('MEDIUM'),
     location: z.string().optional()
 })
@@ -24,7 +27,7 @@ type RequirementFormValues = z.infer<typeof schema>
 
 const STEPS = [
     { label: 'Role Details', icon: 'work' },
-    { label: 'Description', icon: 'description' },
+    { label: 'Skills & JD', icon: 'psychology' },
     { label: 'Review', icon: 'check_circle' }
 ]
 
@@ -34,11 +37,13 @@ const NewRequirement = () => {
     const { user } = useAuth()
     const [currentStep, setCurrentStep] = useState(0)
 
-    const { register, handleSubmit, formState: { errors }, trigger, watch } = useForm<RequirementFormValues>({
+    const { register, handleSubmit, control, formState: { errors }, trigger, watch } = useForm<RequirementFormValues>({
         resolver: zodResolver(schema),
         defaultValues: {
             openings: 1,
-            priority: 'MEDIUM'
+            priority: 'MEDIUM',
+            primarySkills: [],
+            secondarySkills: [],
         }
     })
 
@@ -47,6 +52,7 @@ const NewRequirement = () => {
     const createMutation = useMutation({
         mutationFn: (data: RequirementFormValues) => api.requirements.create({
             ...data,
+            description: data.jobDescription.slice(0, 2000),
             status: 'PENDING_APPROVAL',
             recruiters: [],
             createdBy: user?.uid,
@@ -67,7 +73,7 @@ const NewRequirement = () => {
         if (currentStep === 0) {
             isValid = await trigger(['title', 'department', 'hiringManager', 'openings', 'priority'])
         } else if (currentStep === 1) {
-            isValid = await trigger(['description'])
+            isValid = await trigger(['primarySkills', 'secondarySkills', 'jobDescription'])
         }
 
         if (isValid) setCurrentStep(prev => prev + 1)
@@ -205,17 +211,39 @@ const NewRequirement = () => {
                         </div>
                     )}
 
-                    {/* Step 2: Description */}
+                    {/* Step 2: Skills & JD */}
                     {currentStep === 1 && (
                         <div className="space-y-6">
+                            <Controller
+                                control={control}
+                                name="primarySkills"
+                                render={({ field: primaryField }) => (
+                                    <Controller
+                                        control={control}
+                                        name="secondarySkills"
+                                        render={({ field: secondaryField }) => (
+                                            <SkillSelectSection
+                                                primarySkills={primaryField.value ?? []}
+                                                secondarySkills={secondaryField.value ?? []}
+                                                onPrimaryChange={primaryField.onChange}
+                                                onSecondaryChange={secondaryField.onChange}
+                                                isAdmin={user?.role === 'ADMIN'}
+                                                primaryError={errors.primarySkills?.message}
+                                            />
+                                        )}
+                                    />
+                                )}
+                            />
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Job Description</label>
+                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
+                                    Job description (JD) <span className="text-red-500">*</span>
+                                </label>
                                 <textarea
-                                    className="w-full h-64 p-4 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/20 resize-none leading-relaxed"
-                                    placeholder="Enter the detailed job description, responsibilities, and requirements..."
-                                    {...register('description')}
+                                    className="w-full h-56 p-4 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/20 resize-none leading-relaxed"
+                                    placeholder="Responsibilities, qualifications, and role expectations..."
+                                    {...register('jobDescription')}
                                 />
-                                {errors.description && <p className="text-xs font-bold text-red-500">{errors.description.message}</p>}
+                                {errors.jobDescription && <p className="text-xs font-bold text-red-500">{errors.jobDescription.message}</p>}
                             </div>
                         </div>
                     )}
@@ -246,6 +274,20 @@ const NewRequirement = () => {
                                         <p className="font-bold text-primary dark:text-white">{formValues.priority}</p>
                                     </div>
                                 </div>
+                                <div>
+                                    <p className="text-xs font-bold text-primary/40 uppercase tracking-wider">Primary skills</p>
+                                    <p className="font-bold text-primary dark:text-white">
+                                        {formValues.primarySkills?.join(', ') || '—'}
+                                    </p>
+                                </div>
+                                {(formValues.secondarySkills?.length ?? 0) > 0 && (
+                                    <div>
+                                        <p className="text-xs font-bold text-primary/40 uppercase tracking-wider">Secondary skills</p>
+                                        <p className="font-bold text-primary dark:text-white">
+                                            {formValues.secondarySkills?.join(', ')}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                             <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 rounded-lg text-sm font-medium">
                                 <span className="material-symbols-outlined">info</span>

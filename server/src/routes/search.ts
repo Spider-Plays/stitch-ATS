@@ -83,7 +83,7 @@ router.get('/', async (req, res) => {
   })
 
   res.json({
-    candidates: candidates.map(mapCandidate),
+    candidates: candidates.map((c) => mapCandidate(c)),
     requirements: requirements.map(mapRequirement),
     users: users.map(mapUser),
     interviews,

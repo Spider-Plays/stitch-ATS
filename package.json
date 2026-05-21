@@ -12,6 +12,8 @@
         "db:setup": "npm run db:setup --prefix server",
         "db:clear": "npm run db:clear --prefix server",
         "db:bootstrap": "npm run db:bootstrap --prefix server",
+        "db:seed": "npm run db:seed --prefix server",
+        "db:seed-demo": "npm run db:seed-demo --prefix server",
         "preview": "vite preview"
     },
     "dependencies": {

@@ -1,0 +1,17 @@
+# Render Blueprint — set Root Directory to "server" in the dashboard if not using Blueprint.
+services:
+  - type: web
+    name: stitch-ats-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:deploy
+    envVars:
+      - key: NODE_VERSION
+        value: "22.22.0"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false

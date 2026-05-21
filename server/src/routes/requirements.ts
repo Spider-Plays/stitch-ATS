@@ -1,11 +1,22 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { mapRequirement } from '../utils/mappers.js'
+import { mapCandidate, mapRequirement } from '../utils/mappers.js'
 import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
 import { INTERNAL_ROLES, REQ_APPROVERS, STAFF_MUTATE } from '../lib/roles.js'
 import { logActivity } from '../services/activityLog.js'
 import { generateJobCode } from '../lib/jobCode.js'
-
+import { parseSkillList, serializeSkills } from '../lib/skills.js'
+import {
+  computeMatchScore,
+  loadCandidateResumeText,
+  rankCandidatesForRequirement,
+} from '../lib/profileMatching.js'
+import {
+  appendRequirementVersion,
+  parseRequirementVersions,
+  snapshotLinkedCandidates,
+  snapshotMatchingProfiles,
+} from '../lib/requirementVersions.js'
 const router = Router()
 router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
 
@@ -20,6 +31,98 @@ router.get('/pending', async (_req, res) => {
     orderBy: { createdAt: 'desc' },
   })
   res.json(rows.map(mapRequirement))
+})
+
+router.get('/:id/matching-profiles', async (req, res) => {
+  const requirement = await prisma.requirement.findUnique({
+    where: { id: req.params.id },
+  })
+  if (!requirement) return res.status(404).json({ error: 'Not found' })
+
+  const candidates = await prisma.candidate.findMany({
+    orderBy: { updatedAt: 'desc' },
+  })
+  const ranked = await rankCandidatesForRequirement(
+    candidates,
+    requirement,
+    req.params.id
+  )
+
+  const candidateById = new Map(candidates.map((c) => [c.id, c]))
+  const minScore = Number(req.query.minScore) || 15
+
+  const matches = ranked
+    .filter((m) => m.alreadyLinked || m.matchScore >= minScore)
+    .slice(0, 40)
+    .map((m) => {
+      const c = candidateById.get(m.candidateId)!
+      return {
+        candidateId: m.candidateId,
+        matchScore: m.matchScore,
+        breakdown: m.breakdown,
+        alreadyLinked: m.alreadyLinked,
+        linkedToOther: m.linkedToOther,
+        candidate: mapCandidate(c, { requirement }),
+      }
+    })
+
+  res.json({ matches, totalCandidates: candidates.length })
+})
+
+router.post('/:id/link-candidate', requireRoles(...STAFF_MUTATE), async (req, res) => {
+  const candidateId =
+    typeof req.body.candidateId === 'string' ? req.body.candidateId : ''
+  if (!candidateId) {
+    return res.status(400).json({ error: 'candidateId is required' })
+  }
+
+  const [requirement, candidate] = await Promise.all([
+    prisma.requirement.findUnique({ where: { id: req.params.id } }),
+    prisma.candidate.findUnique({ where: { id: candidateId } }),
+  ])
+
+  if (!requirement) return res.status(404).json({ error: 'Requirement not found' })
+  if (!candidate) return res.status(404).json({ error: 'Candidate not found' })
+
+  const resumeText = await loadCandidateResumeText(candidate)
+  const { score } = computeMatchScore(candidate, requirement, resumeText)
+
+  const updated = await prisma.candidate.update({
+    where: { id: candidateId },
+    data: {
+      requirementId: requirement.id,
+      matchScore: score,
+      jobTitle: requirement.title,
+      updatedAt: new Date(),
+    },
+  })
+
+  await logActivity({
+    entityType: 'CANDIDATE',
+    entityId: candidate.id,
+    action: 'LINKED_TO_REQUIREMENT',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: {
+      requirementId: requirement.id,
+      jobCode: requirement.jobCode,
+      matchScore: score,
+    },
+  })
+
+  await appendRequirementVersion(requirement.id, {
+    changedBy: req.auth!.userId,
+    kind: 'CANDIDATE_LINKED',
+    changes: {
+      candidateId: candidate.id,
+      candidateName: candidate.name,
+      candidateEmail: candidate.email,
+      matchScore: score,
+    },
+    incrementVersion: false,
+  })
+
+  res.json(mapCandidate(updated, { requirement }))
 })
 
 router.get('/:id', async (req, res) => {
@@ -47,7 +150,17 @@ router.post('/', requireRoles(...STAFF_MUTATE, 'HIRING_MANAGER'), async (req, re
       filled: 0,
       priority: body.priority,
       location: body.location,
-      description: body.description,
+      description:
+        body.description ??
+        (typeof body.jobDescription === 'string'
+          ? body.jobDescription.slice(0, 2000)
+          : null),
+      jobDescription:
+        typeof body.jobDescription === 'string'
+          ? body.jobDescription
+          : body.description ?? null,
+      primarySkills: serializeSkills(parseSkillList(body.primarySkills)),
+      secondarySkills: serializeSkills(parseSkillList(body.secondarySkills)),
       createdBy: body.createdBy ?? req.auth!.userId,
       createdByRole: body.createdByRole ?? req.auth!.role,
       recruiters: '[]',
@@ -80,14 +193,24 @@ router.patch('/:id', requireRoles(...STAFF_MUTATE, 'HIRING_MANAGER'), async (req
   const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
 
-  const data = req.body
-  const versions = JSON.parse(existing.versions || '[]')
+  const data = { ...req.body } as Record<string, unknown>
+  delete data._user
+
+  const versions = parseRequirementVersions(existing.versions)
   const timestamp = new Date().toISOString()
+  const [linkedCandidates, matchingProfiles] = await Promise.all([
+    snapshotLinkedCandidates(req.params.id),
+    snapshotMatchingProfiles(existing, req.params.id),
+  ])
+
   versions.push({
     version: existing.currentVersion,
     changedBy: req.auth!.userId,
     changedAt: timestamp,
+    kind: 'UPDATE',
     changes: data,
+    linkedCandidates,
+    matchingProfiles,
   })
 
   const row = await prisma.requirement.update({
@@ -272,11 +395,20 @@ function pickRequirementFields(data: Record<string, unknown>) {
     'priority',
     'location',
     'description',
+    'jobDescription',
+    'primarySkills',
+    'secondarySkills',
     'visibleToCandidates',
   ]
   const out: Record<string, unknown> = {}
   for (const k of allowed) {
     if (data[k] !== undefined) out[k] = data[k]
+  }
+  if (data.primarySkills !== undefined) {
+    out.primarySkills = serializeSkills(parseSkillList(data.primarySkills))
+  }
+  if (data.secondarySkills !== undefined) {
+    out.secondarySkills = serializeSkills(parseSkillList(data.secondarySkills))
   }
   return out
 }

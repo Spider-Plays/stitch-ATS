@@ -10,19 +10,12 @@ import { Interview } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
 import { useToastStore } from '../../store/toastStore'
 import { canScheduleInterviews } from '../../lib/interviewPermissions'
-
-function interviewStatusClass(status: Interview['status']) {
-    switch (status) {
-        case 'SCHEDULED':
-            return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-200 dark:border-blue-500/30'
-        case 'COMPLETED':
-            return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/20 dark:text-green-200 dark:border-green-500/30'
-        case 'CANCELLED':
-            return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/10 dark:text-white/50 dark:border-white/10'
-        default:
-            return 'bg-slate-100 text-slate-700 border-slate-200'
-    }
-}
+import {
+    canEditInterview,
+    getInterviewDisplayLabel,
+    interviewDisplayStatusClass,
+    isInterviewPast,
+} from '../../lib/interviewDisplayStatus'
 
 const Interviews = () => {
     const [searchTerm, setSearchTerm] = useState('')
@@ -61,6 +54,7 @@ const Interviews = () => {
                         i.candidateRole,
                         i.candidateEmail,
                         i.type,
+                        getInterviewDisplayLabel(i),
                         i.status,
                         i.location,
                         i.meetingLink,
@@ -72,10 +66,10 @@ const Interviews = () => {
     )
 
     const upcomingInterviews = filteredInterviews.filter(
-        (i) => new Date(i.scheduledAt) > new Date() && i.status === 'SCHEDULED'
+        (i) => i.status === 'SCHEDULED' && !isInterviewPast(i)
     )
     const pastInterviews = filteredInterviews.filter(
-        (i) => new Date(i.scheduledAt) <= new Date() || i.status !== 'SCHEDULED'
+        (i) => !(i.status === 'SCHEDULED' && !isInterviewPast(i))
     )
 
     return (
@@ -138,8 +132,8 @@ const Interviews = () => {
                                     )}>{interview.type.replace('_', ' ')}</span>
                                     <span className={clsx(
                                         "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border",
-                                        interviewStatusClass(interview.status)
-                                    )}>{interview.status}</span>
+                                        interviewDisplayStatusClass(getInterviewDisplayLabel(interview))
+                                    )}>{getInterviewDisplayLabel(interview)}</span>
                                 </div>
                             </div>
 
@@ -160,7 +154,7 @@ const Interviews = () => {
                                         <ExternalLink size={14} /> Join
                                     </a>
                                 )}
-                                {canManage && (
+                                {canManage && canEditInterview(interview) && (
                                     <>
                                         <Link
                                             to={`/interviews/${interview.id}/edit`}
@@ -229,12 +223,12 @@ const Interviews = () => {
                                     <td className="px-6 py-4">
                                         <span className={clsx(
                                             "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border",
-                                            interviewStatusClass(interview.status)
-                                        )}>{interview.status}</span>
+                                            interviewDisplayStatusClass(getInterviewDisplayLabel(interview))
+                                        )}>{getInterviewDisplayLabel(interview)}</span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-3">
-                                            {canManage && interview.status !== 'CANCELLED' && (
+                                            {canManage && canEditInterview(interview) && (
                                                 <Link
                                                     to={`/interviews/${interview.id}/edit`}
                                                     className="text-xs font-bold text-primary hover:underline dark:text-white"
@@ -244,7 +238,9 @@ const Interviews = () => {
                                             )}
                                             {interview.status !== 'CANCELLED' && (
                                                 <Link to={`/interviews/${interview.id}/feedback`}>
-                                                    <button className="text-xs font-bold text-primary hover:underline dark:text-white">Feedback</button>
+                                                    <button className="text-xs font-bold text-primary hover:underline dark:text-white">
+                                                        {interview.hasFeedback ? 'View feedback' : 'Feedback'}
+                                                    </button>
                                                 </Link>
                                             )}
                                         </div>

@@ -38,6 +38,9 @@ export interface Requirement {
     priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
     location?: string
     description?: string
+    jobDescription?: string
+    primarySkills?: string[]
+    secondarySkills?: string[]
     createdBy?: string
     createdByRole?: string
 
@@ -53,6 +56,51 @@ export interface Requirement {
     versions?: RequirementVersion[]
     currentVersion?: number
     visibleToCandidates?: boolean
+    visibleToVendors?: boolean
+}
+
+export type VendorStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+
+export interface Vendor {
+    id: string
+    name: string
+    code?: string
+    email: string
+    phone?: string
+    website?: string
+    address?: string
+    contactName?: string
+    status: VendorStatus
+    notes?: string
+    createdAt: string
+    updatedAt: string
+    userCount?: number
+    submissionCount?: number
+    assignmentCount?: number
+}
+
+export interface VendorAssignment {
+    id: string
+    requirementId: string
+    assignedAt: string
+    title?: string
+    jobCode?: string | null
+    status?: string
+    department?: string
+}
+
+export interface VendorDetail extends Vendor {
+    users: User[]
+    assignments: VendorAssignment[]
+    submissions: {
+        id: string
+        name: string
+        email: string
+        status: string
+        jobTitle?: string | null
+        requirementId?: string | null
+        createdAt: string
+    }[]
 }
 
 export type CandidateStatus = 'SOURCED' | 'APPLIED' | 'SCREENING' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'REJECTED'
@@ -85,8 +133,30 @@ export interface Candidate {
     currentCTC?: string
     expectedCTC?: string
     noticePeriod?: string
+    pan?: string
+    vendorId?: string
+    submittedByUserId?: string
+    primarySkills?: string[]
+    secondarySkills?: string[]
     createdAt?: string
     updatedAt?: string
+}
+
+export interface ProfileMatchBreakdown {
+    primaryScore: number
+    secondaryScore: number
+    jdScore: number
+    matchedPrimary: string[]
+    matchedSecondary: string[]
+}
+
+export interface MatchingProfile {
+    candidateId: string
+    matchScore: number
+    breakdown: ProfileMatchBreakdown
+    alreadyLinked: boolean
+    linkedToOther: boolean
+    candidate: Candidate
 }
 
 export interface Interview {
@@ -104,6 +174,8 @@ export interface Interview {
     candidateName?: string
     candidateRole?: string
     candidateEmail?: string
+    hasFeedback?: boolean
+    feedbackRecommendation?: Feedback['recommendation']
 }
 
 export interface Feedback {
@@ -141,7 +213,7 @@ export interface Offer {
     createdBy: string
 }
 
-export type UserRole = 'ADMIN' | 'HR_HEAD' | 'HR_MANAGER' | 'RECRUITER' | 'TEAM_LEAD' | 'HIRING_MANAGER' | 'INTERVIEWER' | 'CANDIDATE';
+export type UserRole = 'ADMIN' | 'HR_HEAD' | 'HR_MANAGER' | 'RECRUITER' | 'TEAM_LEAD' | 'HIRING_MANAGER' | 'INTERVIEWER' | 'CANDIDATE' | 'VENDOR';
 
 export interface User {
     uid: string;
@@ -159,6 +231,7 @@ export interface User {
     authProvider?: string;
     department?: string;
     lastLogin?: string;
+    vendorId?: string;
 }
 
 export interface ActivityLog {

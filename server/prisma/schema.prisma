@@ -27,6 +27,32 @@ model User {
   lastLogin            DateTime?
   passwordResetToken   String?
   passwordResetExpires DateTime?
+  vendorId             String?
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  name        String
+  code        String?  @unique
+  email       String
+  phone       String?
+  website     String?
+  address     String?
+  contactName String?
+  status      String   @default("ACTIVE")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model VendorRequirement {
+  id            String   @id @default(cuid())
+  vendorId      String
+  requirementId String
+  assignedAt    DateTime @default(now())
+  assignedBy    String?
+
+  @@unique([vendorId, requirementId])
 }
 
 model Requirement {
@@ -42,6 +68,9 @@ model Requirement {
   priority        String?
   location        String?
   description     String?
+  jobDescription  String?
+  primarySkills   String   @default("[]")
+  secondarySkills String   @default("[]")
   createdBy       String?
   createdByRole   String?
   recruiters      String   @default("[]")
@@ -50,6 +79,7 @@ model Requirement {
   versions        String   @default("[]")
   currentVersion        Int      @default(1)
   visibleToCandidates   Boolean  @default(true)
+  visibleToVendors      Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -79,6 +109,12 @@ model Candidate {
   currentCTC       String?
   expectedCTC      String?
   noticePeriod     String?
+  pan              String?
+  primarySkills    String   @default("[]")
+  secondarySkills  String   @default("[]")
+  resumeText       String?
+  vendorId         String?
+  submittedByUserId String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -127,6 +163,13 @@ model Offer {
   updatedAt     DateTime @updatedAt
 }
 
+model SkillCatalog {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  category  String   @default("General")
+  createdAt DateTime @default(now())
+}
+
 model ActivityLog {
   id            String   @id @default(cuid())
   entityType    String
@@ -137,4 +180,10 @@ model ActivityLog {
   performerRole String?
   details       String?
   timestamp     DateTime @default(now())
+}
+
+model RolePageAccess {
+  role      String   @id
+  pages     String
+  updatedAt DateTime @updatedAt
 }

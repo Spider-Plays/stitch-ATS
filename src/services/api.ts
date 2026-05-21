@@ -1,4 +1,6 @@
-import { requirementService, candidateService, userService, interviewService, offerService, feedbackService, searchService, portalService } from './http'
+import { requirementService, candidateService, userService, interviewService, offerService, feedbackService, searchService, portalService, skillService } from './http'
+import { vendorService } from './http/vendors'
+import { vendorPortalService } from './http/vendorPortal'
 import { activityLogService } from './http/activityLogs'
 
 export const api = {
@@ -14,9 +16,13 @@ export const api = {
         reject: requirementService.reject,
         setVisibility: requirementService.setVisibility,
         delete: requirementService.delete,
+        getMatchingProfiles: requirementService.getMatchingProfiles,
+        linkCandidate: requirementService.linkCandidate,
     },
     candidates: {
         list: candidateService.getAll,
+        checkEmail: candidateService.checkEmail,
+        parseResume: candidateService.parseResume,
         getByRequirementId: candidateService.getByRequirementId,
         get: candidateService.getById,
         create: candidateService.create,
@@ -40,6 +46,27 @@ export const api = {
         getOpenPositions: portalService.getOpenPositions,
         getPosition: portalService.getPosition,
         applyToPosition: portalService.applyToPosition,
+    },
+    vendors: {
+        list: vendorService.list,
+        get: vendorService.get,
+        create: vendorService.create,
+        update: vendorService.update,
+        assignJobs: vendorService.assignJobs,
+        unassignJob: vendorService.unassignJob,
+        inviteUser: vendorService.inviteUser,
+    },
+    vendorPortal: {
+        getMe: vendorPortalService.getMe,
+        getPositions: vendorPortalService.getPositions,
+        getPosition: vendorPortalService.getPosition,
+        getSubmissions: vendorPortalService.getSubmissions,
+        submitCandidate: vendorPortalService.submitCandidate,
+    },
+    skills: {
+        list: skillService.list,
+        create: skillService.create,
+        remove: skillService.remove,
     },
     users: {
         list: userService.list,

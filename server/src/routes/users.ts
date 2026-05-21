@@ -19,6 +19,7 @@ const inviteRoles = [
   'HIRING_MANAGER',
   'INTERVIEWER',
   'CANDIDATE',
+  'VENDOR',
 ] as const
 
 router.get(

@@ -255,10 +255,11 @@ const FeedbackForm = () => {
         ...scores,
       })
     },
-    onSuccess: async (created) => {
+    onSuccess: (created) => {
       addToast('Feedback submitted', 'success')
-      await api.interviews.updateStatus(id!, 'COMPLETED')
       queryClient.invalidateQueries({ queryKey: ['feedback', id] })
+      queryClient.invalidateQueries({ queryKey: ['interviews'] })
+      queryClient.invalidateQueries({ queryKey: ['interview', id] })
       setViewId(created.id)
     },
     onError: () => addToast('Failed to submit feedback', 'error'),

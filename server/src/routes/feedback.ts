@@ -110,6 +110,14 @@ router.post('/', async (req, res) => {
     },
   })
 
+  const interview = await prisma.interview.findUnique({ where: { id: body.interviewId } })
+  if (interview && interview.status === 'SCHEDULED') {
+    await prisma.interview.update({
+      where: { id: body.interviewId },
+      data: { status: 'COMPLETED' },
+    })
+  }
+
   await logActivity({
     entityType: 'INTERVIEW',
     entityId: body.interviewId,

@@ -1,18 +1,29 @@
 import { apiRequest, setToken, clearToken } from '../../lib/apiClient'
 import { User } from '../../types'
+import { PageKey } from '../../lib/pageAccess'
+
+export type AuthSession = {
+  user: User
+  allowedPages: PageKey[]
+}
 
 export const authApi = {
-  login: async (email: string, password: string): Promise<User> => {
-    const data = await apiRequest<{ token: string; user: User }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    })
+  login: async (email: string, password: string): Promise<AuthSession> => {
+    const data = await apiRequest<{ token: string; user: User; allowedPages: PageKey[] }>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }
+    )
     setToken(data.token)
-    return data.user
+    return { user: data.user, allowedPages: data.allowedPages ?? [] }
   },
 
-  me: async (): Promise<User> => {
-    return apiRequest<User>('/auth/me')
+  me: async (): Promise<AuthSession> => {
+    const data = await apiRequest<User & { allowedPages?: PageKey[] }>('/auth/me')
+    const { allowedPages, ...user } = data
+    return { user: user as User, allowedPages: allowedPages ?? [] }
   },
 
   logout: () => {
@@ -31,12 +42,15 @@ export const authApi = {
       body: JSON.stringify({ token, newPassword }),
     }),
 
-  changePassword: async (currentPassword: string, newPassword: string): Promise<User> => {
-    const data = await apiRequest<{ token: string; user: User }>('/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ currentPassword, newPassword }),
-    })
+  changePassword: async (currentPassword: string, newPassword: string): Promise<AuthSession> => {
+    const data = await apiRequest<{ token: string; user: User; allowedPages?: PageKey[] }>(
+      '/auth/change-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }
+    )
     setToken(data.token)
-    return data.user
+    return { user: data.user, allowedPages: data.allowedPages ?? [] }
   },
 }

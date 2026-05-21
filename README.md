@@ -45,7 +45,10 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run db:setup` | Apply Prisma schema |
 | `npm run db:bootstrap` | Create first admin (`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`) |
 | `npm run db:clear` | Delete all users and hiring data |
-| `npm run db:seed` | Seed users from `src/config/users.ts` (empty by default) |
+| `npm run db:seed` | Seed dev users from `server/src/config/devUsers.ts` |
+| `npm run db:seed-demo` | Full demo dataset (17+ candidates, 6 reqs, portal & vendor users). Use `-- --fresh` to replace hiring data only |
+
+**Skill catalog:** On first API load, default IT skills are seeded. Admins use **Edit skills** on Add Candidate / Post Job to add more. Matching uses the same catalog for requirements and candidates.
 
 ## Email (Resend)
 
@@ -64,18 +67,38 @@ For production, verify your domain in Resend and set `EMAIL_FROM` to e.g. `Stitc
 
 ## Production (Netlify + Render + Neon)
 
-1. Set `DATABASE_URL` (Neon), `JWT_SECRET`, `CLIENT_ORIGIN` on Render
-2. **Build command** (no demo seed):  
-   `npm install && npx prisma generate && npm run build && npx prisma db push`
-3. Clear Neon data (free — no Render Shell):  
+### Render API service (`stitch-ATS`)
+
+In [Render Dashboard](https://dashboard.render.com) → your web service → **Settings**:
+
+| Setting | Value |
+|---------|--------|
+| **Root Directory** | `server` |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `npm run start:deploy` |
+
+Do **not** put `prisma db push` in the build command ([Render troubleshooting](https://render.com/docs/troubleshooting-deploys)): if Neon is asleep, the build fails even when TypeScript compiles.
+
+**Environment variables:** `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN` (your Netlify URL, e.g. `https://your-app.netlify.app`), optional `RESEND_API_KEY`, `EMAIL_FROM`.
+
+Optional: set **Node version** to `22.22.0` (or use `server/.node-version`).
+
+After deploy succeeds, bootstrap admin from your PC:
+
+```bash
+cd server
+# set DATABASE_URL in .env to the same Neon URL as Render
+npm run db:bootstrap
+```
+6. Clear Neon data (free — no Render Shell):  
    - **Option A:** Neon Console → **SQL Editor** → paste `server/prisma/clear-all.sql` → Run  
    - **Option B:** On your PC, set `DATABASE_URL` in `server/.env` to your Neon string, then `npm run db:clear --prefix server`  
-4. Create your admin from your PC:  
+7. Create your admin from your PC:  
    ```bash
    cd server
    # ADMIN_EMAIL=... ADMIN_PASSWORD=... ADMIN_NAME=... npm run db:bootstrap
    ```
-4. Netlify serves the React app; `netlify.toml` proxies `/api` to Render
+8. Netlify serves the React app; `netlify.toml` proxies `/api` to Render
 
 ## Project layout
 

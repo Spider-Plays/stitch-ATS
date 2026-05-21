@@ -1,5 +1,5 @@
 import { apiRequest } from '../../lib/apiClient'
-import { Requirement, RequirementStatus } from '../../types'
+import { MatchingProfile, Requirement, RequirementStatus } from '../../types'
 
 export const requirementService = {
   getAll: () => apiRequest<Requirement[]>('/requirements'),
@@ -49,4 +49,15 @@ export const requirementService = {
 
   delete: (id: string) =>
     apiRequest<void>(`/requirements/${id}`, { method: 'DELETE' }),
+
+  getMatchingProfiles: (id: string) =>
+    apiRequest<{ matches: MatchingProfile[]; totalCandidates: number }>(
+      `/requirements/${id}/matching-profiles`
+    ),
+
+  linkCandidate: (requirementId: string, candidateId: string) =>
+    apiRequest<import('../../types').Candidate>(
+      `/requirements/${requirementId}/link-candidate`,
+      { method: 'POST', body: JSON.stringify({ candidateId }) }
+    ),
 }

@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
-import { RequirementStatus, User } from '../../types'
+import { RequirementStatus, RequirementVersion, User } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
 import clsx from 'clsx'
 import { format } from 'date-fns'
@@ -20,18 +20,31 @@ const TABS = [
     { id: 'details', label: 'Requirement Details' },
     { id: 'recruiters', label: 'Recruiter Assignment' },
     { id: 'history', label: 'Approval History' },
-    { id: 'versions', label: 'Version History' }
+    { id: 'versions', label: 'Version History' },
+    { id: 'candidates', label: 'Candidates' },
 ]
+
+const CANDIDATES_PREVIEW_LIMIT = 5
 
 const RequirementDetail = () => {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const queryClient = useQueryClient()
     const { user } = useAuth()
     const { addToast } = useToastStore()
-    const [activeTab, setActiveTab] = useState('details')
+    const tabFromUrl = searchParams.get('tab')
+    const [activeTab, setActiveTab] = useState(
+        () => (TABS.some((t) => t.id === tabFromUrl) ? tabFromUrl! : 'details')
+    )
     const [selectedRecruiter, setSelectedRecruiter] = useState('')
     const [candidateSearch, setCandidateSearch] = useState('')
+
+    React.useEffect(() => {
+        if (tabFromUrl && TABS.some((t) => t.id === tabFromUrl)) {
+            setActiveTab(tabFromUrl)
+        }
+    }, [tabFromUrl])
 
     const { data: requirement, isLoading } = useQuery({
         queryKey: ['requirement', id],
@@ -50,6 +63,15 @@ const RequirementDetail = () => {
         queryFn: () => api.candidates.getByRequirementId(id || ''),
         enabled: !!id
     })
+
+    const { data: matchingData, isLoading: matchingLoading, refetch: refetchMatches } = useQuery({
+        queryKey: ['requirement-matches', id],
+        queryFn: () => api.requirements.getMatchingProfiles(id!),
+        enabled: !!id,
+    })
+
+    const matchingProfiles = matchingData?.matches ?? []
+    const suggestedMatches = matchingProfiles.filter((m) => !m.alreadyLinked)
 
     // Derived Data
     const recruiters = users.filter(u => ['RECRUITER', 'HR_MANAGER', 'HR_HEAD', 'ADMIN'].includes(u.role))
@@ -78,6 +100,20 @@ const RequirementDetail = () => {
         [candidates, candidateSearch]
     )
 
+    const previewMatches = suggestedMatches.slice(0, CANDIDATES_PREVIEW_LIMIT)
+    const previewLinked = filteredCandidates.slice(0, CANDIDATES_PREVIEW_LIMIT)
+
+    const versionTimeline = useMemo(() => {
+        const list = [...(requirement?.versions ?? [])] as RequirementVersion[]
+        return list.sort(
+            (a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()
+        )
+    }, [requirement?.versions])
+
+    const versionKind = (ver: RequirementVersion): RequirementVersion['kind'] =>
+        ver.kind ??
+        (typeof ver.changes?.candidateId === 'string' ? 'CANDIDATE_LINKED' : 'UPDATE')
+
     // Mutations
     const approveMutation = useMutation({
         mutationFn: () => api.requirements.approve(id!, { uid: user!.uid, role: user!.role }),
@@ -92,6 +128,17 @@ const RequirementDetail = () => {
     const closeMutation = useMutation({
         mutationFn: () => api.requirements.updateStatus(id!, 'CLOSED'),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+    })
+
+    const linkCandidateMutation = useMutation({
+        mutationFn: (candidateId: string) => api.requirements.linkCandidate(id!, candidateId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['candidates', 'requirement', id] })
+            queryClient.invalidateQueries({ queryKey: ['requirement-matches', id] })
+            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            addToast('Candidate linked to this requirement', 'success')
+        },
+        onError: () => addToast('Failed to link candidate', 'error'),
     })
 
     const assignRecruiterMutation = useMutation({
@@ -349,13 +396,33 @@ const RequirementDetail = () => {
                                         </section>
                                     )}
 
-                                    {/* Job Description Card */}
+                                    {/* Job Description & Skills */}
                                     <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-sm">
                                         <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-primary dark:text-white">
-                                            <FileText size={20} className="text-primary/60 dark:text-white/60" /> Job Description
+                                            <FileText size={20} className="text-primary/60 dark:text-white/60" /> Job description & skills
                                         </h3>
+                                        {(requirement.primarySkills?.length ?? 0) > 0 && (
+                                            <div className="mb-4">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Primary skills</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {requirement.primarySkills!.map((s) => (
+                                                        <span key={s} className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary dark:text-white text-xs font-bold">{s}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {(requirement.secondarySkills?.length ?? 0) > 0 && (
+                                            <div className="mb-6">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Secondary skills</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {requirement.secondarySkills!.map((s) => (
+                                                        <span key={s} className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white/80 text-xs font-bold">{s}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-300 leading-relaxed">
-                                            <p className="whitespace-pre-wrap">{requirement.description || "No description provided."}</p>
+                                            <p className="whitespace-pre-wrap">{requirement.jobDescription || requirement.description || 'No job description provided.'}</p>
                                         </div>
                                     </section>
 
@@ -409,54 +476,6 @@ const RequirementDetail = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Candidates */}
-                                    <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
-                                        <div className="flex items-center justify-between gap-2 mb-4">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                                                Candidates ({candidates.length})
-                                            </h3>
-                                            <Link
-                                                to={`/pipeline/${id}`}
-                                                className="text-xs font-bold text-primary dark:text-white hover:underline"
-                                            >
-                                                Pipeline
-                                            </Link>
-                                        </div>
-                                        <ListSearchBar
-                                            value={candidateSearch}
-                                            onChange={setCandidateSearch}
-                                            placeholder="Search candidates..."
-                                            className="max-w-none mb-4"
-                                        />
-                                        <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                                            {filteredCandidates.length === 0 ? (
-                                                <p className="text-sm text-slate-500 italic py-2">
-                                                    {candidateSearch.trim()
-                                                        ? 'No candidates match your search.'
-                                                        : 'No candidates linked to this requirement yet.'}
-                                                </p>
-                                            ) : (
-                                                filteredCandidates.map((c) => (
-                                                    <Link
-                                                        key={c.id}
-                                                        to={`/candidates/${c.id}`}
-                                                        className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors"
-                                                    >
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-bold text-primary dark:text-white truncate">
-                                                                {c.name}
-                                                            </p>
-                                                            <p className="text-[10px] text-slate-500 truncate">{c.role}</p>
-                                                        </div>
-                                                        <span className="text-[10px] font-bold uppercase text-slate-400 shrink-0">
-                                                            {c.status}
-                                                        </span>
-                                                    </Link>
-                                                ))
-                                            )}
                                         </div>
                                     </div>
 
@@ -594,34 +613,322 @@ const RequirementDetail = () => {
                             </div>
                         )}
 
-                        {/* Version History Tab */}
-                        {activeTab === 'versions' && (
-                            <div className="space-y-4 max-w-3xl">
-                                {requirement.versions?.map((ver, idx) => (
-                                    <div key={idx} className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <h4 className="font-bold text-primary dark:text-white">Version {ver.version}</h4>
-                                                <p className="text-xs text-slate-500">
-                                                    Changed by {users.find(u => u.uid === ver.changedBy)?.name || ver.changedBy} on {format(new Date(ver.changedAt), 'PPP p')}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="bg-slate-50 dark:bg-black/20 rounded-lg p-4 text-xs font-mono overflow-x-auto">
-                                            {Object.keys(ver.changes).map(key => (
-                                                <div key={key} className="flex gap-2">
-                                                    <span className="text-slate-500">{key}:</span>
-                                                    <span className="text-primary dark:text-white truncate max-w-md">
-                                                        {JSON.stringify(ver.changes[key])}
-                                                    </span>
-                                                </div>
-                                            ))}
+                        {/* Candidates Tab */}
+                        {activeTab === 'candidates' && (
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start max-w-6xl">
+                                <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <h3 className="text-lg font-bold text-primary dark:text-white">
+                                            Matching profiles
+                                        </h3>
+                                        <div className="flex items-center gap-3">
+                                            {suggestedMatches.length > CANDIDATES_PREVIEW_LIMIT && (
+                                                <Link
+                                                    to={`/requirements/${id}/matching-profiles`}
+                                                    className="text-xs font-bold text-primary dark:text-white hover:underline"
+                                                >
+                                                    View all ({suggestedMatches.length})
+                                                </Link>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => refetchMatches()}
+                                                className="text-xs font-bold text-primary/70 dark:text-white/70 hover:underline"
+                                            >
+                                                Refresh
+                                            </button>
                                         </div>
                                     </div>
-                                ))}
-                                {!requirement.versions?.length && (
-                                    <div className="text-center p-12 text-slate-500">No version history available.</div>
-                                )}
+                                    <p className="text-sm text-slate-500 mb-4">
+                                        Scores compare candidate skills and resumes to this job description. Link a match to add them to this requirement.
+                                    </p>
+                                    <div className="space-y-2 max-h-[min(60vh,480px)] overflow-y-auto custom-scrollbar">
+                                        {matchingLoading ? (
+                                            <p className="text-sm text-slate-500 italic py-2">Finding matches…</p>
+                                        ) : suggestedMatches.length === 0 ? (
+                                            <p className="text-sm text-slate-500 italic py-2">
+                                                No strong matches yet. Add primary skills and a job description, or upload candidate resumes.
+                                            </p>
+                                        ) : (
+                                            previewMatches.map((m) => (
+                                                <div
+                                                    key={m.candidateId}
+                                                    className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10"
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <Link
+                                                                to={`/candidates/${m.candidateId}`}
+                                                                className="text-sm font-bold text-primary dark:text-white truncate block hover:underline"
+                                                            >
+                                                                {m.candidate.name}
+                                                            </Link>
+                                                            <p className="text-[10px] text-slate-500 truncate">{m.candidate.role}</p>
+                                                        </div>
+                                                        <span
+                                                            className={clsx(
+                                                                'shrink-0 px-2 py-0.5 rounded-md text-[10px] font-black',
+                                                                m.matchScore >= 70
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : m.matchScore >= 40
+                                                                      ? 'bg-amber-100 text-amber-800'
+                                                                      : 'bg-slate-200 text-slate-600'
+                                                            )}
+                                                        >
+                                                            {m.matchScore}%
+                                                        </span>
+                                                    </div>
+                                                    {m.linkedToOther && (
+                                                        <p className="text-[10px] text-amber-700 mt-1">Linked to another job</p>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        disabled={linkCandidateMutation.isPending}
+                                                        onClick={() => linkCandidateMutation.mutate(m.candidateId)}
+                                                        className="mt-2 text-[10px] font-bold text-primary dark:text-white hover:underline disabled:opacity-50"
+                                                    >
+                                                        Link to requirement
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </section>
+
+                                <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <h3 className="text-lg font-bold text-primary dark:text-white">
+                                            Linked candidates ({candidates.length})
+                                        </h3>
+                                        <div className="flex items-center gap-3 flex-wrap justify-end">
+                                            {candidates.length > CANDIDATES_PREVIEW_LIMIT && (
+                                                <Link
+                                                    to={`/requirements/${id}/linked-candidates`}
+                                                    className="text-xs font-bold text-primary dark:text-white hover:underline"
+                                                >
+                                                    View all ({candidates.length})
+                                                </Link>
+                                            )}
+                                            <Link
+                                                to={`/candidates/new?requirementId=${id}`}
+                                                className="text-xs font-bold text-primary dark:text-white hover:underline"
+                                            >
+                                                Add
+                                            </Link>
+                                            <Link
+                                                to={`/pipeline/${id}`}
+                                                className="text-xs font-bold text-primary/60 dark:text-white/60 hover:underline"
+                                            >
+                                                Pipeline
+                                            </Link>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-slate-500 mb-4">
+                                        Candidates currently assigned to this requirement.
+                                    </p>
+                                    <ListSearchBar
+                                        value={candidateSearch}
+                                        onChange={setCandidateSearch}
+                                        placeholder="Search linked candidates..."
+                                        className="max-w-none mb-4"
+                                    />
+                                    <div className="space-y-2 max-h-[min(60vh,480px)] overflow-y-auto custom-scrollbar">
+                                        {filteredCandidates.length === 0 ? (
+                                            <p className="text-sm text-slate-500 italic py-2">
+                                                {candidateSearch.trim()
+                                                    ? 'No candidates match your search.'
+                                                    : 'No candidates linked to this requirement yet.'}
+                                            </p>
+                                        ) : (
+                                            previewLinked.map((c) => (
+                                                <Link
+                                                    key={c.id}
+                                                    to={`/candidates/${c.id}`}
+                                                    className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-primary dark:text-white truncate">
+                                                            {c.name}
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-500 truncate">{c.role}</p>
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-1 shrink-0">
+                                                        {c.matchScore > 0 && (
+                                                            <span
+                                                                className={clsx(
+                                                                    'px-2 py-0.5 rounded-md text-[10px] font-black',
+                                                                    c.matchScore >= 70
+                                                                        ? 'bg-green-100 text-green-800'
+                                                                        : c.matchScore >= 40
+                                                                          ? 'bg-amber-100 text-amber-800'
+                                                                          : 'bg-slate-200 text-slate-600'
+                                                                )}
+                                                            >
+                                                                {Math.round(c.matchScore)}%
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[10px] font-bold uppercase text-slate-400">
+                                                            {c.status}
+                                                        </span>
+                                                    </div>
+                                                </Link>
+                                            ))
+                                        )}
+                                    </div>
+                                </section>
+                            </div>
+                        )}
+
+                        {/* Version History Tab */}
+                        {activeTab === 'versions' && (
+                            <div className="max-w-4xl">
+                                    <h3 className="text-lg font-bold text-primary dark:text-white mb-2">
+                                        Version history
+                                    </h3>
+                                    <p className="text-sm text-slate-500 mb-6">
+                                        Requirement edits and candidate links, with snapshots of linked candidates and
+                                        matching profiles at each point in time.
+                                    </p>
+                                    <div className="space-y-4">
+                                        {versionTimeline.map((ver, idx) => {
+                                            const kind = versionKind(ver)
+                                            const changer =
+                                                users.find((u) => u.uid === ver.changedBy)?.name || ver.changedBy
+                                            return (
+                                                <div
+                                                    key={`${ver.changedAt}-${idx}`}
+                                                    className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6"
+                                                >
+                                                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                                                        <div>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <h4 className="font-bold text-primary dark:text-white">
+                                                                    Version {ver.version}
+                                                                </h4>
+                                                                <span
+                                                                    className={clsx(
+                                                                        'px-2 py-0.5 rounded-md text-[10px] font-black uppercase',
+                                                                        kind === 'CANDIDATE_LINKED'
+                                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                                            : 'bg-blue-100 text-blue-800'
+                                                                    )}
+                                                                >
+                                                                    {kind === 'CANDIDATE_LINKED'
+                                                                        ? 'Candidate linked'
+                                                                        : 'Requirement updated'}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-500 mt-1">
+                                                                {changer} · {format(new Date(ver.changedAt), 'PPP p')}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {kind === 'CANDIDATE_LINKED' && (
+                                                        <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30">
+                                                            <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                                                                Linked:{' '}
+                                                                {String(
+                                                                    ver.changes.candidateName ??
+                                                                        ver.linkedCandidates?.find(
+                                                                            (lc) => lc.id === ver.changes.candidateId
+                                                                        )?.name ??
+                                                                        'Candidate'
+                                                                )}
+                                                            </p>
+                                                            {typeof ver.changes.matchScore === 'number' && (
+                                                                <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+                                                                    Match score: {ver.changes.matchScore}%
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {kind === 'UPDATE' && Object.keys(ver.changes).length > 0 && (
+                                                        <div className="mb-4 bg-slate-50 dark:bg-black/20 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+                                                            {Object.entries(ver.changes).map(([key, val]) => (
+                                                                <div key={key} className="flex gap-2 py-0.5">
+                                                                    <span className="text-slate-500 shrink-0">{key}:</span>
+                                                                    <span className="text-primary dark:text-white break-all">
+                                                                        {typeof val === 'string'
+                                                                            ? val
+                                                                            : JSON.stringify(val)}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-white/10">
+                                                        <div>
+                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                                                Linked at this point ({ver.linkedCandidates?.length ?? 0})
+                                                            </p>
+                                                            {ver.linkedCandidates?.length ? (
+                                                                <ul className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                                                                    {ver.linkedCandidates.map((lc) => (
+                                                                        <li key={lc.id}>
+                                                                            <Link
+                                                                                to={`/candidates/${lc.id}`}
+                                                                                className="text-xs font-bold text-primary dark:text-white hover:underline"
+                                                                            >
+                                                                                {lc.name}
+                                                                            </Link>
+                                                                            <span className="text-[10px] text-slate-500 ml-2">
+                                                                                {lc.matchScore}% · {lc.status}
+                                                                            </span>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            ) : (
+                                                                <p className="text-xs text-slate-500 italic">None linked</p>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                                                Top matches at this point ({ver.matchingProfiles?.length ?? 0})
+                                                            </p>
+                                                            {ver.matchingProfiles?.length ? (
+                                                                <ul className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                                                                    {ver.matchingProfiles.map((mp) => (
+                                                                        <li
+                                                                            key={mp.candidateId}
+                                                                            className="flex justify-between gap-2 text-xs"
+                                                                        >
+                                                                            <Link
+                                                                                to={`/candidates/${mp.candidateId}`}
+                                                                                className="font-bold text-primary dark:text-white hover:underline truncate"
+                                                                            >
+                                                                                {mp.name}
+                                                                                {mp.alreadyLinked && (
+                                                                                    <span className="text-emerald-600 ml-1">
+                                                                                        (linked)
+                                                                                    </span>
+                                                                                )}
+                                                                            </Link>
+                                                                            <span className="font-black text-slate-500 shrink-0">
+                                                                                {mp.matchScore}%
+                                                                            </span>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            ) : (
+                                                                <p className="text-xs text-slate-500 italic">
+                                                                    No snapshot recorded
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                        {versionTimeline.length === 0 && (
+                                            <div className="text-center p-12 text-slate-500 rounded-2xl border border-dashed border-slate-200">
+                                                No version history yet. Edit the requirement or link a candidate to
+                                                create entries.
+                                            </div>
+                                        )}
+                                    </div>
                             </div>
                         )}
                     </motion.div>

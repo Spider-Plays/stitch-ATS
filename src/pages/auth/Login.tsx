@@ -6,11 +6,13 @@ import { AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { authApi } from '../../services/http/auth'
 import { ApiError } from '../../lib/apiClient'
+import { DevQuickLogin } from '../../dev/DevQuickLogin'
+import { firstAllowedPath, PageKey } from '../../lib/pageAccess'
 
 const Login = () => {
     const navigate = useNavigate()
     const location = useLocation()
-    const { login, user } = useAuth()
+    const { login, user, allowedPages } = useAuth()
     const [loading, setLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
     const [showPassword, setShowPassword] = useState(false)
@@ -23,13 +25,12 @@ const Login = () => {
     const from = location.state?.from?.pathname || '/'
     const { register, handleSubmit } = useForm<{ email: string; password: string }>()
 
-    const redirectByRole = (role: string) => {
-        if (role === 'ADMIN') navigate('/admin/users')
-        else if (role === 'CANDIDATE') navigate('/portal/dashboard')
-        else if (['RECRUITER', 'TEAM_LEAD', 'HR_MANAGER'].includes(role)) navigate('/dashboard')
-        else if (role === 'INTERVIEWER') navigate('/interviews')
-        else if (role === 'HIRING_MANAGER') navigate('/requirements')
-        else navigate(from === '/' ? '/portal/dashboard' : from, { replace: true })
+    const redirectByRole = (role: string, allowedPages: PageKey[] = []) => {
+        if (role === 'CANDIDATE') navigate('/portal/dashboard')
+        else if (role === 'VENDOR') navigate('/vendor-portal/dashboard')
+        else if (allowedPages.length > 0) navigate(firstAllowedPath(allowedPages), { replace: true })
+        else if (role === 'ADMIN') navigate('/admin/users')
+        else navigate(from === '/' ? '/dashboard' : from, { replace: true })
     }
 
     const onSubmit = async (data: { email: string; password: string }) => {
@@ -37,16 +38,19 @@ const Login = () => {
         setAuthError(null)
 
         try {
-            const loggedIn = await login(data.email, data.password)
-            redirectByRole(loggedIn.role)
+            const session = await login(data.email, data.password)
+            redirectByRole(session.user.role, session.allowedPages)
         } catch (err: unknown) {
             console.error(err)
             const code = err instanceof Error ? err.message : ''
             if (code === 'ACCOUNT_DISABLED') {
                 setAuthError('This account has been disabled.')
+            } else if (code === 'SERVER_UNAVAILABLE') {
+                setAuthError('Cannot reach the API server. Run npm run dev from the project root (starts client + server on port 4000).')
             } else {
                 setAuthError('Invalid email or password.')
             }
+        } finally {
             setLoading(false)
         }
     }
@@ -61,8 +65,8 @@ const Login = () => {
     }, [location.search])
 
     React.useEffect(() => {
-        if (user) redirectByRole(user.role || 'CANDIDATE')
-    }, [user])
+        if (user) redirectByRole(user.role || 'CANDIDATE', allowedPages)
+    }, [user, allowedPages])
 
     return (
         <div className="min-h-screen flex bg-background-light dark:bg-background-dark">
@@ -258,6 +262,14 @@ const Login = () => {
                             >
                                 Forgot password?
                             </button>
+                        )}
+
+                        {import.meta.env.DEV && mode === 'login' && (
+                            <DevQuickLogin
+                                login={login}
+                                redirectByRole={redirectByRole}
+                                disabled={loading}
+                            />
                         )}
                     </div>
 

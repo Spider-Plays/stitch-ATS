@@ -6,7 +6,7 @@ import { User, UserRole } from '../../types';
 import {
     Users, Search, Shield,
     Mail, XCircle, Trash2,
-    Download, UserPlus, Briefcase, Monitor, ChevronLeft, ChevronRight
+    Download, UserPlus, Briefcase, Monitor, ChevronLeft, ChevronRight, SlidersHorizontal
 } from 'lucide-react';
 import { ActionsMenu } from '../../components/ui/ActionsMenu';
 import { useToastStore } from '../../store/toastStore';
@@ -22,7 +22,7 @@ const DEPARTMENT_SUGGESTIONS = ['Engineering', 'Product', 'Design', 'Marketing',
 const inviteSchema = z.object({
     email: z.string().email('Enter a valid email'),
     name: z.string().optional(),
-    role: z.enum(['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER', 'TEAM_LEAD', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE']),
+    role: z.enum(['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER', 'TEAM_LEAD', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE', 'VENDOR']),
     department: z.string().max(120).optional(),
 })
 
@@ -181,7 +181,14 @@ const UserManagement = () => {
                     <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">User Administration</h1>
                     <p className="text-primary/60 dark:text-white/60 font-medium mt-1">Manage your team's access levels and roles.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
+                    <Link
+                        to="/admin/role-access"
+                        className="px-4 py-2 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white font-bold rounded-xl text-sm flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/10 shadow-sm transition-all"
+                    >
+                        <SlidersHorizontal size={18} />
+                        Edit role access
+                    </Link>
                     <button className="px-4 py-2 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white font-bold rounded-xl text-sm flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/10 shadow-sm transition-all">
                         <Download size={18} />
                         Export

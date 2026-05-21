@@ -1,7 +1,19 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
+import { Prisma } from '@prisma/client'
 import { env } from '../config/env.js'
 import { prisma } from '../lib/prisma.js'
+
+function forwardDbError(err: unknown, next: NextFunction) {
+  if (
+    err instanceof Prisma.PrismaClientInitializationError ||
+    (err instanceof Prisma.PrismaClientKnownRequestError &&
+      ['P1000', 'P1001', 'P1002', 'P1008', 'P1011', 'P1017'].includes(err.code))
+  ) {
+    return next(err)
+  }
+  throw err
+}
 
 export interface AuthPayload {
   userId: string
@@ -43,9 +55,13 @@ export function requireRoles(...roles: string[]) {
 
 export async function requireActiveUser(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) return res.status(401).json({ error: 'Unauthorized' })
-  const user = await prisma.user.findUnique({ where: { id: req.auth.userId } })
-  if (!user || user.status === 'DISABLED') {
-    return res.status(403).json({ error: 'Account disabled' })
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.auth.userId } })
+    if (!user || user.status === 'DISABLED') {
+      return res.status(403).json({ error: 'Account disabled' })
+    }
+    next()
+  } catch (err) {
+    forwardDbError(err, next)
   }
-  next()
 }

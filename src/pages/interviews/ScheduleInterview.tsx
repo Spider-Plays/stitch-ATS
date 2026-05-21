@@ -10,6 +10,7 @@ import clsx from 'clsx'
 import { SearchableSelect } from '../../components/ui/SearchableSelect'
 import { SearchableMultiSelect } from '../../components/ui/SearchableMultiSelect'
 import { useToastStore } from '../../store/toastStore'
+import { canEditInterview } from '../../lib/interviewDisplayStatus'
 
 const schema = z.object({
     candidateId: z.string().min(1, "Candidate is required"),
@@ -72,7 +73,19 @@ const ScheduleInterview = () => {
     const { data: requirements = [] } = useQuery({ queryKey: ['requirements'], queryFn: api.requirements.list })
     const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: api.users.list })
 
-    const interviewers = users.filter(u => ['INTERVIEWER', 'HIRING_MANAGER', 'TEAM_LEAD', 'RECRUITER', 'ADMIN'].includes(u.role))
+    const INTERVIEWER_ROLES = [
+        'INTERVIEWER',
+        'HIRING_MANAGER',
+        'TEAM_LEAD',
+        'RECRUITER',
+        'ADMIN',
+        'HR_HEAD',
+        'HR_MANAGER',
+    ] as const
+
+    const interviewers = users.filter(
+        (u) => u.status === 'ACTIVE' && INTERVIEWER_ROLES.includes(u.role as (typeof INTERVIEWER_ROLES)[number])
+    )
 
     const candidateOptions = useMemo(
         () =>
@@ -159,6 +172,23 @@ const ScheduleInterview = () => {
         )
     }
 
+    if (isEditMode && interview && !canEditInterview(interview)) {
+        return (
+            <div className="max-w-4xl mx-auto py-16 text-center space-y-4">
+                <p className="text-primary/60 dark:text-white/60 font-medium">
+                    This interview cannot be edited because feedback has already been submitted.
+                </p>
+                <button
+                    type="button"
+                    onClick={() => navigate('/interviews')}
+                    className="text-sm font-bold text-primary dark:text-white hover:underline"
+                >
+                    Back to interviews
+                </button>
+            </div>
+        )
+    }
+
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-4">
@@ -178,8 +208,8 @@ const ScheduleInterview = () => {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                <section className="bg-white dark:bg-white/5 p-8 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 dark:bg-white/20"></div>
+                <section className="bg-white dark:bg-white/5 p-8 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm relative">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 dark:bg-white/20 rounded-l-2xl pointer-events-none"></div>
                     <div className="flex items-center gap-3 mb-6">
                         <div className="flex items-center justify-center size-8 rounded-full bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-bold text-sm">1</div>
                         <h2 className="text-xl font-bold text-primary dark:text-white">Participants</h2>
@@ -226,7 +256,7 @@ const ScheduleInterview = () => {
                             {errors.requirementId && <p className="text-xs font-bold text-red-500">{errors.requirementId.message}</p>}
                         </div>
 
-                        <div className="md:col-span-2 space-y-2">
+                        <div className="md:col-span-2 space-y-2 relative z-20">
                             <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider block">Interviewers</label>
                             <Controller
                                 control={control}

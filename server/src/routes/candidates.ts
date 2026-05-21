@@ -14,6 +14,18 @@ import {
   saveResumeFile,
 } from '../lib/resumeStorage.js'
 import fs from 'fs/promises'
+import {
+  DUPLICATE_CANDIDATE_EMAIL_MESSAGE,
+  findCandidateByEmail,
+} from '../lib/candidateDuplicate.js'
+import {
+  buildCandidateResumePayload,
+  extractResumeText,
+  parseResumeFields,
+} from '../lib/resumeParse.js'
+import { getCatalogSkillNames } from '../lib/skillCatalog.js'
+import { serializeSkills, parseSkillList } from '../lib/skills.js'
+import { computeMatchScore } from '../lib/profileMatching.js'
 
 const router = Router()
 router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
@@ -57,7 +69,54 @@ router.get('/by-requirement/:requirementId', async (req, res) => {
     where: { requirementId: req.params.requirementId },
     orderBy: { appliedDate: 'desc' },
   })
-  res.json(rows.map(mapCandidate))
+  res.json(rows.map((c) => mapCandidate(c)))
+})
+
+router.post('/parse-resume', requireRoles(...STAFF_MUTATE), handleUploadResume, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Resume file is required' })
+    }
+
+    const text = await extractResumeText(
+      req.file.buffer,
+      req.file.mimetype,
+      req.file.originalname
+    )
+
+    if (!text) {
+      return res.status(422).json({
+        error: 'No readable text found in this resume. Enter details manually.',
+      })
+    }
+
+    const catalog = await getCatalogSkillNames()
+    const fields = parseResumeFields(text, catalog)
+    res.json({ fields })
+  } catch (err) {
+    console.error('Resume parse failed:', err)
+    const message = err instanceof Error ? err.message : 'Could not parse resume'
+    res.status(422).json({ error: message })
+  }
+})
+
+router.get('/check-email', async (req, res) => {
+  const email = typeof req.query.email === 'string' ? req.query.email : ''
+  if (!email.trim()) {
+    return res.json({ exists: false })
+  }
+
+  const existing = await findCandidateByEmail(email)
+  if (!existing) {
+    return res.json({ exists: false })
+  }
+
+  res.json({
+    exists: true,
+    candidateId: existing.id,
+    name: existing.name,
+    error: DUPLICATE_CANDIDATE_EMAIL_MESSAGE,
+  })
 })
 
 router.get('/:id/resume', async (req, res) => {
@@ -94,15 +153,52 @@ router.post('/:id/resume', requireRoles(...STAFF_MUTATE), handleUploadResume, as
     const mime = resolveResumeMime(req.file.mimetype, req.file.originalname)
     await saveResumeFile(row.id, mime, req.file.buffer, req.file.originalname)
 
-    const updated = await prisma.candidate.update({
+    let resumePayload: ReturnType<typeof buildCandidateResumePayload> = {
+      resumeText: null,
+      primarySkills: '[]',
+      secondarySkills: '[]',
+    }
+    try {
+      const text = await extractResumeText(
+        req.file.buffer,
+        req.file.mimetype,
+        req.file.originalname
+      )
+      const catalog = await getCatalogSkillNames()
+      resumePayload = buildCandidateResumePayload(text, catalog)
+    } catch {
+      /* keep file without text extraction */
+    }
+
+    let updated = await prisma.candidate.update({
       where: { id: row.id },
       data: {
         resumeFileName: req.file.originalname,
         resumeMimeType: mime,
         resumeUrl: null,
+        resumeText: resumePayload.resumeText,
+        primarySkills: resumePayload.primarySkills,
+        secondarySkills: resumePayload.secondarySkills,
         updatedAt: new Date(),
       },
     })
+
+    if (updated.requirementId && resumePayload.resumeText) {
+      const requirement = await prisma.requirement.findUnique({
+        where: { id: updated.requirementId },
+      })
+      if (requirement) {
+        const { score } = computeMatchScore(
+          updated,
+          requirement,
+          resumePayload.resumeText
+        )
+        updated = await prisma.candidate.update({
+          where: { id: row.id },
+          data: { matchScore: score, updatedAt: new Date() },
+        })
+      }
+    }
 
     await logActivity({
       entityType: 'CANDIDATE',
@@ -160,15 +256,83 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requireRoles(...STAFF_MUTATE), async (req, res) => {
   const body = req.body
+  if (!body.email?.trim()) {
+    return res.status(400).json({ error: 'Email is required' })
+  }
+
+  const duplicate = await findCandidateByEmail(body.email)
+  if (duplicate) {
+    return res.status(409).json({
+      error: DUPLICATE_CANDIDATE_EMAIL_MESSAGE,
+      existingCandidateId: duplicate.id,
+    })
+  }
+
+  const requirementId = body.requirementId || null
+  let matchScore = typeof body.matchScore === 'number' ? body.matchScore : 0
+
+  if (requirementId) {
+    const requirement = await prisma.requirement.findUnique({
+      where: { id: requirementId },
+    })
+    if (requirement) {
+      const resumeText =
+        typeof body.resumeText === 'string' ? body.resumeText : ''
+      const skillCorpus = [
+        ...parseSkillList(body.primarySkills),
+        ...parseSkillList(body.secondarySkills),
+      ].join(' ')
+      const draft = {
+        id: 'draft',
+        name: body.name,
+        email: body.email,
+        role: body.role,
+        status: body.status ?? 'SOURCED',
+        matchScore: 0,
+        source: body.source ?? 'Direct',
+        appliedDate: new Date(),
+        requirementId: null,
+        jobTitle: null,
+        createdBy: req.auth!.userId,
+        avatar: null,
+        resumeUrl: null,
+        resumeFileName: null,
+        resumeMimeType: null,
+        phone: body.phone ?? null,
+        location: body.location ?? null,
+        linkedIn: body.linkedIn ?? null,
+        portfolio: body.portfolio ?? null,
+        totalExperience: body.totalExperience ?? null,
+        currentCompany: body.currentCompany ?? null,
+        currentCTC: body.currentCTC ?? null,
+        expectedCTC: body.expectedCTC ?? null,
+        noticePeriod: body.noticePeriod ?? null,
+        pan: body.pan?.trim()?.toUpperCase() || null,
+        vendorId: null,
+        submittedByUserId: null,
+        primarySkills: serializeSkills(parseSkillList(body.primarySkills)),
+        secondarySkills: serializeSkills(parseSkillList(body.secondarySkills)),
+        resumeText: resumeText || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      matchScore = computeMatchScore(
+        draft,
+        requirement,
+        [resumeText, skillCorpus].filter(Boolean).join('\n')
+      ).score
+    }
+  }
+
   const row = await prisma.candidate.create({
     data: {
       name: body.name,
       email: body.email,
       role: body.role,
       status: body.status ?? 'APPLIED',
-      matchScore: body.matchScore ?? 0,
+      matchScore,
       source: body.source ?? 'Direct',
-      requirementId: body.requirementId || null,
+      requirementId,
       jobTitle: body.jobTitle,
       avatar: body.avatar,
       phone: body.phone,
@@ -180,6 +344,10 @@ router.post('/', requireRoles(...STAFF_MUTATE), async (req, res) => {
       currentCTC: body.currentCTC,
       expectedCTC: body.expectedCTC,
       noticePeriod: body.noticePeriod,
+      pan: body.pan?.trim()?.toUpperCase() || null,
+      primarySkills: serializeSkills(parseSkillList(body.primarySkills)),
+      secondarySkills: serializeSkills(parseSkillList(body.secondarySkills)),
+      resumeText: typeof body.resumeText === 'string' ? body.resumeText : null,
       createdBy: req.auth!.userId,
     },
   })
@@ -196,6 +364,16 @@ router.post('/', requireRoles(...STAFF_MUTATE), async (req, res) => {
 router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
   try {
     const b = req.body
+    if (b.email !== undefined) {
+      const duplicate = await findCandidateByEmail(b.email, req.params.id)
+      if (duplicate) {
+        return res.status(409).json({
+          error: DUPLICATE_CANDIDATE_EMAIL_MESSAGE,
+          existingCandidateId: duplicate.id,
+        })
+      }
+    }
+
     const row = await prisma.candidate.update({
       where: { id: req.params.id },
       data: {
@@ -219,6 +397,9 @@ router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
         ...(b.currentCTC !== undefined && { currentCTC: b.currentCTC }),
         ...(b.expectedCTC !== undefined && { expectedCTC: b.expectedCTC }),
         ...(b.noticePeriod !== undefined && { noticePeriod: b.noticePeriod }),
+        ...(b.pan !== undefined && {
+          pan: b.pan?.trim() ? b.pan.trim().toUpperCase() : null,
+        }),
         updatedAt: new Date(),
       },
     })

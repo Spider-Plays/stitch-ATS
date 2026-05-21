@@ -8,6 +8,7 @@ async function main() {
     prisma.offer.deleteMany(),
     prisma.interview.deleteMany(),
     prisma.candidate.deleteMany(),
+    prisma.skillCatalog.deleteMany(),
     prisma.requirement.deleteMany(),
     prisma.user.deleteMany(),
   ])

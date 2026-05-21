@@ -14,6 +14,7 @@ import { ApiError } from '../../lib/apiClient'
 import clsx from 'clsx'
 import { useToastStore } from '../../store/toastStore'
 import { Candidate, ActivityLog } from '../../types'
+import { getInterviewDisplayLabel } from '../../lib/interviewDisplayStatus'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const INPUT =
@@ -710,7 +711,7 @@ const CandidateProfile = () => {
                                                                 className="p-3 rounded-lg border border-slate-100 bg-slate-50 text-sm"
                                                             >
                                                                 <span className="font-bold text-slate-800">{iv.type}</span>
-                                                                <span className="text-slate-500"> · {iv.status}</span>
+                                                                <span className="text-slate-500"> · {getInterviewDisplayLabel(iv)}</span>
                                                                 <span className="block text-slate-500 text-xs mt-1">
                                                                     {new Date(iv.scheduledAt).toLocaleString()}
                                                                 </span>

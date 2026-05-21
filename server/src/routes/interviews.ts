@@ -9,20 +9,69 @@ import { sendInterviewScheduledEmail, sendInterviewUpdatedEmail } from '../servi
 const router = Router()
 router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
 
-async function enrichInterviews(rows: Awaited<ReturnType<typeof prisma.interview.findMany>>) {
-  const candidateIds = [...new Set(rows.map((r) => r.candidateId))]
-  const candidates = await prisma.candidate.findMany({
-    where: { id: { in: candidateIds } },
-    select: { id: true, name: true, role: true, email: true },
+function interviewEndTime(scheduledAt: Date, durationMinutes: number | null): Date {
+  const end = new Date(scheduledAt)
+  end.setMinutes(end.getMinutes() + (durationMinutes ?? 60))
+  return end
+}
+
+async function markPastScheduledAsCompleted(
+  rows: Awaited<ReturnType<typeof prisma.interview.findMany>>
+) {
+  const now = new Date()
+  const toComplete = rows.filter(
+    (r) =>
+      r.status === 'SCHEDULED' && interviewEndTime(r.scheduledAt, r.duration) <= now
+  )
+  if (toComplete.length === 0) return rows
+
+  await prisma.interview.updateMany({
+    where: { id: { in: toComplete.map((r) => r.id) } },
+    data: { status: 'COMPLETED' },
   })
-  const byId = new Map(candidates.map((c) => [c.id, c]))
-  return rows.map((row) => {
-    const c = byId.get(row.candidateId)
+
+  const completedIds = new Set(toComplete.map((r) => r.id))
+  return rows.map((r) =>
+    completedIds.has(r.id) ? { ...r, status: 'COMPLETED' } : r
+  )
+}
+
+async function enrichInterviews(rows: Awaited<ReturnType<typeof prisma.interview.findMany>>) {
+  const normalized = await markPastScheduledAsCompleted(rows)
+  const interviewIds = normalized.map((r) => r.id)
+  const candidateIds = [...new Set(normalized.map((r) => r.candidateId))]
+
+  const [candidates, feedbackRows] = await Promise.all([
+    prisma.candidate.findMany({
+      where: { id: { in: candidateIds } },
+      select: { id: true, name: true, role: true, email: true },
+    }),
+    interviewIds.length > 0
+      ? prisma.feedback.findMany({
+          where: { interviewId: { in: interviewIds } },
+          orderBy: { createdAt: 'desc' },
+        })
+      : Promise.resolve([]),
+  ])
+
+  const candidateById = new Map(candidates.map((c) => [c.id, c]))
+  const latestFeedbackByInterview = new Map<string, (typeof feedbackRows)[0]>()
+  for (const fb of feedbackRows) {
+    if (!latestFeedbackByInterview.has(fb.interviewId)) {
+      latestFeedbackByInterview.set(fb.interviewId, fb)
+    }
+  }
+
+  return normalized.map((row) => {
+    const c = candidateById.get(row.candidateId)
+    const fb = latestFeedbackByInterview.get(row.id)
     return {
       ...mapInterview(row),
       candidateName: c?.name,
       candidateRole: c?.role,
       candidateEmail: c?.email,
+      hasFeedback: !!fb,
+      feedbackRecommendation: fb?.recommendation,
     }
   })
 }
@@ -91,6 +140,11 @@ router.post('/', requireRoles(...INTERVIEW_SCHEDULERS), async (req, res) => {
 router.patch('/:id', requireRoles(...INTERVIEW_SCHEDULERS), async (req, res) => {
   const existing = await prisma.interview.findUnique({ where: { id: req.params.id } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
+
+  const feedbackCount = await prisma.feedback.count({ where: { interviewId: req.params.id } })
+  if (feedbackCount > 0) {
+    return res.status(403).json({ error: 'Interview cannot be edited after feedback has been submitted' })
+  }
 
   const body = req.body
   const data: Record<string, unknown> = {}

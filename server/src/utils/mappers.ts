@@ -17,6 +17,7 @@ export function mapUser(u: DbUser) {
     authProvider: u.authProvider,
     department: u.department ?? undefined,
     lastLogin: u.lastLogin?.toISOString(),
+    vendorId: u.vendorId ?? undefined,
   }
 }
 
@@ -37,6 +38,9 @@ export function mapRequirement(r: DbReq) {
     priority: r.priority as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | undefined,
     location: r.location ?? undefined,
     description: r.description ?? undefined,
+    jobDescription: r.jobDescription ?? r.description ?? undefined,
+    primarySkills: JSON.parse(r.primarySkills || '[]') as string[],
+    secondarySkills: JSON.parse(r.secondarySkills || '[]') as string[],
     createdBy: r.createdBy ?? undefined,
     createdByRole: r.createdByRole ?? undefined,
     approval: r.approval ? JSON.parse(r.approval) : undefined,
@@ -44,6 +48,7 @@ export function mapRequirement(r: DbReq) {
     versions: JSON.parse(r.versions || '[]'),
     currentVersion: r.currentVersion,
     visibleToCandidates: r.visibleToCandidates ?? true,
+    visibleToVendors: r.visibleToVendors ?? false,
   }
 }
 
@@ -84,6 +89,11 @@ export function mapCandidate(
     currentCTC: c.currentCTC ?? undefined,
     expectedCTC: c.expectedCTC ?? undefined,
     noticePeriod: c.noticePeriod ?? undefined,
+    pan: c.pan ?? undefined,
+    vendorId: c.vendorId ?? undefined,
+    submittedByUserId: c.submittedByUserId ?? undefined,
+    primarySkills: JSON.parse(c.primarySkills || '[]') as string[],
+    secondarySkills: JSON.parse(c.secondarySkills || '[]') as string[],
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   }
