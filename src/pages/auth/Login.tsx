@@ -6,7 +6,6 @@ import { AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { authApi } from '../../services/http/auth'
 import { ApiError } from '../../lib/apiClient'
-import { DevQuickLogin } from '../../dev/DevQuickLogin'
 import { firstAllowedPath, PageKey } from '../../lib/pageAccess'
 
 const Login = () => {
@@ -264,13 +263,6 @@ const Login = () => {
                             </button>
                         )}
 
-                        {import.meta.env.DEV && mode === 'login' && (
-                            <DevQuickLogin
-                                login={login}
-                                redirectByRole={redirectByRole}
-                                disabled={loading}
-                            />
-                        )}
                     </div>
 
                 </div>
