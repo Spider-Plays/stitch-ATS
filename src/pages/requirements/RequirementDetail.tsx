@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
@@ -6,8 +6,15 @@ import { RequirementStatus, User } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
 import clsx from 'clsx'
 import { format } from 'date-fns'
-import { Check, X, Edit, Clock, MapPin, Users, AlertCircle, Lock, Monitor, Briefcase, FileText, ChevronRight } from 'lucide-react'
+import {
+    Check, X, Edit, Clock, MapPin, Users, AlertCircle, Lock, Monitor, Briefcase, FileText,
+    ChevronRight, PauseCircle, PlayCircle, Eye, EyeOff, Trash2,
+} from 'lucide-react'
+import { useToastStore } from '../../store/toastStore'
 import { motion, AnimatePresence } from 'framer-motion'
+import { SearchableSelect } from '../../components/ui/SearchableSelect'
+import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { matchesAnySearch } from '../../lib/textSearch'
 
 const TABS = [
     { id: 'details', label: 'Requirement Details' },
@@ -21,8 +28,10 @@ const RequirementDetail = () => {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const { user } = useAuth()
+    const { addToast } = useToastStore()
     const [activeTab, setActiveTab] = useState('details')
     const [selectedRecruiter, setSelectedRecruiter] = useState('')
+    const [candidateSearch, setCandidateSearch] = useState('')
 
     const { data: requirement, isLoading } = useQuery({
         queryKey: ['requirement', id],
@@ -43,9 +52,31 @@ const RequirementDetail = () => {
     })
 
     // Derived Data
-    const recruiters = users.filter(u => ['RECRUITER', 'HR_MANAGER', 'Admin'].includes(u.role))
+    const recruiters = users.filter(u => ['RECRUITER', 'HR_MANAGER', 'HR_HEAD', 'ADMIN'].includes(u.role))
     const hiringManager = users.find(u => u.uid === requirement?.hiringManager)
     const isHr = ['ADMIN', 'HR_MANAGER', 'HR_HEAD'].includes(user?.role || '')
+    const isAdmin = user?.role === 'ADMIN'
+    const canManagePortal = isAdmin || isHr
+
+    const recruiterOptions = useMemo(
+        () =>
+            recruiters
+                .filter((r) => !requirement?.recruiters?.includes(r.uid))
+                .map((r) => ({
+                    value: r.uid,
+                    label: r.name,
+                    sublabel: `${r.role.replace('_', ' ')} · ${r.email}`,
+                })),
+        [recruiters, requirement?.recruiters]
+    )
+
+    const filteredCandidates = useMemo(
+        () =>
+            candidates.filter((c) =>
+                matchesAnySearch([c.name, c.email, c.role, c.status, c.source], candidateSearch)
+            ),
+        [candidates, candidateSearch]
+    )
 
     // Mutations
     const approveMutation = useMutation({
@@ -72,6 +103,45 @@ const RequirementDetail = () => {
         }
     })
 
+    const holdMutation = useMutation({
+        mutationFn: () => api.requirements.updateStatus(id!, 'ON_HOLD'),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            queryClient.invalidateQueries({ queryKey: ['requirements'] })
+            addToast('Requirement placed on hold', 'success')
+        },
+        onError: () => addToast('Failed to update status', 'error'),
+    })
+
+    const releaseMutation = useMutation({
+        mutationFn: () => api.requirements.updateStatus(id!, 'LIVE'),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            queryClient.invalidateQueries({ queryKey: ['requirements'] })
+            addToast('Requirement is live again', 'success')
+        },
+        onError: () => addToast('Failed to update status', 'error'),
+    })
+
+    const visibilityMutation = useMutation({
+        mutationFn: (visible: boolean) => api.requirements.setVisibility(id!, visible),
+        onSuccess: (_data, visible) => {
+            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            addToast(visible ? 'Visible on candidate portal' : 'Hidden from candidate portal', 'success')
+        },
+        onError: () => addToast('Failed to update visibility', 'error'),
+    })
+
+    const deleteMutation = useMutation({
+        mutationFn: () => api.requirements.delete(id!),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['requirements'] })
+            addToast('Requirement deleted', 'success')
+            navigate('/requirements')
+        },
+        onError: () => addToast('Failed to delete requirement', 'error'),
+    })
+
     const handleApproval = (action: 'APPROVE' | 'REJECT' | 'CLOSE') => {
         if (!confirm(`Are you sure you want to ${action.toLowerCase()} this requirement?`)) return
         if (action === 'APPROVE') approveMutation.mutate()
@@ -84,8 +154,10 @@ const RequirementDetail = () => {
 
     const isPending = requirement.status === 'PENDING_APPROVAL'
     const isLive = requirement.status === 'LIVE'
+    const isOnHold = requirement.status === 'ON_HOLD'
     const isClosed = requirement.status === 'CLOSED'
     const isRejected = requirement.status === 'REJECTED'
+    const portalVisible = requirement.visibleToCandidates ?? true
 
     const canEdit = isHr || user?.uid === requirement.createdBy
 
@@ -104,6 +176,7 @@ const RequirementDetail = () => {
                             "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded flex items-center gap-1",
                             isPending ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
                                 isLive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                                    isOnHold ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" :
                                     isClosed ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400" :
                                         isRejected ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
                                             "bg-slate-100 text-slate-700"
@@ -117,8 +190,20 @@ const RequirementDetail = () => {
                         {requirement.title}
                     </h1>
 
-                    <p className="text-slate-500 dark:text-slate-400 font-bold text-sm flex items-center gap-2">
-                        {requirement.department} Department <span className="opacity-30">•</span> ID: {requirement.id}
+                    <p className="text-slate-500 dark:text-slate-400 font-bold text-sm flex flex-wrap items-center gap-2">
+                        {requirement.jobCode && (
+                            <>
+                                <span className="font-mono text-primary dark:text-white">Req: {requirement.jobCode}</span>
+                                <span className="opacity-30">•</span>
+                            </>
+                        )}
+                        {requirement.client && (
+                            <>
+                                <span>{requirement.client}</span>
+                                <span className="opacity-30">•</span>
+                            </>
+                        )}
+                        {requirement.department} Department
                     </p>
                 </div>
 
@@ -147,12 +232,26 @@ const RequirementDetail = () => {
                         </button>
                     )}
 
-                    {isHr && isLive && (
+                    {isHr && (isLive || isOnHold) && (
                         <button
                             onClick={() => handleApproval('CLOSE')}
                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-sm font-bold shadow-sm transition-all active:scale-95"
                         >
                             <Lock size={16} /> Close
+                        </button>
+                    )}
+
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!confirm(`Delete "${requirement.title}"? Linked candidates will be unassigned. This cannot be undone.`)) return
+                                deleteMutation.mutate()
+                            }}
+                            disabled={deleteMutation.isPending}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold disabled:opacity-50"
+                        >
+                            <Trash2 size={16} /> Delete
                         </button>
                     )}
                 </div>
@@ -190,6 +289,66 @@ const RequirementDetail = () => {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 {/* Left Column (2/3) */}
                                 <div className="lg:col-span-2 space-y-6">
+                                    {canManagePortal && (isLive || isOnHold) && (
+                                        <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                                            <h3 className="text-lg font-bold mb-4 text-primary dark:text-white">Portal &amp; posting controls</h3>
+                                            <div className="flex flex-wrap gap-3">
+                                                {isLive && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!confirm('Put this requirement on hold? It will be hidden from the candidate portal.')) return
+                                                            holdMutation.mutate()
+                                                        }}
+                                                        disabled={holdMutation.isPending}
+                                                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-200 bg-orange-50 text-orange-800 text-sm font-bold hover:bg-orange-100 disabled:opacity-50"
+                                                    >
+                                                        <PauseCircle size={16} /> Put on hold
+                                                    </button>
+                                                )}
+                                                {isOnHold && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => releaseMutation.mutate()}
+                                                        disabled={releaseMutation.isPending}
+                                                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm font-bold hover:bg-emerald-100 disabled:opacity-50"
+                                                    >
+                                                        <PlayCircle size={16} /> Resume (go live)
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => visibilityMutation.mutate(!portalVisible)}
+                                                    disabled={visibilityMutation.isPending || isOnHold}
+                                                    title={isOnHold ? 'Resume the job before changing portal visibility' : undefined}
+                                                    className={clsx(
+                                                        'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold disabled:opacity-50',
+                                                        portalVisible
+                                                            ? 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                                                            : 'border-primary/20 bg-primary/5 text-primary hover:bg-primary/10'
+                                                    )}
+                                                >
+                                                    {portalVisible ? (
+                                                        <>
+                                                            <EyeOff size={16} /> Hide from candidate portal
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Eye size={16} /> Show on candidate portal
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-3">
+                                                {isOnHold
+                                                    ? 'On hold: hidden from open positions and linked candidates see a hold message.'
+                                                    : portalVisible
+                                                      ? 'Visible: live jobs appear on the candidate dashboard open positions list.'
+                                                      : 'Hidden: candidates linked to this job will not see job details on their portal.'}
+                                            </p>
+                                        </section>
+                                    )}
+
                                     {/* Job Description Card */}
                                     <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-sm">
                                         <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-primary dark:text-white">
@@ -253,6 +412,54 @@ const RequirementDetail = () => {
                                         </div>
                                     </div>
 
+                                    {/* Candidates */}
+                                    <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                                        <div className="flex items-center justify-between gap-2 mb-4">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                                                Candidates ({candidates.length})
+                                            </h3>
+                                            <Link
+                                                to={`/pipeline/${id}`}
+                                                className="text-xs font-bold text-primary dark:text-white hover:underline"
+                                            >
+                                                Pipeline
+                                            </Link>
+                                        </div>
+                                        <ListSearchBar
+                                            value={candidateSearch}
+                                            onChange={setCandidateSearch}
+                                            placeholder="Search candidates..."
+                                            className="max-w-none mb-4"
+                                        />
+                                        <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                            {filteredCandidates.length === 0 ? (
+                                                <p className="text-sm text-slate-500 italic py-2">
+                                                    {candidateSearch.trim()
+                                                        ? 'No candidates match your search.'
+                                                        : 'No candidates linked to this requirement yet.'}
+                                                </p>
+                                            ) : (
+                                                filteredCandidates.map((c) => (
+                                                    <Link
+                                                        key={c.id}
+                                                        to={`/candidates/${c.id}`}
+                                                        className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors"
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-primary dark:text-white truncate">
+                                                                {c.name}
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-500 truncate">{c.role}</p>
+                                                        </div>
+                                                        <span className="text-[10px] font-bold uppercase text-slate-400 shrink-0">
+                                                            {c.status}
+                                                        </span>
+                                                    </Link>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+
                                     {/* Approval Progress Card */}
                                     <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
                                         <div className="absolute top-0 right-0 size-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
@@ -293,10 +500,10 @@ const RequirementDetail = () => {
                                                 )}>
                                                     {isLive && <div className="size-1.5 rounded-full bg-slate-900"></div>}
                                                 </div>
-                                                <p className={clsx("text-sm font-bold", isLive ? "text-white" : "text-white/60")}>
-                                                    {isClosed ? 'Closed' : isRejected ? 'Rejected' : 'Live on Job Board'}
+                                                <p className={clsx("text-sm font-bold", (isLive || isOnHold) ? "text-white" : "text-white/60")}>
+                                                    {isClosed ? 'Closed' : isRejected ? 'Rejected' : isOnHold ? 'On hold' : 'Live on Job Board'}
                                                 </p>
-                                                {isLive ? <p className="text-[10px] text-white/50">Active</p> : <p className="text-[10px] text-white/30">Upcoming</p>}
+                                                {isLive ? <p className="text-[10px] text-white/50">Active</p> : isOnHold ? <p className="text-[10px] text-white/50">Paused</p> : <p className="text-[10px] text-white/30">Upcoming</p>}
                                             </div>
                                         </div>
                                     </div>
@@ -310,21 +517,19 @@ const RequirementDetail = () => {
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-lg font-bold text-primary dark:text-white">Assigned Recruiters</h3>
                                     {isHr && (
-                                        <div className="flex gap-2">
-                                            <select
+                                        <div className="flex flex-col sm:flex-row gap-2 flex-1 max-w-md">
+                                            <SearchableSelect
                                                 value={selectedRecruiter}
-                                                onChange={(e) => setSelectedRecruiter(e.target.value)}
-                                                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm"
-                                            >
-                                                <option value="">Select Recruiter...</option>
-                                                {recruiters.map(r => (
-                                                    <option key={r.uid} value={r.uid}>{r.name}</option>
-                                                ))}
-                                            </select>
+                                                onChange={setSelectedRecruiter}
+                                                options={recruiterOptions}
+                                                placeholder="Select recruiter..."
+                                                searchPlaceholder="Search recruiters..."
+                                                className="flex-1"
+                                            />
                                             <button
                                                 onClick={() => selectedRecruiter && assignRecruiterMutation.mutate(selectedRecruiter)}
                                                 disabled={!selectedRecruiter}
-                                                className="px-4 py-2 bg-primary dark:bg-white text-white dark:text-primary rounded-lg text-sm font-bold disabled:opacity-50"
+                                                className="px-4 py-2 bg-primary dark:bg-white text-white dark:text-primary rounded-lg text-sm font-bold disabled:opacity-50 shrink-0"
                                             >
                                                 Assign
                                             </button>

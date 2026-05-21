@@ -11,7 +11,7 @@ import clsx from 'clsx'
 import { useToastStore } from '../../store/toastStore'
 
 // Columns to display in the Kanban board
-const COLUMNS = ['SOURCED', 'SCREENING', 'SHORTLISTED', 'INTERVIEW', 'OFFER', 'HIRED'] as const
+const COLUMNS = ['SOURCED', 'SCREENING', 'SHORTLISTED', 'INTERVIEW', 'OFFER', 'HIRED', 'REJECTED'] as const
 
 // Helper to map status to display color/label
 const getMatchScoreColor = (score: number) => {
@@ -178,9 +178,14 @@ const Pipeline = () => {
         }
 
         if (searchTerm) {
-            filtered = filtered.filter(c =>
-                c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                c.role.toLowerCase().includes(searchTerm.toLowerCase())
+            const q = searchTerm.toLowerCase()
+            filtered = filtered.filter(
+                (c) =>
+                    c.name.toLowerCase().includes(q) ||
+                    c.role.toLowerCase().includes(q) ||
+                    c.email?.toLowerCase().includes(q) ||
+                    c.jobTitle?.toLowerCase().includes(q) ||
+                    c.source?.toLowerCase().includes(q)
             )
         }
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,6 +8,8 @@ import { api } from '../../services/api'
 import clsx from 'clsx'
 import { useAuth } from '../../hooks/useAuth'
 import { useToastStore } from '../../store/toastStore'
+import { ApiError } from '../../lib/apiClient'
+import { SearchableSelect } from '../../components/ui/SearchableSelect'
 
 const schema = z.object({
     firstName: z.string().min(1, "First name is required"),
@@ -24,7 +26,6 @@ const schema = z.object({
     source: z.string().min(1, "Source is required"),
     location: z.string().optional(),
     portfolio: z.string().url("Invalid URL").optional().or(z.literal('')),
-    resumeUrl: z.string().url("Invalid URL").optional().or(z.literal('')),
     requirementId: z.string().optional()
 })
 
@@ -40,7 +41,7 @@ const NewCandidate = () => {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const [currentStep, setCurrentStep] = useState(0)
-    // Removed resumeFile state and isUploading state
+    const [resumeFile, setResumeFile] = useState<File | null>(null)
     const { addToast } = useToastStore()
 
     const { data: requirements = [] } = useQuery({
@@ -48,7 +49,17 @@ const NewCandidate = () => {
         queryFn: api.requirements.list
     })
 
-    const { register, handleSubmit, formState: { errors }, trigger, watch, setValue } = useForm<CandidateFormValues>({
+    const requirementOptions = useMemo(
+        () =>
+            requirements.map((req) => ({
+                value: req.id,
+                label: req.title,
+                sublabel: `${req.jobCode ?? req.id.slice(-8).toUpperCase()}${req.client ? ` · ${req.client}` : ''} · ${req.department}`,
+            })),
+        [requirements]
+    )
+
+    const { register, handleSubmit, control, formState: { errors }, trigger, watch, setValue } = useForm<CandidateFormValues>({
         resolver: zodResolver(schema),
         defaultValues: {
             source: 'Recruiter Added'
@@ -83,7 +94,6 @@ const NewCandidate = () => {
                 location: data.location,
                 linkedIn: data.linkedin,
                 portfolio: data.portfolio,
-                resumeUrl: data.resumeUrl || '',
                 totalExperience: data.totalExperience,
                 currentCompany: data.currentCompany,
                 currentCTC: data.currentCTC,
@@ -96,10 +106,18 @@ const NewCandidate = () => {
             return newCandidate
         },
         onSuccess: async (newCandidate) => {
-            addToast('Candidate created successfully', 'success')
-            // No resume upload step anymore
-            queryClient.invalidateQueries({ queryKey: ['candidates'] })
-            navigate('/candidates')
+            try {
+                if (resumeFile) {
+                    await api.candidates.uploadResume(newCandidate.id, resumeFile)
+                }
+                addToast('Candidate created successfully', 'success')
+                queryClient.invalidateQueries({ queryKey: ['candidates'] })
+                navigate(`/candidates/${newCandidate.id}`)
+            } catch (err) {
+                const msg = err instanceof ApiError ? err.message : 'Resume upload failed'
+                addToast(`Candidate created but ${msg}`, 'error')
+                navigate(`/candidates/${newCandidate.id}`)
+            }
         },
         onError: (error) => {
             console.error("Creation failed", error)
@@ -117,7 +135,7 @@ const NewCandidate = () => {
         if (currentStep === 0) {
             isValid = await trigger(['firstName', 'lastName', 'email', 'phone'])
         } else if (currentStep === 1) {
-            isValid = await trigger(['totalExperience', 'currentCompany', 'currentCTC', 'expectedCTC', 'noticePeriod', 'role', 'source', 'linkedin', 'portfolio', 'resumeUrl', 'requirementId'])
+            isValid = await trigger(['totalExperience', 'currentCompany', 'currentCTC', 'expectedCTC', 'noticePeriod', 'role', 'source', 'linkedin', 'portfolio', 'requirementId'])
         }
 
         if (isValid) setCurrentStep(prev => prev + 1)
@@ -232,34 +250,41 @@ const NewCandidate = () => {
                         <div className="grid grid-cols-1 gap-6">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Job Requirement (Optional)</label>
-                                <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/30">assignment</span>
-                                    <select
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white"
-                                        {...register('requirementId')}
-                                    >
-                                        <option value="">General Application / Unassigned</option>
-                                        {requirements.map(req => (
-                                            <option key={req.id} value={req.id}>{req.title} ({req.status})</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <Controller
+                                    control={control}
+                                    name="requirementId"
+                                    render={({ field }) => (
+                                        <SearchableSelect
+                                            value={field.value ?? ''}
+                                            onChange={field.onChange}
+                                            options={requirementOptions}
+                                            placeholder="General application / unassigned"
+                                            searchPlaceholder="Search job requirements..."
+                                            clearLabel="General application / unassigned"
+                                            icon={
+                                                <span className="material-symbols-outlined !text-lg">assignment</span>
+                                            }
+                                        />
+                                    )}
+                                />
                                 <p className="text-xs text-primary/40 dark:text-white/40">Select a specific job requirement to map this candidate to.</p>
                             </div>
 
-                            {/* Resume URL Input */}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Resume URL (Optional)</label>
+                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Resume (Optional)</label>
                                 <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/30">link</span>
+                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/30">upload_file</span>
                                     <input
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/20"
-                                        placeholder="https://example.com/resume.pdf"
-                                        {...register('resumeUrl')}
+                                        type="file"
+                                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-bold file:text-xs"
+                                        onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
                                     />
                                 </div>
-                                {errors.resumeUrl && <p className="text-xs font-bold text-red-500">{errors.resumeUrl.message}</p>}
-                                <p className="text-xs text-primary/40 dark:text-white/40">Paste a link to the candidate's resume (Google Drive, LinkedIn, etc).</p>
+                                <p className="text-xs text-primary/40 dark:text-white/40">PDF, DOC, or DOCX up to 5 MB.</p>
+                                {resumeFile && (
+                                    <p className="text-xs font-bold text-primary dark:text-white">{resumeFile.name}</p>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -388,11 +413,11 @@ const NewCandidate = () => {
                                             </p>
                                         </div>
                                     )}
-                                    {formData.resumeUrl && (
+                                    {resumeFile && (
                                         <div className="col-span-2">
-                                            <p className="text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">Resume URL</p>
+                                            <p className="text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">Resume</p>
                                             <p className="font-bold text-primary dark:text-white truncate">
-                                                {formData.resumeUrl}
+                                                {resumeFile.name}
                                             </p>
                                         </div>
                                     )}

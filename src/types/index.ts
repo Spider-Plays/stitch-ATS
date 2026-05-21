@@ -1,4 +1,11 @@
-export type RequirementStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'LIVE' | 'CLOSED' | 'REJECTED'
+export type RequirementStatus =
+    | 'DRAFT'
+    | 'PENDING_APPROVAL'
+    | 'APPROVED'
+    | 'LIVE'
+    | 'ON_HOLD'
+    | 'CLOSED'
+    | 'REJECTED'
 
 export interface ApprovalHistory {
     action: 'REQUESTED' | 'APPROVED' | 'REJECTED'
@@ -17,6 +24,8 @@ export interface RequirementVersion {
 
 export interface Requirement {
     id: string
+    jobCode?: string
+    client?: string
     title: string
     department: string
     hiringManager: string
@@ -43,6 +52,7 @@ export interface Requirement {
     // Versioning
     versions?: RequirementVersion[]
     currentVersion?: number
+    visibleToCandidates?: boolean
 }
 
 export type CandidateStatus = 'SOURCED' | 'APPLIED' | 'SCREENING' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'REJECTED'
@@ -58,8 +68,14 @@ export interface Candidate {
     appliedDate: string
     requirementId?: string // Link to specific job requirement
     jobTitle?: string // Denormalized for display
+    reqId?: string // Requirement job code
+    client?: string
+    createdBy?: string
+    recruiterName?: string
     avatar?: string
-    resumeUrl?: string // Link to Firebase Storage
+    resumeFileName?: string
+    resumeMimeType?: string
+    hasResume?: boolean
     phone?: string
     location?: string
     linkedIn?: string
@@ -85,6 +101,9 @@ export interface Interview {
     duration?: number // in minutes
     location?: string
     description?: string
+    candidateName?: string
+    candidateRole?: string
+    candidateEmail?: string
 }
 
 export interface Feedback {
@@ -96,7 +115,9 @@ export interface Feedback {
     technicalRating?: number
     communicationRating?: number
     comments: string
-    recommendation: 'STRONG_HIRE' | 'HIRE' | 'NO_HIRE'
+    recommendation: 'STRONG_HIRE' | 'HIRE' | 'ON_HOLD' | 'NO_HIRE' | 'STRONG_NO_HIRE'
+    formData?: import('../config/interviewFeedbackForm').InterviewFeedbackFormData
+    interviewerName?: string
     createdAt: string
 }
 

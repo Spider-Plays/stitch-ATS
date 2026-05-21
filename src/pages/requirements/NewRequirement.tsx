@@ -9,6 +9,8 @@ import clsx from 'clsx'
 import { useAuth } from '../../hooks/useAuth'
 
 const schema = z.object({
+    jobCode: z.string().max(32).optional(),
+    client: z.string().max(120).optional(),
     title: z.string().min(3, "Title must be at least 3 characters"),
     department: z.string().min(1, "Department is required"),
     hiringManager: z.string().min(1, "Hiring Manager is required"),
@@ -119,6 +121,22 @@ const NewRequirement = () => {
                     {/* Step 1: Role Details */}
                     {currentStep === 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 space-y-0">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Req ID (job code)</label>
+                                <input
+                                    className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-mono font-semibold text-primary dark:text-white placeholder:text-primary/20 uppercase"
+                                    placeholder="Auto-generated if empty"
+                                    {...register('jobCode')}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Client</label>
+                                <input
+                                    className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/20"
+                                    placeholder="e.g. Acme Corp"
+                                    {...register('client')}
+                                />
+                            </div>
                             <div className="md:col-span-2 space-y-2">
                                 <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Job Title</label>
                                 <input

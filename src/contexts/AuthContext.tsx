@@ -9,6 +9,7 @@ interface AuthContextType {
     loading: boolean
     logout: () => Promise<void>
     login: (email: string, password: string) => Promise<User>
+    refreshUser: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ export const AuthContext = createContext<AuthContextType>({
     login: async () => {
         throw new Error('AuthProvider not mounted')
     },
+    refreshUser: async () => {},
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -70,8 +72,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null)
     }
 
+    const refreshUser = async () => {
+        if (!getToken()) return
+        const me = await authApi.me()
+        setUser(me)
+    }
+
     return (
-        <AuthContext.Provider value={{ user, loading, logout, login }}>
+        <AuthContext.Provider value={{ user, loading, logout, login, refreshUser }}>
             {children}
         </AuthContext.Provider>
     )

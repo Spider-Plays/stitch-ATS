@@ -2,9 +2,16 @@ import { apiRequest } from '../../lib/apiClient'
 import { ActivityLog } from '../../types'
 
 export const activityLogService = {
-  logActivity: async (_data: Omit<ActivityLog, 'id' | 'timestamp'>): Promise<void> => {
-    // Activity is logged server-side on mutations
-  },
+  logActivity: (data: {
+    entityType: ActivityLog['entityType']
+    entityId: string
+    action: string
+    details?: unknown
+  }) =>
+    apiRequest<{ ok: boolean }>('/activity-logs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   getByEntity: (entityId: string, limitCount = 50) =>
     apiRequest<ActivityLog[]>(`/activity-logs/entity/${entityId}?limit=${limitCount}`),

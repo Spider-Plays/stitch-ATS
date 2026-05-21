@@ -9,6 +9,8 @@ import interviewRoutes from './routes/interviews.js'
 import offerRoutes from './routes/offers.js'
 import feedbackRoutes from './routes/feedback.js'
 import activityLogRoutes from './routes/activityLogs.js'
+import searchRoutes from './routes/search.js'
+import portalRoutes from './routes/portal.js'
 
 export const app = express()
 
@@ -35,9 +37,17 @@ app.use('/api/interviews', interviewRoutes)
 app.use('/api/offers', offerRoutes)
 app.use('/api/feedback', feedbackRoutes)
 app.use('/api/activity-logs', activityLogRoutes)
+app.use('/api/search', searchRoutes)
+app.use('/api/portal', portalRoutes)
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err)
+  if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ error: 'File too large (max 5 MB)' })
+  }
+  if (err instanceof Error && err.message.includes('Only PDF')) {
+    return res.status(400).json({ error: err.message })
+  }
   if (err && typeof err === 'object' && 'issues' in err) {
     return res.status(400).json({ error: 'Validation failed' })
   }

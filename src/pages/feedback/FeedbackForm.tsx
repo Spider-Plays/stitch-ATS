@@ -1,269 +1,536 @@
-import React, { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useForm, Controller } from 'react-hook-form'
+import React, { useMemo } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useForm, useFieldArray, useFormState, Controller, type Control } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Star, ThumbsUp, ThumbsDown, User, FileText, Code, MessagesSquare } from 'lucide-react'
+import { Download, Printer, ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../services/api'
 import clsx from 'clsx'
 import { useAuth } from '../../hooks/useAuth'
+import { useToastStore } from '../../store/toastStore'
+import { StarRatingDisplay, StarRatingInput } from '../../components/ui/StarRating'
+import {
+  PROFICIENCY_LEVELS,
+  RECOMMENDATION_OPTIONS,
+  COMPETENCY_TOPICS,
+  createDefaultFormData,
+  parseFormData,
+  recommendationLabel,
+  type InterviewFeedbackFormData,
+} from '../../config/interviewFeedbackForm'
+import { downloadFeedbackHtml, printFeedbackReport } from '../../lib/feedbackReport'
+import type { Feedback } from '../../types'
 
 const schema = z.object({
-    technicalRating: z.number().min(1, "Rating is required"),
-    communicationRating: z.number().min(1, "Rating is required"),
-    rating: z.number().min(1, "Overall rating is required"),
-    comments: z.string().min(10, "Please provide detailed comments (min 10 chars)"),
-    recommendation: z.enum(['STRONG_HIRE', 'HIRE', 'NO_HIRE'], { errorMap: () => ({ message: "Please select a recommendation" }) })
+  recommendation: z.enum(['STRONG_HIRE', 'HIRE', 'ON_HOLD', 'NO_HIRE', 'STRONG_NO_HIRE']),
+  comments: z.string().min(5, 'Please provide overall comments'),
+  formData: z.object({
+    skillAssessment: z.array(
+      z.object({
+        skillAssessed: z.string(),
+        expectedProficiency: z.string(),
+        possessProficiency: z.string(),
+        rating: z.number().min(0).max(5),
+        remarks: z.string(),
+      })
+    ),
+    competencies: z.array(
+      z.object({
+        topic: z.string(),
+        rating: z.number().min(0).max(5),
+        remarks: z.string(),
+      })
+    ),
+  }),
 })
 
-type FeedbackFormValues = z.infer<typeof schema>
+type FormValues = z.infer<typeof schema>
 
-const StarRating = ({ value, onChange, max = 5 }: { value: number, onChange: (val: number) => void, max?: number }) => {
-    return (
-        <div className="flex gap-1">
-            {[...Array(max)].map((_, i) => {
-                const ratingValue = i + 1
-                return (
-                    <button
-                        key={i}
-                        type="button"
-                        onClick={() => onChange(ratingValue)}
-                        className={clsx(
-                            "transition-colors",
-                            ratingValue <= value ? "text-primary dark:text-white fill-current" : "text-primary/20 dark:text-white/20"
-                        )}
-                    >
-                        <Star size={24} className={clsx(ratingValue <= value && "fill-current")} />
-                    </button>
-                )
-            })}
+function computeScores(formData: InterviewFeedbackFormData) {
+  const skillRatings = formData.skillAssessment.map((s) => s.rating).filter((r) => r > 0)
+  const compRatings = formData.competencies.map((c) => c.rating).filter((r) => r > 0)
+  const technicalRating = skillRatings.length
+    ? Math.round(skillRatings.reduce((a, b) => a + b, 0) / skillRatings.length)
+    : 0
+  const comm = formData.competencies.find((c) =>
+    c.topic.toLowerCase().includes('communication')
+  )
+  const communicationRating = comm?.rating ?? 0
+  const all = [...skillRatings, ...compRatings]
+  const rating = all.length ? Math.round(all.reduce((a, b) => a + b, 0) / all.length) : 0
+  return { rating, technicalRating, communicationRating }
+}
+
+const tableInput =
+  'w-full min-w-0 px-2 py-1.5 text-sm border border-slate-300 rounded focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-white'
+const tableSelect = tableInput
+
+/** Subscribes only to one field — avoids re-rendering the whole form on every keystroke. */
+function FieldError({
+  control,
+  name,
+}: {
+  control: Control<FormValues>
+  name: 'recommendation' | 'comments'
+}) {
+  const { errors } = useFormState({ control, name, exact: true })
+  const message = errors[name]?.message
+  if (!message) return null
+  return <p className="text-xs text-red-500 mt-1">{message}</p>
+}
+
+function FeedbackReadOnly({ feedback, meta, onDownload, onPrint }: {
+  feedback: Feedback
+  meta: { candidateName: string; candidateRole?: string; interviewType: string; interviewDate: string; interviewerName: string }
+  onDownload: () => void
+  onPrint: () => void
+}) {
+  const formData = parseFormData(feedback.formData)
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap gap-3 justify-end">
+        <button type="button" onClick={onPrint} className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-bold hover:bg-slate-50">
+          <Printer size={16} /> Print
+        </button>
+        <button type="button" onClick={onDownload} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90">
+          <Download size={16} /> Download
+        </button>
+      </div>
+
+      <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="px-6 py-3 bg-slate-100 dark:bg-slate-800 border-b font-bold text-sm">Overall Feedback</div>
+        <div className="p-6 space-y-3">
+          <p><span className="font-bold text-slate-600">Recommendation:</span> {recommendationLabel(feedback.recommendation)}</p>
+          <p className="font-bold text-slate-600">Comments:</p>
+          <p className="text-sm whitespace-pre-wrap">{feedback.comments}</p>
         </div>
-    )
+      </section>
+
+      <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="px-6 py-3 bg-slate-100 dark:bg-slate-800 border-b font-bold text-sm">Skill Assessment</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/50 text-left text-xs font-bold uppercase text-slate-600">
+                <th className="p-3 border-b">Skill Assessed</th>
+                <th className="p-3 border-b">Expected Proficiency</th>
+                <th className="p-3 border-b">Possess Proficiency</th>
+                <th className="p-3 border-b">Rating</th>
+                <th className="p-3 border-b">Remarks / Comments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {formData.skillAssessment.map((row, i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <td className="p-3">{row.skillAssessed || '—'}</td>
+                  <td className="p-3">{row.expectedProficiency}</td>
+                  <td className="p-3">{row.possessProficiency}</td>
+                  <td className="p-3">
+                    <StarRatingDisplay value={row.rating} />
+                  </td>
+                  <td className="p-3">{row.remarks || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="px-6 py-3 bg-slate-100 dark:bg-slate-800 border-b font-bold text-sm">Standard Competency Description</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/50 text-left text-xs font-bold uppercase text-slate-600">
+                <th className="p-3 border-b w-[40%]">Topic</th>
+                <th className="p-3 border-b w-[20%]">Rating</th>
+                <th className="p-3 border-b">Remarks / Comments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {formData.competencies.map((row, i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <td className="p-3 font-medium">{row.topic}</td>
+                  <td className="p-3">
+                    <StarRatingDisplay value={row.rating} />
+                  </td>
+                  <td className="p-3">{row.remarks || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p className="text-xs text-slate-500">
+        Submitted {new Date(feedback.createdAt).toLocaleString()}
+        {feedback.interviewerName ? ` by ${feedback.interviewerName}` : ''}
+      </p>
+    </div>
+  )
 }
 
 const FeedbackForm = () => {
-    const { id } = useParams<{ id: string }>()
-    const navigate = useNavigate()
-    const queryClient = useQueryClient()
-    const { user } = useAuth()
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const { addToast } = useToastStore()
 
-    const { data: interview, isLoading } = useQuery({
-        queryKey: ['interview', id],
-        queryFn: () => api.interviews.get(id!)
+  const { data: interview, isLoading } = useQuery({
+    queryKey: ['interview', id],
+    queryFn: () => api.interviews.get(id!),
+  })
+
+  const { data: candidate } = useQuery({
+    queryKey: ['candidate', interview?.candidateId],
+    queryFn: () => api.candidates.get(interview!.candidateId),
+    enabled: !!interview?.candidateId,
+  })
+
+  const { data: existingList = [] } = useQuery({
+    queryKey: ['feedback', id],
+    queryFn: () => api.feedback.getByInterviewId(id!),
+    enabled: !!id,
+  })
+
+  const myFeedback = existingList.find((f) => f.interviewerId === user?.uid)
+  const [viewId, setViewId] = React.useState<string | null>(null)
+  const viewingFeedback = viewId
+    ? existingList.find((f) => f.id === viewId)
+    : myFeedback
+
+  const defaultForm = useMemo(() => createDefaultFormData(), [])
+
+  const { register, handleSubmit, control } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
+    defaultValues: {
+      recommendation: 'HIRE',
+      comments: '',
+      formData: defaultForm,
+    },
+  })
+
+  const { fields: skillFields, append: appendSkill, remove: removeSkill } = useFieldArray({
+    control,
+    name: 'formData.skillAssessment',
+  })
+
+  const reportMeta = useMemo(
+    () => ({
+      candidateName: candidate?.name ?? 'Candidate',
+      candidateRole: candidate?.role,
+      interviewType: interview?.type ?? 'Interview',
+      interviewDate: interview
+        ? new Date(interview.scheduledAt).toLocaleString()
+        : '',
+      interviewerName: user?.name ?? 'Interviewer',
+      jobTitle: candidate?.jobTitle ?? candidate?.role,
+    }),
+    [candidate, interview, user]
+  )
+
+  const createMutation = useMutation({
+    mutationFn: (data: FormValues) => {
+      const formData: InterviewFeedbackFormData = {
+        skillAssessment: data.formData.skillAssessment,
+        competencies: COMPETENCY_TOPICS.map((topic, i) => ({
+          topic,
+          rating: data.formData.competencies[i]?.rating ?? 0,
+          remarks: data.formData.competencies[i]?.remarks ?? '',
+        })),
+      }
+      const scores = computeScores(formData)
+      return api.feedback.create({
+        interviewId: id!,
+        interviewerId: user!.uid,
+        candidateId: interview!.candidateId,
+        recommendation: data.recommendation,
+        comments: data.comments,
+        formData,
+        ...scores,
+      })
+    },
+    onSuccess: async (created) => {
+      addToast('Feedback submitted', 'success')
+      await api.interviews.updateStatus(id!, 'COMPLETED')
+      queryClient.invalidateQueries({ queryKey: ['feedback', id] })
+      setViewId(created.id)
+    },
+    onError: () => addToast('Failed to submit feedback', 'error'),
+  })
+
+  const handleDownload = (fb: Feedback) => {
+    const name = `Interview_Feedback_${reportMeta.candidateName.replace(/\s+/g, '_')}.html`
+    api.feedback.downloadHtml(fb.id, name).catch(() => {
+      downloadFeedbackHtml(fb, reportMeta)
     })
+  }
 
-    // We need to fetch candidate details to show in sidebar
-    const { data: candidate } = useQuery({
-        queryKey: ['candidate', interview?.candidateId],
-        queryFn: () => api.candidates.get(interview!.candidateId),
-        enabled: !!interview?.candidateId
-    })
+  if (isLoading) return <div className="p-8 text-center">Loading interview...</div>
+  if (!interview) return <div className="p-8 text-center">Interview not found.</div>
 
-    const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FeedbackFormValues>({
-        resolver: zodResolver(schema),
-        defaultValues: {
-            technicalRating: 0,
-            communicationRating: 0,
-            rating: 0,
-            comments: '',
-            recommendation: undefined
-        }
-    })
+  const showForm = !myFeedback && !viewId
 
-    const createMutation = useMutation({
-        mutationFn: (data: FeedbackFormValues) => api.feedback.create({
-            ...data,
-            interviewId: id!,
-            interviewerId: user?.uid!,
-            candidateId: interview?.candidateId!,
-            createdAt: new Date().toISOString()
-        }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['feedback', id] })
-            // Also update interview status to COMPLETED if not already?
-            api.interviews.updateStatus(id!, 'COMPLETED')
-            navigate('/interviews')
-        }
-    })
-
-    const onSubmit = (data: FeedbackFormValues) => {
-        createMutation.mutate(data)
-    }
-
-    if (isLoading) return <div className="p-8 text-center">Loading interview details...</div>
-    if (!interview) return <div className="p-8 text-center">Interview not found.</div>
-
-    return (
-        <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)] -m-8 animate-in fade-in duration-500">
-            {/* Sidebar: Candidate Summary */}
-            <aside className="w-full lg:w-80 bg-white dark:bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 p-8 flex flex-col gap-8 shrink-0 relative z-10">
-                <div className="flex flex-col items-center text-center lg:items-start lg:text-left gap-4">
-                    <div className="size-24 rounded-2xl bg-primary/10 dark:bg-white/10 flex items-center justify-center text-4xl font-bold text-primary dark:text-white shadow-md border-2 border-white dark:border-slate-800">
-                        {candidate?.avatar ? (
-                            <img src={candidate.avatar} alt={candidate.name} className="w-full h-full object-cover rounded-2xl" />
-                        ) : (
-                            candidate?.name.charAt(0)
-                        )}
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-black text-primary dark:text-white tracking-tight">{candidate?.name || 'Loading...'}</h2>
-                        <p className="text-sm text-primary/60 dark:text-white/60 font-medium">{candidate?.role}</p>
-                        <div className="mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 uppercase tracking-wide">
-                            {interview.type}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:mt-auto pt-6 border-t border-slate-100 dark:border-slate-800">
-                    <div className="bg-primary/5 dark:bg-white/5 rounded-xl p-4">
-                        <p className="text-[10px] font-bold text-primary dark:text-white uppercase tracking-wider mb-2">Interview Details</p>
-                        <p className="text-sm text-primary/80 dark:text-white/80 font-medium mb-1">{new Date(interview.scheduledAt).toLocaleDateString()}</p>
-                        <p className="text-sm text-primary/80 dark:text-white/80 font-medium">{new Date(interview.scheduledAt).toLocaleTimeString()} ({interview.duration || 60} min)</p>
-                    </div>
-                </div>
-            </aside>
-
-            {/* Main Content: Evaluation Form */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-10 bg-slate-50 dark:bg-black">
-                <div className="max-w-4xl mx-auto space-y-8">
-                    <div>
-                        <h2 className="text-3xl font-black text-primary dark:text-white tracking-tight">Technical Assessment</h2>
-                        <p className="text-primary/60 dark:text-white/60 font-medium mt-1">Provide detailed feedback across core competencies.</p>
-                    </div>
-
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                        {/* Technical Skills */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                            <div className="px-8 py-4 bg-slate-50/50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                                <Code className="text-primary dark:text-white" size={20} />
-                                <h3 className="font-bold text-primary dark:text-white">Technical Skills</h3>
-                            </div>
-                            <div className="p-8 space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    <div className="md:col-span-4">
-                                        <label className="text-sm font-bold text-primary dark:text-white block">Technical Proficiency</label>
-                                        <p className="text-xs text-primary/60 dark:text-white/60 mt-1 mb-3">Code quality, problem solving, stack knowledge.</p>
-                                        <Controller
-                                            control={control}
-                                            name="technicalRating"
-                                            render={({ field }) => <StarRating value={field.value} onChange={field.onChange} />}
-                                        />
-                                        {errors.technicalRating && <p className="text-xs font-bold text-red-500 mt-2">{errors.technicalRating.message}</p>}
-                                    </div>
-                                    <div className="md:col-span-8">
-                                        {/* We could add specific comment fields per section but keeping it simple for now */}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Soft Skills */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                            <div className="px-8 py-4 bg-slate-50/50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                                <MessagesSquare className="text-primary dark:text-white" size={20} />
-                                <h3 className="font-bold text-primary dark:text-white">Communication & Culture</h3>
-                            </div>
-                            <div className="p-8 space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    <div className="md:col-span-4">
-                                        <label className="text-sm font-bold text-primary dark:text-white block">Collaboration</label>
-                                        <p className="text-xs text-primary/60 dark:text-white/60 mt-1 mb-3">Clarity of thought, cultural fit.</p>
-                                        <Controller
-                                            control={control}
-                                            name="communicationRating"
-                                            render={({ field }) => <StarRating value={field.value} onChange={field.onChange} />}
-                                        />
-                                        {errors.communicationRating && <p className="text-xs font-bold text-red-500 mt-2">{errors.communicationRating.message}</p>}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Final Verdict */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                            <div className="px-8 py-4 bg-slate-50/50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                                <FileText className="text-primary dark:text-white" size={20} />
-                                <h3 className="font-bold text-primary dark:text-white">Final Verdict</h3>
-                            </div>
-                            <div className="p-8 space-y-8">
-                                <div>
-                                    <label className="text-sm font-bold text-primary dark:text-white block mb-4">Overall Recommendation</label>
-                                    <Controller
-                                        control={control}
-                                        name="recommendation"
-                                        render={({ field }) => (
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                <label className={clsx(
-                                                    "relative flex flex-col items-center justify-center p-6 border-2 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-white/5",
-                                                    field.value === 'STRONG_HIRE' ? "border-primary bg-primary/5 dark:bg-white/5 dark:border-white" : "border-slate-200 dark:border-slate-800"
-                                                )}>
-                                                    <input type="radio" value="STRONG_HIRE" checked={field.value === 'STRONG_HIRE'} onChange={() => field.onChange('STRONG_HIRE')} className="hidden" />
-                                                    <ThumbsUp size={32} className={clsx("mb-2", field.value === 'STRONG_HIRE' ? "text-primary dark:text-white" : "text-slate-400")} />
-                                                    <span className={clsx("text-sm font-bold", field.value === 'STRONG_HIRE' ? "text-primary dark:text-white" : "text-slate-500")}>Strong Hire</span>
-                                                </label>
-
-                                                <label className={clsx(
-                                                    "relative flex flex-col items-center justify-center p-6 border-2 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-white/5",
-                                                    field.value === 'HIRE' ? "border-primary bg-primary/5 dark:bg-white/5 dark:border-white" : "border-slate-200 dark:border-slate-800"
-                                                )}>
-                                                    <input type="radio" value="HIRE" checked={field.value === 'HIRE'} onChange={() => field.onChange('HIRE')} className="hidden" />
-                                                    <ThumbsUp size={32} className={clsx("mb-2", field.value === 'HIRE' ? "text-primary dark:text-white" : "text-slate-400")} />
-                                                    <span className={clsx("text-sm font-bold", field.value === 'HIRE' ? "text-primary dark:text-white" : "text-slate-500")}>Hire</span>
-                                                </label>
-
-                                                <label className={clsx(
-                                                    "relative flex flex-col items-center justify-center p-6 border-2 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-white/5",
-                                                    field.value === 'NO_HIRE' ? "border-red-500 bg-red-50 dark:bg-red-900/10 dark:border-red-500" : "border-slate-200 dark:border-slate-800"
-                                                )}>
-                                                    <input type="radio" value="NO_HIRE" checked={field.value === 'NO_HIRE'} onChange={() => field.onChange('NO_HIRE')} className="hidden" />
-                                                    <ThumbsDown size={32} className={clsx("mb-2", field.value === 'NO_HIRE' ? "text-red-500" : "text-slate-400")} />
-                                                    <span className={clsx("text-sm font-bold", field.value === 'NO_HIRE' ? "text-red-600" : "text-slate-500")}>No Hire</span>
-                                                </label>
-                                            </div>
-                                        )}
-                                    />
-                                    {errors.recommendation && <p className="text-xs font-bold text-red-500 mt-2">{errors.recommendation.message}</p>}
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    <div className="md:col-span-4">
-                                        <label className="text-sm font-bold text-primary dark:text-white block">Overall Rating</label>
-                                        <Controller
-                                            control={control}
-                                            name="rating"
-                                            render={({ field }) => <StarRating value={field.value} onChange={field.onChange} />}
-                                        />
-                                        {errors.rating && <p className="text-xs font-bold text-red-500 mt-2">{errors.rating.message}</p>}
-                                    </div>
-                                    <div className="md:col-span-12">
-                                        <label className="text-sm font-bold text-primary dark:text-white block mb-2">Overall Feedback</label>
-                                        <textarea
-                                            className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:border-primary focus:ring-0 min-h-[150px] text-primary dark:text-white"
-                                            placeholder="Synthesize your feedback here. Mention strengths, weaknesses, and key observations..."
-                                            {...register('comments')}
-                                        />
-                                        {errors.comments && <p className="text-xs font-bold text-red-500 mt-2">{errors.comments.message}</p>}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-4">
-                            <button type="button" onClick={() => navigate('/interviews')} className="px-6 py-3 font-bold text-primary/60 hover:text-primary dark:text-white/60 dark:hover:text-white transition-colors">Cancel</button>
-                            <button
-                                type="submit"
-                                disabled={createMutation.isPending}
-                                className="px-8 py-3 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 dark:shadow-none"
-                            >
-                                {createMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+  return (
+    <div className="min-h-full -m-6 bg-slate-100 dark:bg-black">
+      <div className="max-w-5xl mx-auto p-6 md:p-10 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <Link to="/interviews" className="inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-primary mb-2">
+              <ArrowLeft size={16} /> Back to interviews
+            </Link>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white">Interview Feedback Form</h1>
+            <p className="text-sm text-slate-600 mt-1">
+              {candidate?.name} · {interview.type} · {new Date(interview.scheduledAt).toLocaleString()}
+            </p>
+          </div>
         </div>
-    )
+
+        {existingList.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {existingList.map((fb) => (
+              <button
+                key={fb.id}
+                type="button"
+                onClick={() => setViewId(fb.id)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-lg text-xs font-bold border',
+                  (viewId === fb.id || (!viewId && fb.id === myFeedback?.id))
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white border-slate-200 text-slate-700'
+                )}
+              >
+                {fb.interviewerName || 'Feedback'} · {new Date(fb.createdAt).toLocaleDateString()}
+              </button>
+            ))}
+            {!myFeedback && (
+              <button
+                type="button"
+                onClick={() => setViewId(null)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-dashed border-primary text-primary"
+              >
+                + Add your feedback
+              </button>
+            )}
+          </div>
+        )}
+
+        {viewingFeedback && !showForm ? (
+          <FeedbackReadOnly
+            feedback={viewingFeedback}
+            meta={reportMeta}
+            onDownload={() => handleDownload(viewingFeedback)}
+            onPrint={() => printFeedbackReport(viewingFeedback, reportMeta)}
+          />
+        ) : (
+          <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-8">
+            {/* Overall Feedback */}
+            <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="px-6 py-3 bg-slate-800 text-white font-bold text-sm">Overall Feedback</div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-500 mb-2">
+                    Recommendation
+                  </label>
+                  <select className={tableSelect} {...register('recommendation')}>
+                    {RECOMMENDATION_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldError control={control} name="recommendation" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold uppercase text-slate-500 mb-2">
+                    Recommendation / Comments
+                  </label>
+                  <textarea
+                    className={clsx(tableInput, 'min-h-[100px]')}
+                    placeholder="Overall feedback and recommendation comments..."
+                    {...register('comments')}
+                  />
+                  <FieldError control={control} name="comments" />
+                </div>
+              </div>
+            </section>
+
+            {/* Skill Assessment */}
+            <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="px-6 py-3 bg-slate-800 text-white font-bold text-sm flex justify-between items-center">
+                <span>Skill Assessment</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    appendSkill({
+                      skillAssessed: '',
+                      expectedProficiency: 'Not Assessed',
+                      possessProficiency: 'Not Assessed',
+                      rating: 0,
+                      remarks: '',
+                    })
+                  }
+                  className="text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded flex items-center gap-1"
+                >
+                  <Plus size={14} /> Add row
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm table-fixed">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-xs font-bold uppercase text-slate-600">
+                      <th className="p-3 border-b text-left w-[18%]">Skill Assessed</th>
+                      <th className="p-3 border-b text-left w-[16%]">Expected Proficiency</th>
+                      <th className="p-3 border-b text-left w-[16%]">Possess Proficiency</th>
+                      <th className="p-3 border-b text-left w-[20%]">Rating</th>
+                      <th className="p-3 border-b text-left">Remarks / Comments</th>
+                      <th className="p-3 border-b w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {skillFields.map((field, index) => (
+                      <tr key={field.id} className="border-b border-slate-100">
+                        <td className="p-2 min-w-0">
+                          <input
+                            className={tableInput}
+                            placeholder="e.g. React, SQL..."
+                            {...register(`formData.skillAssessment.${index}.skillAssessed`)}
+                          />
+                        </td>
+                        <td className="p-2 min-w-0">
+                          <select
+                            className={tableSelect}
+                            {...register(`formData.skillAssessment.${index}.expectedProficiency`)}
+                          >
+                            {PROFICIENCY_LEVELS.map((l) => (
+                              <option key={l} value={l}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-2 min-w-0">
+                          <select
+                            className={tableSelect}
+                            {...register(`formData.skillAssessment.${index}.possessProficiency`)}
+                          >
+                            {PROFICIENCY_LEVELS.map((l) => (
+                              <option key={l} value={l}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-2 min-w-0">
+                          <Controller
+                            control={control}
+                            name={`formData.skillAssessment.${index}.rating`}
+                            render={({ field }) => (
+                              <StarRatingInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                aria-label={`Skill rating row ${index + 1}`}
+                              />
+                            )}
+                          />
+                        </td>
+                        <td className="p-2 min-w-0">
+                          <input
+                            className={tableInput}
+                            {...register(`formData.skillAssessment.${index}.remarks`)}
+                          />
+                        </td>
+                        <td className="p-2">
+                          {skillFields.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeSkill(index)}
+                              className="p-1 text-red-500 hover:bg-red-50 rounded"
+                              aria-label="Remove row"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Standard Competency */}
+            <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="px-6 py-3 bg-slate-800 text-white font-bold text-sm">
+                Standard Competency Description
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm table-fixed">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-xs font-bold uppercase text-slate-600">
+                      <th className="p-3 border-b text-left w-[42%]">Topic</th>
+                      <th className="p-3 border-b text-left w-[28%]">Rating</th>
+                      <th className="p-3 border-b text-left">Remarks / Comments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {COMPETENCY_TOPICS.map((topic, index) => (
+                      <tr key={topic} className="border-b border-slate-100">
+                        <td className="p-3 font-medium text-slate-800 dark:text-slate-200 align-top">
+                          {topic}
+                        </td>
+                        <td className="p-2 align-top min-w-0">
+                          <Controller
+                            control={control}
+                            name={`formData.competencies.${index}.rating`}
+                            render={({ field }) => (
+                              <StarRatingInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                aria-label={`Competency rating: ${topic}`}
+                              />
+                            )}
+                          />
+                        </td>
+                        <td className="p-2 align-top min-w-0">
+                          <input
+                            className={tableInput}
+                            {...register(`formData.competencies.${index}.remarks`)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/interviews')}
+                className="px-6 py-3 font-bold text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={createMutation.isPending}
+                className="px-8 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:opacity-90 disabled:opacity-50"
+              >
+                {createMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default FeedbackForm

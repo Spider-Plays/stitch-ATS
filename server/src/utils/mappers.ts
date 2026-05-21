@@ -23,6 +23,8 @@ export function mapUser(u: DbUser) {
 export function mapRequirement(r: DbReq) {
   return {
     id: r.id,
+    jobCode: r.jobCode ?? undefined,
+    client: r.client ?? undefined,
     title: r.title,
     department: r.department,
     hiringManager: r.hiringManager,
@@ -41,10 +43,19 @@ export function mapRequirement(r: DbReq) {
     approvalHistory: JSON.parse(r.approvalHistory || '[]'),
     versions: JSON.parse(r.versions || '[]'),
     currentVersion: r.currentVersion,
+    visibleToCandidates: r.visibleToCandidates ?? true,
   }
 }
 
-export function mapCandidate(c: DbCand) {
+export function mapCandidate(
+  c: DbCand,
+  ctx?: {
+    requirement?: Pick<DbReq, 'id' | 'jobCode' | 'client' | 'title'> | null
+    recruiter?: Pick<DbUser, 'id' | 'name'> | null
+  }
+) {
+  const req = ctx?.requirement
+  const recruiter = ctx?.recruiter
   return {
     id: c.id,
     name: c.name,
@@ -55,9 +66,15 @@ export function mapCandidate(c: DbCand) {
     source: c.source,
     appliedDate: c.appliedDate.toISOString(),
     requirementId: c.requirementId ?? undefined,
-    jobTitle: c.jobTitle ?? undefined,
+    jobTitle: c.jobTitle ?? req?.title ?? undefined,
+    reqId: req?.jobCode ?? (req ? req.id.slice(-8).toUpperCase() : undefined),
+    client: req?.client ?? undefined,
+    createdBy: c.createdBy ?? undefined,
+    recruiterName: recruiter?.name ?? undefined,
     avatar: c.avatar ?? undefined,
-    resumeUrl: c.resumeUrl ?? undefined,
+    resumeFileName: c.resumeFileName ?? undefined,
+    resumeMimeType: c.resumeMimeType ?? undefined,
+    hasResume: !!c.resumeFileName,
     phone: c.phone ?? undefined,
     location: c.location ?? undefined,
     linkedIn: c.linkedIn ?? undefined,
@@ -89,6 +106,12 @@ export function mapInterview(i: DbInt) {
 }
 
 export function mapFeedback(f: DbFb) {
+  let formData: unknown = {}
+  try {
+    formData = JSON.parse(f.formData || '{}')
+  } catch {
+    formData = {}
+  }
   return {
     id: f.id,
     interviewId: f.interviewId,
@@ -99,6 +122,7 @@ export function mapFeedback(f: DbFb) {
     communicationRating: f.communicationRating ?? undefined,
     comments: f.comments,
     recommendation: f.recommendation,
+    formData,
     createdAt: f.createdAt.toISOString(),
   }
 }

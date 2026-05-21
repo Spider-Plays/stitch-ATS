@@ -1,21 +1,44 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Plus, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, MoreVertical, ArrowRight } from 'lucide-react'
+import { Plus, Clock, ArrowRight, FileText } from 'lucide-react'
 import { api } from '../../services/api'
 import clsx from 'clsx'
+import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { matchesAnySearch } from '../../lib/textSearch'
 
 const Offers = () => {
+    const [searchTerm, setSearchTerm] = useState('')
+
     const { data: offers = [], isLoading } = useQuery({
         queryKey: ['offers'],
         queryFn: api.offers.list
     })
 
-    // Helper to get candidate name (fetching separately or storing in offer would be better, but for now we iterate)
-    // Actually, we should probably fetch candidates and join them.
     const { data: candidates = [] } = useQuery({ queryKey: ['candidates'], queryFn: api.candidates.list })
+    const { data: requirements = [] } = useQuery({ queryKey: ['requirements'], queryFn: api.requirements.list })
 
     const getCandidate = (id: string) => candidates.find(c => c.id === id)
+    const getRequirement = (id: string) => requirements.find(r => r.id === id)
+
+    const filteredOffers = useMemo(() => {
+        return offers.filter((offer) => {
+            const candidate = getCandidate(offer.candidateId)
+            const requirement = getRequirement(offer.requirementId)
+            return matchesAnySearch(
+                [
+                    candidate?.name,
+                    candidate?.email,
+                    candidate?.role,
+                    requirement?.title,
+                    requirement?.department,
+                    offer.status,
+                    offer.baseSalary,
+                ],
+                searchTerm
+            )
+        })
+    }, [offers, candidates, requirements, searchTerm])
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -49,9 +72,18 @@ const Offers = () => {
                 </Link>
             </div>
 
+            <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm">
+                <ListSearchBar
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Search by candidate, job, or offer status..."
+                    className="max-w-none"
+                />
+            </div>
+
             {/* Offers List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {offers.map(offer => {
+                {filteredOffers.map(offer => {
                     const candidate = getCandidate(offer.candidateId)
                     return (
                         <Link key={offer.id} to={`/offers/${offer.id}`} className="group relative bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 block">
@@ -91,13 +123,19 @@ const Offers = () => {
                         </Link>
                     )
                 })}
-                {offers.length === 0 && (
+                {filteredOffers.length === 0 && (
                     <div className="col-span-full p-12 text-center bg-primary/[0.02] dark:bg-white/[0.02] rounded-2xl border border-dashed border-primary/10 dark:border-white/10">
                         <div className="size-16 mx-auto bg-primary/5 dark:bg-white/5 rounded-full flex items-center justify-center text-primary/40 dark:text-white/40 mb-4">
                             <FileText size={32} />
                         </div>
-                        <h3 className="font-bold text-primary dark:text-white text-lg">No offers yet</h3>
-                        <p className="text-primary/40 dark:text-white/40 font-medium">Create your first offer to get started.</p>
+                        <h3 className="font-bold text-primary dark:text-white text-lg">
+                            {searchTerm.trim() ? 'No offers match your search' : 'No offers yet'}
+                        </h3>
+                        <p className="text-primary/40 dark:text-white/40 font-medium">
+                            {searchTerm.trim()
+                                ? 'Try a different name, job title, or status.'
+                                : 'Create your first offer to get started.'}
+                        </p>
                     </div>
                 )}
             </div>

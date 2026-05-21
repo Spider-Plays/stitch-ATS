@@ -1,36 +1,109 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Calendar, Clock, Video, MapPin, User, CheckCircle, XCircle, MoreVertical, Plus, Star, ExternalLink } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Calendar, Clock, Video, MapPin, User, CheckCircle, Plus, ExternalLink, Pencil, X } from 'lucide-react'
 import { api } from '../../services/api'
 import clsx from 'clsx'
+import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { matchesAnySearch } from '../../lib/textSearch'
+import { Interview } from '../../types'
+import { useAuth } from '../../hooks/useAuth'
+import { useToastStore } from '../../store/toastStore'
+import { canScheduleInterviews } from '../../lib/interviewPermissions'
+
+function interviewStatusClass(status: Interview['status']) {
+    switch (status) {
+        case 'SCHEDULED':
+            return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-200 dark:border-blue-500/30'
+        case 'COMPLETED':
+            return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/20 dark:text-green-200 dark:border-green-500/30'
+        case 'CANCELLED':
+            return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/10 dark:text-white/50 dark:border-white/10'
+        default:
+            return 'bg-slate-100 text-slate-700 border-slate-200'
+    }
+}
 
 const Interviews = () => {
+    const [searchTerm, setSearchTerm] = useState('')
+    const { user } = useAuth()
+    const { addToast } = useToastStore()
+    const queryClient = useQueryClient()
+    const canManage = canScheduleInterviews(user?.role)
+
     const { data: interviews = [], isLoading } = useQuery({
         queryKey: ['interviews'],
         queryFn: api.interviews.list
     })
 
-    const upcomingInterviews = interviews.filter(i => new Date(i.scheduledAt) > new Date())
-    const pastInterviews = interviews.filter(i => new Date(i.scheduledAt) <= new Date())
+    const cancelMutation = useMutation({
+        mutationFn: (id: string) => api.interviews.updateStatus(id, 'CANCELLED'),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['interviews'] })
+            addToast('Interview cancelled', 'success')
+        },
+        onError: () => addToast('Failed to cancel interview', 'error'),
+    })
+
+    const handleCancel = (interview: Interview) => {
+        if (!window.confirm(`Cancel the ${interview.type.replace('_', ' ')} interview with ${interview.candidateName ?? 'this candidate'}?`)) {
+            return
+        }
+        cancelMutation.mutate(interview.id)
+    }
+
+    const filteredInterviews = useMemo(
+        () =>
+            interviews.filter((i) =>
+                matchesAnySearch(
+                    [
+                        i.candidateName,
+                        i.candidateRole,
+                        i.candidateEmail,
+                        i.type,
+                        i.status,
+                        i.location,
+                        i.meetingLink,
+                    ],
+                    searchTerm
+                )
+            ),
+        [interviews, searchTerm]
+    )
+
+    const upcomingInterviews = filteredInterviews.filter(
+        (i) => new Date(i.scheduledAt) > new Date() && i.status === 'SCHEDULED'
+    )
+    const pastInterviews = filteredInterviews.filter(
+        (i) => new Date(i.scheduledAt) <= new Date() || i.status !== 'SCHEDULED'
+    )
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">Interviews</h1>
                     <p className="text-primary/60 dark:text-white/60 font-medium mt-1">Manage your interview schedule and feedback.</p>
                 </div>
-                <Link to="/interviews/new">
-                    <button className="flex items-center gap-2 px-6 py-3 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 dark:shadow-none">
-                        <Plus size={18} />
-                        <span>Schedule Interview</span>
-                    </button>
-                </Link>
+                {canManage && (
+                    <Link to="/interviews/new">
+                        <button className="flex items-center gap-2 px-6 py-3 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 dark:shadow-none">
+                            <Plus size={18} />
+                            <span>Schedule Interview</span>
+                        </button>
+                    </Link>
+                )}
             </div>
 
-            {/* Upcoming Interviews */}
+            <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm">
+                <ListSearchBar
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Search by candidate, type, or status..."
+                    className="max-w-none"
+                />
+            </div>
+
             <section>
                 <div className="flex items-center gap-2 mb-4">
                     <div className="p-2 bg-primary/10 dark:bg-white/10 rounded-lg text-primary dark:text-white">
@@ -40,7 +113,11 @@ const Interviews = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {upcomingInterviews.length > 0 ? upcomingInterviews.map(interview => (
+                    {isLoading ? (
+                        <div className="col-span-full p-12 text-center text-primary/40 dark:text-white/40 font-medium">
+                            Loading interviews...
+                        </div>
+                    ) : upcomingInterviews.length > 0 ? upcomingInterviews.map(interview => (
                         <div key={interview.id} className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm hover:shadow-md transition-all group">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
@@ -48,16 +125,22 @@ const Interviews = () => {
                                         <User size={20} />
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-primary dark:text-white leading-tight">Candidate Name</h3>
-                                        <p className="text-xs font-medium text-primary/60 dark:text-white/60">Role Name</p>
+                                        <h3 className="font-bold text-primary dark:text-white leading-tight">{interview.candidateName || 'Unknown candidate'}</h3>
+                                        <p className="text-xs font-medium text-primary/60 dark:text-white/60">{interview.candidateRole || '—'}</p>
                                     </div>
                                 </div>
-                                <span className={clsx(
-                                    "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border",
-                                    interview.type === 'TECHNICAL' ? "bg-blue-100 text-blue-700 border-blue-200" :
-                                        interview.type === 'CULTURAL' ? "bg-purple-100 text-purple-700 border-purple-200" :
-                                            "bg-slate-100 text-slate-700 border-slate-200"
-                                )}>{interview.type}</span>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className={clsx(
+                                        "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border",
+                                        interview.type === 'TECHNICAL' ? "bg-blue-100 text-blue-700 border-blue-200" :
+                                            interview.type === 'CULTURAL' ? "bg-purple-100 text-purple-700 border-purple-200" :
+                                                "bg-slate-100 text-slate-700 border-slate-200"
+                                    )}>{interview.type.replace('_', ' ')}</span>
+                                    <span className={clsx(
+                                        "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border",
+                                        interviewStatusClass(interview.status)
+                                    )}>{interview.status}</span>
+                                </div>
                             </div>
 
                             <div className="space-y-3 mb-6">
@@ -71,32 +154,53 @@ const Interviews = () => {
                                 </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 {interview.meetingLink && (
-                                    <a href={interview.meetingLink} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-all">
+                                    <a href={interview.meetingLink} target="_blank" rel="noreferrer" className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-all">
                                         <ExternalLink size={14} /> Join
                                     </a>
                                 )}
-                                <Link to={`/candidates/${interview.candidateId}`} className="px-3 py-2.5 bg-primary/5 dark:bg-white/5 text-primary dark:text-white rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-all">
+                                {canManage && (
+                                    <>
+                                        <Link
+                                            to={`/interviews/${interview.id}/edit`}
+                                            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary/5 dark:bg-white/5 text-primary dark:text-white rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-all font-bold text-xs uppercase tracking-wider"
+                                        >
+                                            <Pencil size={14} /> Edit
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCancel(interview)}
+                                            disabled={cancelMutation.isPending}
+                                            className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-all font-bold text-xs uppercase tracking-wider disabled:opacity-50"
+                                        >
+                                            <X size={14} /> Cancel
+                                        </button>
+                                    </>
+                                )}
+                                <Link to={`/candidates/${interview.candidateId}`} className="px-3 py-2.5 bg-primary/5 dark:bg-white/5 text-primary dark:text-white rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-all" title="View candidate">
                                     <User size={18} />
                                 </Link>
                             </div>
                         </div>
                     )) : (
                         <div className="col-span-full p-12 text-center bg-primary/[0.02] dark:bg-white/[0.02] rounded-2xl border border-dashed border-primary/10 dark:border-white/10">
-                            <p className="text-primary/40 dark:text-white/40 font-medium">No upcoming interviews scheduled.</p>
+                            <p className="text-primary/40 dark:text-white/40 font-medium">
+                                {searchTerm.trim()
+                                    ? 'No upcoming interviews match your search.'
+                                    : 'No upcoming interviews scheduled.'}
+                            </p>
                         </div>
                     )}
                 </div>
             </section>
 
-            {/* Past Interviews */}
             <section>
                 <div className="flex items-center gap-2 mb-4 mt-8">
                     <div className="p-2 bg-primary/10 dark:bg-white/10 rounded-lg text-primary dark:text-white">
                         <CheckCircle size={20} />
                     </div>
-                    <h2 className="text-xl font-bold text-primary dark:text-white">Past Interviews</h2>
+                    <h2 className="text-xl font-bold text-primary dark:text-white">Past & Other</h2>
                 </div>
 
                 <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm overflow-hidden">
@@ -114,28 +218,45 @@ const Interviews = () => {
                             {pastInterviews.map(interview => (
                                 <tr key={interview.id} className="hover:bg-primary/[0.02] dark:hover:bg-white/[0.02] transition-colors">
                                     <td className="px-6 py-4">
-                                        <div className="font-bold text-primary dark:text-white text-sm">Candidate Name</div>
+                                        <div className="font-bold text-primary dark:text-white text-sm">{interview.candidateName || 'Unknown candidate'}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="text-xs font-medium text-primary/70 dark:text-white/70">{interview.type}</span>
+                                        <span className="text-xs font-medium text-primary/70 dark:text-white/70">{interview.type.replace('_', ' ')}</span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="text-xs font-medium text-primary/70 dark:text-white/70">{new Date(interview.scheduledAt).toLocaleDateString()}</span>
+                                        <span className="text-xs font-medium text-primary/70 dark:text-white/70">{new Date(interview.scheduledAt).toLocaleString()}</span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="px-2 py-1 rounded-md bg-green-100 text-green-700 border border-green-200 text-[10px] font-bold uppercase tracking-wider">Completed</span>
+                                        <span className={clsx(
+                                            "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border",
+                                            interviewStatusClass(interview.status)
+                                        )}>{interview.status}</span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <Link to={`/interviews/${interview.id}/feedback`}>
-                                            <button className="text-xs font-bold text-primary hover:underline dark:text-white">Submit Feedback</button>
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-3">
+                                            {canManage && interview.status !== 'CANCELLED' && (
+                                                <Link
+                                                    to={`/interviews/${interview.id}/edit`}
+                                                    className="text-xs font-bold text-primary hover:underline dark:text-white"
+                                                >
+                                                    Edit
+                                                </Link>
+                                            )}
+                                            {interview.status !== 'CANCELLED' && (
+                                                <Link to={`/interviews/${interview.id}/feedback`}>
+                                                    <button className="text-xs font-bold text-primary hover:underline dark:text-white">Feedback</button>
+                                                </Link>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
-                            {pastInterviews.length === 0 && (
+                            {pastInterviews.length === 0 && !isLoading && (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-8 text-center text-primary/40 dark:text-white/40 text-sm">
-                                        No past interviews found.
+                                        {searchTerm.trim()
+                                            ? 'No past interviews match your search.'
+                                            : 'No past interviews found.'}
                                     </td>
                                 </tr>
                             )}

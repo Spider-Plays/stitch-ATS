@@ -4,6 +4,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { APP_NAME } from '../../config/branding'
 import { AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
+import { authApi } from '../../services/http/auth'
+import { ApiError } from '../../lib/apiClient'
 
 const Login = () => {
     const navigate = useNavigate()
@@ -12,6 +14,11 @@ const Login = () => {
     const [loading, setLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
     const [showPassword, setShowPassword] = useState(false)
+    const [mode, setMode] = useState<'login' | 'forgot' | 'reset'>('login')
+    const [forgotEmail, setForgotEmail] = useState('')
+    const [resetToken, setResetToken] = useState('')
+    const [resetPassword, setResetPassword] = useState('')
+    const [infoMessage, setInfoMessage] = useState<string | null>(null)
 
     const from = location.state?.from?.pathname || '/'
     const { register, handleSubmit } = useForm<{ email: string; password: string }>()
@@ -43,6 +50,15 @@ const Login = () => {
             setLoading(false)
         }
     }
+
+    React.useEffect(() => {
+        const params = new URLSearchParams(location.search)
+        const token = params.get('reset')
+        if (token) {
+            setResetToken(token)
+            setMode('reset')
+        }
+    }, [location.search])
 
     React.useEffect(() => {
         if (user) redirectByRole(user.role || 'CANDIDATE')
@@ -98,6 +114,89 @@ const Login = () => {
                             </div>
                         )}
 
+                        {infoMessage && (
+                            <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm">
+                                {infoMessage}
+                            </div>
+                        )}
+
+                        {mode === 'forgot' && (
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault()
+                                    setLoading(true)
+                                    setAuthError(null)
+                                    try {
+                                        const res = await authApi.forgotPassword(forgotEmail)
+                                        setInfoMessage(res.message)
+                                        setMode('login')
+                                    } catch (err) {
+                                        setAuthError(err instanceof ApiError ? err.message : 'Request failed')
+                                    } finally {
+                                        setLoading(false)
+                                    }
+                                }}
+                                className="space-y-6"
+                            >
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-primary/60 uppercase">Email</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={forgotEmail}
+                                        onChange={(e) => setForgotEmail(e.target.value)}
+                                        className="w-full px-4 py-3.5 rounded-xl border border-primary/10 font-medium"
+                                        placeholder="you@company.com"
+                                    />
+                                </div>
+                                <button type="submit" disabled={loading} className="w-full py-4 bg-primary text-white rounded-xl font-bold text-sm">
+                                    Send reset link
+                                </button>
+                                <button type="button" onClick={() => setMode('login')} className="w-full text-sm font-bold text-primary/60">
+                                    Back to sign in
+                                </button>
+                            </form>
+                        )}
+
+                        {mode === 'reset' && (
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault()
+                                    setLoading(true)
+                                    setAuthError(null)
+                                    try {
+                                        const res = await authApi.resetPassword(resetToken, resetPassword)
+                                        setInfoMessage(res.message)
+                                        setMode('login')
+                                    } catch (err) {
+                                        setAuthError(err instanceof ApiError ? err.message : 'Reset failed')
+                                    } finally {
+                                        setLoading(false)
+                                    }
+                                }}
+                                className="space-y-6"
+                            >
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-primary/60 uppercase">New password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={8}
+                                        value={resetPassword}
+                                        onChange={(e) => setResetPassword(e.target.value)}
+                                        className="w-full px-4 py-3.5 rounded-xl border border-primary/10 font-medium"
+                                    />
+                                </div>
+                                <button type="submit" disabled={loading} className="w-full py-4 bg-primary text-white rounded-xl font-bold text-sm">
+                                    Set new password
+                                </button>
+                                <button type="button" onClick={() => setMode('login')} className="w-full text-sm font-bold text-primary/60">
+                                    Back to sign in
+                                </button>
+                            </form>
+                        )}
+
+                        {mode === 'login' && (
                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Email Address</label>
@@ -149,6 +248,17 @@ const Login = () => {
                                 )}
                             </button>
                         </form>
+                        )}
+
+                        {mode === 'login' && (
+                            <button
+                                type="button"
+                                onClick={() => { setMode('forgot'); setAuthError(null); setInfoMessage(null) }}
+                                className="w-full text-sm font-bold text-primary/60 hover:text-primary"
+                            >
+                                Forgot password?
+                            </button>
+                        )}
                     </div>
 
                 </div>

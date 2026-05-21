@@ -1,15 +1,55 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { mapCandidate } from '../utils/mappers.js'
-import { requireAuth, requireActiveUser } from '../middleware/auth.js'
+import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
+import { INTERNAL_ROLES, STAFF_MUTATE } from '../lib/roles.js'
+import { syncRequirementFilled } from '../lib/hiring.js'
+import { handleUploadResume } from '../middleware/uploadResume.js'
+import {
+  deleteResumeFile,
+  findResumeFile,
+  isAllowedResumeFile,
+  resolveResumeMime,
+  saveResumeFile,
+} from '../lib/resumeStorage.js'
+import fs from 'fs/promises'
 
 const router = Router()
-router.use(requireAuth, requireActiveUser)
+router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
 
 router.get('/', async (_req, res) => {
   const rows = await prisma.candidate.findMany({ orderBy: { appliedDate: 'desc' } })
-  res.json(rows.map(mapCandidate))
+  const requirementIds = [
+    ...new Set(rows.map((r) => r.requirementId).filter((id): id is string => !!id)),
+  ]
+  const creatorIds = [
+    ...new Set(rows.map((r) => r.createdBy).filter((id): id is string => !!id)),
+  ]
+  const [requirements, recruiters] = await Promise.all([
+    requirementIds.length
+      ? prisma.requirement.findMany({
+          where: { id: { in: requirementIds } },
+          select: { id: true, jobCode: true, client: true, title: true },
+        })
+      : [],
+    creatorIds.length
+      ? prisma.user.findMany({
+          where: { id: { in: creatorIds } },
+          select: { id: true, name: true },
+        })
+      : [],
+  ])
+  const reqById = new Map(requirements.map((r) => [r.id, r]))
+  const recruiterById = new Map(recruiters.map((u) => [u.id, u]))
+  res.json(
+    rows.map((c) =>
+      mapCandidate(c, {
+        requirement: c.requirementId ? reqById.get(c.requirementId) ?? null : null,
+        recruiter: c.createdBy ? recruiterById.get(c.createdBy) ?? null : null,
+      })
+    )
+  )
 })
 
 router.get('/by-requirement/:requirementId', async (req, res) => {
@@ -20,13 +60,105 @@ router.get('/by-requirement/:requirementId', async (req, res) => {
   res.json(rows.map(mapCandidate))
 })
 
+router.get('/:id/resume', async (req, res) => {
+  try {
+    const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
+    if (!row) return res.status(404).json({ error: 'Not found' })
+    if (!row.resumeFileName) return res.status(404).json({ error: 'No resume uploaded' })
+
+    const stored = await findResumeFile(row.id)
+    if (!stored) return res.status(404).json({ error: 'Resume file missing' })
+
+    const buffer = await fs.readFile(stored.filePath)
+    res.setHeader('Content-Type', row.resumeMimeType || stored.mime)
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(row.resumeFileName)}"`
+    )
+    res.send(buffer)
+  } catch (err) {
+    console.error('Resume download failed:', err)
+    res.status(500).json({ error: 'Failed to load resume' })
+  }
+})
+
+router.post('/:id/resume', requireRoles(...STAFF_MUTATE), handleUploadResume, async (req, res) => {
+  try {
+    const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
+    if (!row) return res.status(404).json({ error: 'Not found' })
+    if (!req.file) return res.status(400).json({ error: 'Resume file is required' })
+    if (!isAllowedResumeFile(req.file.mimetype, req.file.originalname)) {
+      return res.status(400).json({ error: 'Only PDF, DOC, and DOCX files are allowed' })
+    }
+
+    const mime = resolveResumeMime(req.file.mimetype, req.file.originalname)
+    await saveResumeFile(row.id, mime, req.file.buffer, req.file.originalname)
+
+    const updated = await prisma.candidate.update({
+      where: { id: row.id },
+      data: {
+        resumeFileName: req.file.originalname,
+        resumeMimeType: mime,
+        resumeUrl: null,
+        updatedAt: new Date(),
+      },
+    })
+
+    await logActivity({
+      entityType: 'CANDIDATE',
+      entityId: row.id,
+      action: 'RESUME_UPLOADED',
+      performedBy: req.auth!.userId,
+      details: { fileName: req.file.originalname },
+    })
+
+    res.json(mapCandidate(updated))
+  } catch (err) {
+    console.error('Resume upload failed:', err)
+    const message = err instanceof Error ? err.message : 'Failed to save resume'
+    res.status(500).json({ error: message })
+  }
+})
+
+router.delete('/:id/resume', async (req, res) => {
+  const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
+  if (!row) return res.status(404).json({ error: 'Not found' })
+
+  await deleteResumeFile(row.id)
+  const updated = await prisma.candidate.update({
+    where: { id: row.id },
+    data: {
+      resumeFileName: null,
+      resumeMimeType: null,
+      resumeUrl: null,
+      updatedAt: new Date(),
+    },
+  })
+
+  res.json(mapCandidate(updated))
+})
+
 router.get('/:id', async (req, res) => {
   const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
   if (!row) return res.status(404).json({ error: 'Not found' })
-  res.json(mapCandidate(row))
+  const [requirement, recruiter] = await Promise.all([
+    row.requirementId
+      ? prisma.requirement.findUnique({
+          where: { id: row.requirementId },
+          select: { id: true, jobCode: true, client: true, title: true },
+        })
+      : null,
+    row.createdBy
+      ? prisma.user.findUnique({
+          where: { id: row.createdBy },
+          select: { id: true, name: true },
+        })
+      : null,
+  ])
+  res.json(mapCandidate(row, { requirement, recruiter }))
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireRoles(...STAFF_MUTATE), async (req, res) => {
   const body = req.body
   const row = await prisma.candidate.create({
     data: {
@@ -36,10 +168,9 @@ router.post('/', async (req, res) => {
       status: body.status ?? 'APPLIED',
       matchScore: body.matchScore ?? 0,
       source: body.source ?? 'Direct',
-      requirementId: body.requirementId,
+      requirementId: body.requirementId || null,
       jobTitle: body.jobTitle,
       avatar: body.avatar,
-      resumeUrl: body.resumeUrl,
       phone: body.phone,
       location: body.location,
       linkedIn: body.linkedIn,
@@ -49,6 +180,7 @@ router.post('/', async (req, res) => {
       currentCTC: body.currentCTC,
       expectedCTC: body.expectedCTC,
       noticePeriod: body.noticePeriod,
+      createdBy: req.auth!.userId,
     },
   })
   await logActivity({
@@ -61,57 +193,106 @@ router.post('/', async (req, res) => {
   res.status(201).json(mapCandidate(row))
 })
 
-router.patch('/:id', async (req, res) => {
-  const b = req.body
-  const row = await prisma.candidate.update({
-    where: { id: req.params.id },
-    data: {
-      ...(b.name !== undefined && { name: b.name }),
-      ...(b.email !== undefined && { email: b.email }),
-      ...(b.role !== undefined && { role: b.role }),
-      ...(b.status !== undefined && { status: b.status }),
-      ...(b.matchScore !== undefined && { matchScore: b.matchScore }),
-      ...(b.source !== undefined && { source: b.source }),
-      ...(b.requirementId !== undefined && { requirementId: b.requirementId }),
-      ...(b.jobTitle !== undefined && { jobTitle: b.jobTitle }),
-      ...(b.avatar !== undefined && { avatar: b.avatar }),
-      ...(b.resumeUrl !== undefined && { resumeUrl: b.resumeUrl }),
-      ...(b.phone !== undefined && { phone: b.phone }),
-      ...(b.location !== undefined && { location: b.location }),
-      ...(b.linkedIn !== undefined && { linkedIn: b.linkedIn }),
-      ...(b.portfolio !== undefined && { portfolio: b.portfolio }),
-      ...(b.totalExperience !== undefined && { totalExperience: b.totalExperience }),
-      ...(b.currentCompany !== undefined && { currentCompany: b.currentCompany }),
-      ...(b.currentCTC !== undefined && { currentCTC: b.currentCTC }),
-      ...(b.expectedCTC !== undefined && { expectedCTC: b.expectedCTC }),
-      ...(b.noticePeriod !== undefined && { noticePeriod: b.noticePeriod }),
-      updatedAt: new Date(),
-    },
-  })
-  await logActivity({
-    entityType: 'CANDIDATE',
-    entityId: row.id,
-    action: 'UPDATED',
-    performedBy: req.auth!.userId,
-    details: Object.keys(req.body),
-  })
-  res.json(mapCandidate(row))
+router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
+  try {
+    const b = req.body
+    const row = await prisma.candidate.update({
+      where: { id: req.params.id },
+      data: {
+        ...(b.name !== undefined && { name: b.name }),
+        ...(b.email !== undefined && { email: b.email }),
+        ...(b.role !== undefined && { role: b.role }),
+        ...(b.status !== undefined && { status: b.status }),
+        ...(b.matchScore !== undefined && { matchScore: b.matchScore }),
+        ...(b.source !== undefined && { source: b.source }),
+        ...(b.requirementId !== undefined && {
+          requirementId: b.requirementId === '' ? null : b.requirementId,
+        }),
+        ...(b.jobTitle !== undefined && { jobTitle: b.jobTitle }),
+        ...(b.avatar !== undefined && { avatar: b.avatar }),
+        ...(b.phone !== undefined && { phone: b.phone }),
+        ...(b.location !== undefined && { location: b.location }),
+        ...(b.linkedIn !== undefined && { linkedIn: b.linkedIn }),
+        ...(b.portfolio !== undefined && { portfolio: b.portfolio }),
+        ...(b.totalExperience !== undefined && { totalExperience: b.totalExperience }),
+        ...(b.currentCompany !== undefined && { currentCompany: b.currentCompany }),
+        ...(b.currentCTC !== undefined && { currentCTC: b.currentCTC }),
+        ...(b.expectedCTC !== undefined && { expectedCTC: b.expectedCTC }),
+        ...(b.noticePeriod !== undefined && { noticePeriod: b.noticePeriod }),
+        updatedAt: new Date(),
+      },
+    })
+    await logActivity({
+      entityType: 'CANDIDATE',
+      entityId: row.id,
+      action: 'UPDATED',
+      performedBy: req.auth!.userId,
+      details: Object.keys(req.body),
+    })
+    res.json(mapCandidate(row))
+  } catch (err) {
+    console.error('Candidate update failed:', err)
+    res.status(500).json({ error: 'Failed to update candidate' })
+  }
 })
 
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', requireRoles(...STAFF_MUTATE), async (req, res) => {
   const { status } = req.body
   const row = await prisma.candidate.update({
     where: { id: req.params.id },
     data: { status, updatedAt: new Date() },
   })
+  if (status === 'HIRED' && row.requirementId) {
+    await syncRequirementFilled(row.requirementId)
+  }
   await logActivity({
     entityType: 'CANDIDATE',
     entityId: row.id,
     action: 'STATUS_CHANGED',
     performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
     details: { newStatus: status },
   })
   res.json(mapCandidate(row))
+})
+
+router.delete('/:id', requireRoles('ADMIN'), async (req, res) => {
+  const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
+  if (!row) return res.status(404).json({ error: 'Not found' })
+
+  const interviews = await prisma.interview.findMany({
+    where: { candidateId: row.id },
+    select: { id: true },
+  })
+  const interviewIds = interviews.map((i) => i.id)
+
+  await prisma.$transaction([
+    prisma.feedback.deleteMany({
+      where: {
+        OR: [{ candidateId: row.id }, { interviewId: { in: interviewIds } }],
+      },
+    }),
+    prisma.interview.deleteMany({ where: { candidateId: row.id } }),
+    prisma.offer.deleteMany({ where: { candidateId: row.id } }),
+    prisma.activityLog.deleteMany({
+      where: { entityType: 'CANDIDATE', entityId: row.id },
+    }),
+  ])
+
+  await deleteResumeFile(row.id)
+  await prisma.candidate.delete({ where: { id: row.id } })
+  if (row.requirementId) await syncRequirementFilled(row.requirementId)
+
+  await logActivity({
+    entityType: 'CANDIDATE',
+    entityId: row.id,
+    action: 'DELETED',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: { name: row.name, email: row.email },
+  })
+
+  res.status(204).send()
 })
 
 export default router

@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma.js'
 import { mapUser } from '../utils/mappers.js'
 import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
 import { generateTempPassword } from '../lib/password.js'
-import { sendInviteEmail } from '../services/email.js'
+import { sendInviteEmail, sendAdminPasswordEmail } from '../services/email.js'
 
 const router = Router()
 router.use(requireAuth, requireActiveUser)
@@ -35,6 +35,7 @@ router.post('/invite', requireRoles('ADMIN'), async (req, res) => {
       email: z.string().email(),
       name: z.string().min(1).optional(),
       role: z.enum(inviteRoles),
+      department: z.string().max(120).optional(),
     })
     .parse(req.body)
 
@@ -52,6 +53,7 @@ router.post('/invite', requireRoles('ADMIN'), async (req, res) => {
       passwordHash,
       name,
       role: body.role,
+      department: body.department?.trim() || null,
       status: 'ACTIVE',
       permissions: '[]',
       themePreference: 'system',
@@ -80,10 +82,116 @@ router.post('/invite', requireRoles('ADMIN'), async (req, res) => {
   })
 })
 
-router.get('/:id', async (req, res) => {
+router.patch('/me', async (req, res) => {
+  const body = z
+    .object({
+      name: z.string().min(1).optional(),
+      phoneNumber: z.string().optional(),
+      address: z.string().optional(),
+      themePreference: z.enum(['light', 'dark', 'system']).optional(),
+      avatar: z.string().url().optional().or(z.literal('')),
+    })
+    .parse(req.body)
+
+  const user = await prisma.user.update({
+    where: { id: req.auth!.userId },
+    data: {
+      ...(body.name !== undefined && { name: body.name.trim() }),
+      ...(body.phoneNumber !== undefined && { phoneNumber: body.phoneNumber || null }),
+      ...(body.address !== undefined && { address: body.address || null }),
+      ...(body.themePreference !== undefined && { themePreference: body.themePreference }),
+      ...(body.avatar !== undefined && { avatar: body.avatar || null }),
+    },
+  })
+  res.json(mapUser(user))
+})
+
+router.get('/:id', requireRoles('ADMIN'), async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } })
   if (!user) return res.status(404).json({ error: 'Not found' })
   res.json(mapUser(user))
+})
+
+router.patch('/:id', requireRoles('ADMIN'), async (req, res) => {
+  const body = z
+    .object({
+      name: z.string().min(1).optional(),
+      department: z.string().max(120).optional().nullable(),
+      phoneNumber: z.string().max(40).optional().nullable(),
+      address: z.string().max(500).optional().nullable(),
+    })
+    .parse(req.body)
+
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: {
+      ...(body.name !== undefined && { name: body.name.trim() }),
+      ...(body.department !== undefined && {
+        department: body.department?.trim() || null,
+      }),
+      ...(body.phoneNumber !== undefined && {
+        phoneNumber: body.phoneNumber?.trim() || null,
+      }),
+      ...(body.address !== undefined && {
+        address: body.address?.trim() || null,
+      }),
+    },
+  })
+  res.json(mapUser(user))
+})
+
+router.post('/:id/reset-password', requireRoles('ADMIN'), async (req, res) => {
+  const body = z
+    .object({
+      newPassword: z.string().min(8).optional(),
+      generateTemporary: z.boolean().optional(),
+      sendEmail: z.boolean().optional().default(true),
+    })
+    .refine((d) => Boolean(d.newPassword || d.generateTemporary), {
+      message: 'Provide newPassword or set generateTemporary to true',
+    })
+    .parse(req.body)
+
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } })
+  if (!target) return res.status(404).json({ error: 'User not found' })
+
+  const plainPassword = body.generateTemporary ? generateTempPassword() : body.newPassword!
+  const passwordHash = await bcrypt.hash(plainPassword, 10)
+
+  await prisma.user.update({
+    where: { id: target.id },
+    data: {
+      passwordHash,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    },
+  })
+
+  let emailSent = false
+  let emailWarning: string | undefined
+  if (body.sendEmail) {
+    const emailResult = await sendAdminPasswordEmail({
+      to: target.email,
+      name: target.name,
+      password: plainPassword,
+      setByAdmin: true,
+    })
+    emailSent = emailResult.sent
+    if (!emailResult.sent) {
+      if (emailResult.reason === 'error') {
+        emailWarning = emailResult.message
+      } else if (emailResult.reason === 'not_configured') {
+        emailWarning = 'Email is not configured; share the password with the user manually.'
+      }
+    }
+  }
+
+  res.json({
+    ok: true,
+    emailSent,
+    ...(emailWarning ? { emailWarning } : {}),
+    ...(!emailSent && body.generateTemporary ? { temporaryPassword: plainPassword } : {}),
+  })
 })
 
 router.patch('/:id/role', requireRoles('ADMIN'), async (req, res) => {

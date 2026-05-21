@@ -40,4 +40,13 @@ export const requirementService = {
       method: 'POST',
       body: JSON.stringify({ recruiterId }),
     }),
+
+  setVisibility: (id: string, visibleToCandidates: boolean) =>
+    apiRequest<Requirement>(`/requirements/${id}/visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ visibleToCandidates }),
+    }),
+
+  delete: (id: string) =>
+    apiRequest<void>(`/requirements/${id}`, { method: 'DELETE' }),
 }

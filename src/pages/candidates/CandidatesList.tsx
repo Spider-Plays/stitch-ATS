@@ -1,12 +1,15 @@
 import React, { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Filter, Plus, UserPlus, MoreVertical, Briefcase, Mail, Calendar, Star, LayoutDashboard } from 'lucide-react'
+import { Search, Filter, Plus, UserPlus, Briefcase, Mail, Calendar, LayoutDashboard } from 'lucide-react'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
 import { Candidate } from '../../types'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
+import { ActionsMenu } from '../../components/ui/ActionsMenu'
+import { useToastStore } from '../../store/toastStore'
+import { ApiError } from '../../lib/apiClient'
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -37,8 +40,11 @@ const statusColors: Record<string, string> = {
 const CandidatesList = () => {
     const { user } = useAuth()
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
+    const { addToast } = useToastStore()
     const [searchTerm, setSearchTerm] = useState('')
     const [statusFilter, setStatusFilter] = useState<string>('ALL')
+    const isAdmin = user?.role === 'ADMIN'
 
     const { data: candidates = [], isLoading } = useQuery({
         queryKey: ['candidates'],
@@ -46,14 +52,69 @@ const CandidatesList = () => {
     })
 
     const filteredCandidates = candidates.filter(candidate => {
-        const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            candidate.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            candidate.role.toLowerCase().includes(searchTerm.toLowerCase())
+        const q = searchTerm.toLowerCase()
+        const matchesSearch =
+            candidate.name.toLowerCase().includes(q) ||
+            candidate.email.toLowerCase().includes(q) ||
+            candidate.role.toLowerCase().includes(q) ||
+            (candidate.jobTitle?.toLowerCase().includes(q) ?? false) ||
+            (candidate.reqId?.toLowerCase().includes(q) ?? false) ||
+            (candidate.client?.toLowerCase().includes(q) ?? false) ||
+            (candidate.recruiterName?.toLowerCase().includes(q) ?? false) ||
+            (candidate.source?.toLowerCase().includes(q) ?? false)
         const matchesStatus = statusFilter === 'ALL' || candidate.status === statusFilter
         return matchesSearch && matchesStatus
     })
 
     const canCreate = ['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER'].includes(user?.role || '')
+
+    const handleDeleteCandidate = async (candidate: Candidate) => {
+        if (
+            !confirm(
+                `Permanently delete ${candidate.name}? All interviews, offers, and feedback will be removed.`
+            )
+        ) {
+            return
+        }
+        try {
+            await api.candidates.delete(candidate.id)
+            addToast('Candidate deleted', 'success')
+            queryClient.invalidateQueries({ queryKey: ['candidates'] })
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to delete candidate'
+            addToast(msg, 'error')
+        }
+    }
+
+    const candidateMenuItems = (candidate: Candidate) => [
+        {
+            id: 'view',
+            label: 'View profile',
+            onClick: () => navigate(`/candidates/${candidate.id}`),
+        },
+        {
+            id: 'pipeline',
+            label: 'Open pipeline',
+            onClick: () =>
+                navigate(
+                    candidate.requirementId
+                        ? `/pipeline/${candidate.requirementId}`
+                        : '/pipeline'
+                ),
+        },
+        {
+            id: 'interview',
+            label: 'Schedule interview',
+            onClick: () => navigate('/interviews/new'),
+        },
+        {
+            id: 'delete',
+            label: 'Delete profile',
+            variant: 'danger' as const,
+            hidden: !isAdmin,
+            onClick: () => handleDeleteCandidate(candidate),
+        },
+    ]
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -87,7 +148,7 @@ const CandidatesList = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40" size={18} />
                     <input
                         type="text"
-                        placeholder="Search by name, email, or role..."
+                        placeholder="Search by name, email, req ID, client, job title..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/30"
@@ -114,18 +175,21 @@ const CandidatesList = () => {
             </div>
 
             {/* List */}
-            <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm overflow-visible">
                 {isLoading ? (
                     <div className="p-12 text-center text-primary/50 dark:text-white/50">
                         Loading candidates...
                     </div>
                 ) : filteredCandidates.length > 0 ? (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto overflow-y-visible">
                         <table className="w-full">
                             <thead className="bg-primary/[0.02] dark:bg-white/[0.02] border-b border-primary/10 dark:border-white/10">
                                 <tr>
                                     <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Candidate</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Applied For</th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Req ID</th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Client</th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Job title</th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Recruiter</th>
                                     <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Status</th>
                                     <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Match</th>
                                     <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Date</th>
@@ -164,10 +228,27 @@ const CandidatesList = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2 text-sm font-medium text-primary/80 dark:text-white/80">
-                                                <Briefcase size={16} className="text-primary/40 dark:text-white/40" />
-                                                {candidate.role}
+                                            <span className="text-sm font-mono font-bold text-primary/80 dark:text-white/80">
+                                                {candidate.reqId ?? '—'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-medium text-primary/70 dark:text-white/70">
+                                            {candidate.client ?? '—'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2 text-sm font-medium text-primary/80 dark:text-white/80 max-w-[200px]">
+                                                <Briefcase size={16} className="text-primary/40 dark:text-white/40 shrink-0" />
+                                                <span className="truncate">{candidate.jobTitle ?? candidate.role}</span>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-medium text-primary/70 dark:text-white/70">
+                                            {candidate.recruiterName ?? (
+                                                candidate.source === 'Candidate Portal' ? (
+                                                    <span className="text-primary/40 italic">Self-applied</span>
+                                                ) : (
+                                                    '—'
+                                                )
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={clsx(
@@ -196,10 +277,11 @@ const CandidatesList = () => {
                                                 {new Date(candidate.appliedDate).toLocaleDateString()}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button className="p-2 text-primary/40 hover:text-primary dark:text-white/40 dark:hover:text-white transition-colors">
-                                                <MoreVertical size={18} />
-                                            </button>
+                                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <ActionsMenu
+                                                items={candidateMenuItems(candidate)}
+                                                aria-label={`Actions for ${candidate.name}`}
+                                            />
                                         </td>
                                     </motion.tr>
                                 ))}

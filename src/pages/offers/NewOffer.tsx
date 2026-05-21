@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DollarSign, FileText, CheckCircle, User, Briefcase } from 'lucide-react'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
+import { SearchableSelect } from '../../components/ui/SearchableSelect'
 
 const schema = z.object({
     candidateId: z.string().min(1, "Candidate is required"),
@@ -35,6 +36,26 @@ const NewOffer = () => {
 
     const { data: candidates = [] } = useQuery({ queryKey: ['candidates'], queryFn: api.candidates.list })
     const { data: requirements = [] } = useQuery({ queryKey: ['requirements'], queryFn: api.requirements.list })
+
+    const candidateOptions = useMemo(
+        () =>
+            candidates.map((c) => ({
+                value: c.id,
+                label: c.name,
+                sublabel: [c.role, c.email].filter(Boolean).join(' · '),
+            })),
+        [candidates]
+    )
+
+    const requirementOptions = useMemo(
+        () =>
+            requirements.map((r) => ({
+                value: r.id,
+                label: r.title,
+                sublabel: `${r.department} · ${r.status.replace('_', ' ')}`,
+            })),
+        [requirements]
+    )
 
     const createMutation = useMutation({
         mutationFn: (data: OfferFormValues) => api.offers.create({
@@ -82,31 +103,39 @@ const NewOffer = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider block">Candidate</label>
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/30" size={18} />
-                                <select
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-bold text-primary dark:text-white appearance-none"
-                                    {...register('candidateId')}
-                                >
-                                    <option value="">Select Candidate</option>
-                                    {candidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
+                            <Controller
+                                control={control}
+                                name="candidateId"
+                                render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        options={candidateOptions}
+                                        placeholder="Select candidate"
+                                        searchPlaceholder="Search candidates..."
+                                        icon={<User size={18} />}
+                                    />
+                                )}
+                            />
                             {errors.candidateId && <p className="text-xs font-bold text-red-500">{errors.candidateId.message}</p>}
                         </div>
 
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider block">Job Requirement</label>
-                            <div className="relative">
-                                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/30" size={18} />
-                                <select
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-bold text-primary dark:text-white appearance-none"
-                                    {...register('requirementId')}
-                                >
-                                    <option value="">Select Job</option>
-                                    {requirements.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
-                                </select>
-                            </div>
+                            <Controller
+                                control={control}
+                                name="requirementId"
+                                render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        options={requirementOptions}
+                                        placeholder="Select job"
+                                        searchPlaceholder="Search requirements..."
+                                        icon={<Briefcase size={18} />}
+                                    />
+                                )}
+                            />
                             {errors.requirementId && <p className="text-xs font-bold text-red-500">{errors.requirementId.message}</p>}
                         </div>
                     </div>

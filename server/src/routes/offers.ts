@@ -1,10 +1,13 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { mapOffer } from '../utils/mappers.js'
-import { requireAuth, requireActiveUser } from '../middleware/auth.js'
+import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
+import { logActivity } from '../services/activityLog.js'
+import { INTERNAL_ROLES, OFFER_ROLES } from '../lib/roles.js'
+import { sendOfferSentEmail } from '../services/email.js'
 
 const router = Router()
-router.use(requireAuth, requireActiveUser)
+router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
 
 router.get('/', async (_req, res) => {
   const rows = await prisma.offer.findMany({ orderBy: { createdAt: 'desc' } })
@@ -25,7 +28,7 @@ router.get('/:id', async (req, res) => {
   res.json(mapOffer(row))
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireRoles(...OFFER_ROLES), async (req, res) => {
   const body = req.body
   const createdAt = new Date().toISOString()
   const row = await prisma.offer.create({
@@ -49,10 +52,18 @@ router.post('/', async (req, res) => {
       ]),
     },
   })
+  await logActivity({
+    entityType: 'OFFER',
+    entityId: row.id,
+    action: 'CREATED',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: { candidateId: body.candidateId },
+  })
   res.status(201).json(mapOffer(row))
 })
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireRoles(...OFFER_ROLES), async (req, res) => {
   const existing = await prisma.offer.findUnique({ where: { id: req.params.id } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
 
@@ -83,15 +94,75 @@ router.patch('/:id', async (req, res) => {
       updatedAt: new Date(),
     },
   })
+
+  if (status === 'SENT') {
+    const candidate = await prisma.candidate.findUnique({ where: { id: row.candidateId } })
+    if (candidate?.email) {
+      await sendOfferSentEmail({
+        to: candidate.email,
+        candidateName: candidate.name,
+        baseSalary: row.baseSalary,
+      })
+    }
+  }
+
+  await logActivity({
+    entityType: 'OFFER',
+    entityId: row.id,
+    action: status ? 'STATUS_CHANGED' : 'UPDATED',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: { status },
+  })
   res.json(mapOffer(row))
 })
 
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', requireRoles(...OFFER_ROLES), async (req, res) => {
+  const existing = await prisma.offer.findUnique({ where: { id: req.params.id } })
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+
+  const status = req.body.status as string
+  const history = [
+    ...JSON.parse(existing.history || '[]'),
+    {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString(),
+      action: 'STATUS_CHANGE',
+      description: `Status changed to ${status}`,
+      userId: req.auth!.userId,
+    },
+  ]
+
   const row = await prisma.offer.update({
     where: { id: req.params.id },
-    data: { status: req.body.status, updatedAt: new Date() },
+    data: { status, history: JSON.stringify(history), updatedAt: new Date() },
+  })
+
+  if (status === 'SENT') {
+    const candidate = await prisma.candidate.findUnique({ where: { id: row.candidateId } })
+    if (candidate?.email) {
+      await sendOfferSentEmail({
+        to: candidate.email,
+        candidateName: candidate.name,
+        baseSalary: row.baseSalary,
+      })
+    }
+  }
+
+  await logActivity({
+    entityType: 'OFFER',
+    entityId: row.id,
+    action: 'STATUS_CHANGED',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: { status },
   })
   res.json(mapOffer(row))
+})
+
+router.delete('/:id', requireRoles('ADMIN'), async (req, res) => {
+  await prisma.offer.delete({ where: { id: req.params.id } })
+  res.status(204).send()
 })
 
 export default router

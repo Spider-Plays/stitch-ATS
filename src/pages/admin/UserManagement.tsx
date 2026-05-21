@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { User, UserRole } from '../../types';
 import {
-    Users, Search, Filter, MoreVertical, Shield,
-    Mail, Calendar, CheckCircle, XCircle, Trash2, Edit,
-    Download, UserPlus, Briefcase, Lock, Monitor, Clock, ChevronLeft, ChevronRight
+    Users, Search, Shield,
+    Mail, XCircle, Trash2,
+    Download, UserPlus, Briefcase, Monitor, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { ActionsMenu } from '../../components/ui/ActionsMenu';
+import { useToastStore } from '../../store/toastStore';
 import { useAuth } from '../../hooks/useAuth';
 import { ApiError } from '../../lib/apiClient';
 import clsx from 'clsx';
@@ -14,24 +17,29 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+const DEPARTMENT_SUGGESTIONS = ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'HR', 'Operations', 'Finance']
+
 const inviteSchema = z.object({
     email: z.string().email('Enter a valid email'),
     name: z.string().optional(),
     role: z.enum(['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER', 'TEAM_LEAD', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE']),
+    department: z.string().max(120).optional(),
 })
 
 type InviteFormValues = z.infer<typeof inviteSchema>
 
 const UserManagement = () => {
+    const navigate = useNavigate();
     const { user: currentUser } = useAuth();
     const queryClient = useQueryClient();
+    const { addToast } = useToastStore();
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>('ALL');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const inviteForm = useForm<InviteFormValues>({
         resolver: zodResolver(inviteSchema),
-        defaultValues: { email: '', name: '', role: 'RECRUITER' },
+        defaultValues: { email: '', name: '', role: 'RECRUITER', department: '' },
     })
 
     // Fetch Users
@@ -59,6 +67,19 @@ const UserManagement = () => {
         }
     });
 
+    const updateProfileMutation = useMutation({
+        mutationFn: ({ uid, department }: { uid: string; department: string | null }) =>
+            api.users.updateProfile(uid, { department }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            addToast('Department updated', 'success');
+        },
+        onError: (err: unknown) => {
+            const msg = err instanceof ApiError ? err.message : 'Failed to update department';
+            addToast(msg, 'error');
+        },
+    });
+
     const handleRoleChange = (uid: string, newRole: string) => {
         if (uid === currentUser?.uid) {
             alert("You cannot change your own role.");
@@ -66,6 +87,35 @@ const UserManagement = () => {
         }
         updateRoleMutation.mutate({ uid, role: newRole as UserRole });
     };
+
+    const handleSetDepartment = (u: User) => {
+        const next = window.prompt(
+            `Department for ${u.name}`,
+            u.department ?? ''
+        );
+        if (next === null) return;
+        const trimmed = next.trim();
+        updateProfileMutation.mutate({ uid: u.uid, department: trimmed || null });
+    };
+
+    const userMenuItems = (u: User) => [
+        {
+            id: 'details',
+            label: 'View user details',
+            onClick: () => navigate(`/admin/users/${u.uid}`),
+        },
+        {
+            id: 'department',
+            label: u.department ? 'Edit department' : 'Add department',
+            onClick: () => handleSetDepartment(u),
+        },
+        {
+            id: 'status',
+            label: u.status === 'DISABLED' ? 'Enable user' : 'Disable user',
+            hidden: u.uid === currentUser?.uid,
+            onClick: () => handleToggleStatus(u.uid, u.status),
+        },
+    ];
 
     const handleToggleStatus = (uid: string, currentStatus?: 'ACTIVE' | 'DISABLED') => {
         if (uid === currentUser?.uid) {
@@ -184,7 +234,7 @@ const UserManagement = () => {
                     <option value="ALL">All Roles</option>
                     <option value="ADMIN">Admin</option>
                     <option value="HR_HEAD">HR Head</option>
-                    <option value="hr_manager">HR Manager</option>
+                    <option value="HR_MANAGER">HR Manager</option>
                     <option value="RECRUITER">Recruiter</option>
                     <option value="HIRING_MANAGER">Hiring Manager</option>
                     <option value="INTERVIEWER">Interviewer</option>
@@ -193,8 +243,8 @@ const UserManagement = () => {
             </div>
 
             {/* Users Table */}
-            <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 overflow-hidden shadow-sm flex-1 flex flex-col">
-                <div className="overflow-auto flex-1">
+            <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 overflow-visible shadow-sm flex-1 flex flex-col">
+                <div className="overflow-auto overflow-x-auto flex-1">
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-primary/[0.02] dark:bg-white/[0.02] border-b border-primary/10 dark:border-white/10 sticky top-0 z-10 backdrop-blur-sm">
                             <tr>
@@ -219,9 +269,14 @@ const UserManagement = () => {
                                                 <div className="size-10 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-primary dark:text-white font-bold overflow-hidden border border-primary/10 dark:border-white/10">
                                                     {u.avatar ? <img src={u.avatar} className="size-full object-cover" alt={u.name} /> : u.name.charAt(0)}
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-primary dark:text-white text-sm">{u.name}</p>
-                                                    <p className="text-xs text-primary/60 dark:text-white/60 font-medium">{u.email}</p>
+                                                <div className="min-w-0">
+                                                    <Link
+                                                        to={`/admin/users/${u.uid}`}
+                                                        className="font-bold text-primary dark:text-white text-sm hover:underline block truncate"
+                                                    >
+                                                        {u.name}
+                                                    </Link>
+                                                    <p className="text-xs text-primary/60 dark:text-white/60 font-medium truncate">{u.email}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -242,7 +297,18 @@ const UserManagement = () => {
                                             </select>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-sm font-medium text-primary/70 dark:text-white/70">{u.department || '-'}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSetDepartment(u)}
+                                                className="text-sm font-medium text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white underline-offset-2 hover:underline text-left"
+                                                title="Click to set department"
+                                            >
+                                                {u.department || (
+                                                    <span className="text-primary/40 dark:text-white/40 italic">
+                                                        Add department
+                                                    </span>
+                                                )}
+                                            </button>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={clsx(
@@ -259,9 +325,10 @@ const UserManagement = () => {
                                             {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never'}
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button className="text-primary/40 hover:text-primary dark:text-white/40 dark:hover:text-white transition-colors p-1 rounded hover:bg-primary/5 dark:hover:bg-white/10">
-                                                <MoreVertical size={18} />
-                                            </button>
+                                            <ActionsMenu
+                                                items={userMenuItems(u)}
+                                                aria-label={`Actions for ${u.name}`}
+                                            />
                                         </td>
                                     </tr>
                                 ))
@@ -323,11 +390,28 @@ const UserManagement = () => {
                                     >
                                         <option value="RECRUITER">Recruiter</option>
                                         <option value="HR_MANAGER">HR Manager</option>
+                                        <option value="HR_HEAD">HR Head</option>
                                         <option value="HIRING_MANAGER">Hiring Manager</option>
                                         <option value="INTERVIEWER">Interviewer</option>
                                         <option value="TEAM_LEAD">Team Lead</option>
                                         <option value="ADMIN">Admin</option>
+                                        <option value="CANDIDATE">Candidate</option>
                                     </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">Department</label>
+                                    <input
+                                        type="text"
+                                        list="department-suggestions"
+                                        placeholder="e.g. Engineering"
+                                        className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium text-primary dark:text-white"
+                                        {...inviteForm.register('department')}
+                                    />
+                                    <datalist id="department-suggestions">
+                                        {DEPARTMENT_SUGGESTIONS.map((d) => (
+                                            <option key={d} value={d} />
+                                        ))}
+                                    </datalist>
                                 </div>
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-xl text-sm leading-relaxed">
                                     An email with a temporary password is sent via Resend. For testing, use <code className="text-xs">onboarding@resend.dev</code> as the sender until your domain is verified.

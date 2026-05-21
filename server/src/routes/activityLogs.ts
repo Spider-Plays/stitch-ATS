@@ -25,4 +25,26 @@ router.get('/entity/:entityId', async (req, res) => {
   res.json(rows.map(mapActivityLog))
 })
 
+router.post('/', async (req, res) => {
+  const body = req.body as {
+    entityType: string
+    entityId: string
+    action: string
+    details?: unknown
+  }
+  if (!body.entityType || !body.entityId || !body.action) {
+    return res.status(400).json({ error: 'entityType, entityId, and action are required' })
+  }
+  const { logActivity } = await import('../services/activityLog.js')
+  await logActivity({
+    entityType: body.entityType,
+    entityId: body.entityId,
+    action: body.action,
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: body.details,
+  })
+  res.status(201).json({ ok: true })
+})
+
 export default router

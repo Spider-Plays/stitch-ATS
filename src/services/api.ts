@@ -1,4 +1,4 @@
-import { requirementService, candidateService, userService, interviewService, offerService, feedbackService } from './http'
+import { requirementService, candidateService, userService, interviewService, offerService, feedbackService, searchService, portalService } from './http'
 import { activityLogService } from './http/activityLogs'
 
 export const api = {
@@ -11,7 +11,9 @@ export const api = {
         updateStatus: requirementService.updateStatus,
         assignRecruiter: requirementService.assignRecruiter,
         approve: requirementService.approve,
-        reject: requirementService.reject
+        reject: requirementService.reject,
+        setVisibility: requirementService.setVisibility,
+        delete: requirementService.delete,
     },
     candidates: {
         list: candidateService.getAll,
@@ -19,18 +21,33 @@ export const api = {
         get: candidateService.getById,
         create: candidateService.create,
         update: candidateService.update,
-        updateStatus: candidateService.updateStatus
+        updateStatus: candidateService.updateStatus,
+        uploadResume: candidateService.uploadResume,
+        fetchResume: candidateService.fetchResume,
+        deleteResume: candidateService.deleteResume,
+        delete: candidateService.delete,
     },
     activityLogs: {
         log: activityLogService.logActivity,
         getByEntity: activityLogService.getByEntity,
         list: activityLogService.getAll
     },
+    search: {
+        query: searchService.query,
+    },
+    portal: {
+        getMe: portalService.getMe,
+        getOpenPositions: portalService.getOpenPositions,
+        getPosition: portalService.getPosition,
+        applyToPosition: portalService.applyToPosition,
+    },
     users: {
         list: userService.list,
         get: userService.getById,
-        create: userService.create,
+        updateMe: userService.updateMe,
         update: userService.update,
+        updateProfile: userService.updateProfile,
+        resetPassword: userService.resetPassword,
         updateRole: userService.updateRole,
         toggleStatus: userService.toggleStatus,
         invite: userService.invite
@@ -47,7 +64,9 @@ export const api = {
     feedback: {
         getByInterviewId: feedbackService.getByInterviewId,
         getByCandidateId: feedbackService.getByCandidateId,
-        create: feedbackService.create
+        get: feedbackService.getById,
+        create: feedbackService.create,
+        downloadHtml: feedbackService.downloadHtml,
     },
     offers: {
         list: offerService.getAll,

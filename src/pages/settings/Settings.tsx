@@ -2,18 +2,60 @@ import React, { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useThemeStore } from '../../store/themeStore'
 import {
-    User, Shield, Bell, Users, Moon, Sun, LogOut,
-    CheckCircle, History, Lock, Globe, Monitor
+    User, Shield, Bell, Users, Moon, LogOut,
+    CheckCircle, History, Lock, Globe, Monitor, AlertCircle
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Button } from '../../components/ui/Button'
+import { authApi } from '../../services/http/auth'
+import { api } from '../../services/api'
+import { ApiError } from '../../lib/apiClient'
+import { useToastStore } from '../../store/toastStore'
+
+const changePasswordSchema = z
+    .object({
+        currentPassword: z.string().min(1, 'Enter your current password'),
+        newPassword: z.string().min(8, 'At least 8 characters'),
+        confirmPassword: z.string().min(1, 'Confirm your new password'),
+    })
+    .refine((data) => data.newPassword === data.confirmPassword, {
+        message: 'Passwords do not match',
+        path: ['confirmPassword'],
+    })
+
+type ChangePasswordForm = z.infer<typeof changePasswordSchema>
 
 const Settings = () => {
-    const { user, logout } = useAuth()
+    const { user, logout, refreshUser } = useAuth()
+    const { addToast } = useToastStore()
+    const [profileName, setProfileName] = useState(user?.name ?? '')
+    const [profilePhone, setProfilePhone] = useState(user?.phoneNumber ?? '')
+    const [profileSaving, setProfileSaving] = useState(false)
+
+    React.useEffect(() => {
+        if (user) {
+            setProfileName(user.name)
+            setProfilePhone(user.phoneNumber ?? '')
+        }
+    }, [user])
     const { theme, toggleTheme } = useThemeStore()
     const navigate = useNavigate()
     const [activeTab, setActiveTab] = useState<'GENERAL' | 'SECURITY' | 'NOTIFICATIONS' | 'TEAM'>('GENERAL')
+    const [showPasswordForm, setShowPasswordForm] = useState(false)
+    const [passwordLoading, setPasswordLoading] = useState(false)
+    const [passwordError, setPasswordError] = useState<string | null>(null)
+    const [passwordSuccess, setPasswordSuccess] = useState(false)
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+    const [showNewPassword, setShowNewPassword] = useState(false)
+
+    const passwordForm = useForm<ChangePasswordForm>({
+        resolver: zodResolver(changePasswordSchema),
+        defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
+    })
 
     const handleLogout = async () => {
         try {
@@ -21,6 +63,41 @@ const Settings = () => {
             navigate('/login')
         } catch (error) {
             console.error('Logout failed', error)
+        }
+    }
+
+    const onSaveProfile = async () => {
+        setProfileSaving(true)
+        try {
+            await api.users.updateMe({
+                name: profileName.trim(),
+                phoneNumber: profilePhone.trim() || undefined,
+            })
+            await refreshUser()
+            addToast('Profile updated', 'success')
+        } catch (err) {
+            addToast(err instanceof ApiError ? err.message : 'Failed to save profile', 'error')
+        } finally {
+            setProfileSaving(false)
+        }
+    }
+
+    const onChangePassword = async (data: ChangePasswordForm) => {
+        setPasswordLoading(true)
+        setPasswordError(null)
+        setPasswordSuccess(false)
+        try {
+            await authApi.changePassword(data.currentPassword, data.newPassword)
+            passwordForm.reset()
+            setShowPasswordForm(false)
+            setPasswordSuccess(true)
+            setTimeout(() => setPasswordSuccess(false), 5000)
+        } catch (err) {
+            setPasswordError(
+                err instanceof ApiError ? err.message : 'Failed to update password. Try again.'
+            )
+        } finally {
+            setPasswordLoading(false)
         }
     }
 
@@ -84,7 +161,14 @@ const Settings = () => {
                                     <h3 className="font-bold text-primary dark:text-white">Profile Information</h3>
                                     <p className="text-xs text-primary/60 dark:text-white/60">Update your photo and personal details.</p>
                                 </div>
-                                <button className="bg-primary dark:bg-white text-white dark:text-primary px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity">Save Changes</button>
+                                <button
+                                    type="button"
+                                    onClick={onSaveProfile}
+                                    disabled={profileSaving}
+                                    className="bg-primary dark:bg-white text-white dark:text-primary px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                                >
+                                    {profileSaving ? 'Saving...' : 'Save Changes'}
+                                </button>
                             </div>
                             <div className="p-8">
                                 <div className="flex flex-col md:flex-row items-start gap-8">
@@ -96,7 +180,7 @@ const Settings = () => {
                                     <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Full Name</label>
-                                            <input className="w-full border-primary/10 dark:border-white/10 rounded-xl bg-primary/[0.02] dark:bg-white/[0.02] focus:ring-primary focus:border-primary font-bold text-primary dark:text-white text-sm p-3" type="text" defaultValue={user?.name} />
+                                            <input className="w-full border-primary/10 dark:border-white/10 rounded-xl bg-primary/[0.02] dark:bg-white/[0.02] focus:ring-primary focus:border-primary font-bold text-primary dark:text-white text-sm p-3" type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Role</label>
@@ -108,7 +192,10 @@ const Settings = () => {
                                                 <input className="w-full bg-primary/5 dark:bg-white/5 border-primary/10 dark:border-white/10 rounded-xl text-sm p-3 text-primary/40 dark:text-white/40 cursor-not-allowed pl-10 font-bold" disabled type="email" value={user?.email} />
                                                 <Lock className="absolute left-3 top-3 text-primary/30 dark:text-white/30" size={16} />
                                             </div>
-                                            <p className="text-[11px] text-primary/40 dark:text-white/40 italic mt-1">Email address is managed by your organization's SSO.</p>
+                                            <div className="space-y-1.5 mt-4">
+                                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Phone</label>
+                                                <input className="w-full border-primary/10 dark:border-white/10 rounded-xl bg-primary/[0.02] dark:bg-white/[0.02] focus:ring-primary font-bold text-primary dark:text-white text-sm p-3" type="text" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -208,9 +295,125 @@ const Settings = () => {
                                 </div>
                                 <button className="text-primary dark:text-white text-[11px] font-bold hover:underline">VIEW</button>
                             </div>
-                            <button className="w-full mt-2 py-3 border border-primary/10 dark:border-white/10 rounded-xl text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors">
-                                Change Password
-                            </button>
+                            {passwordSuccess && (
+                                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-sm font-medium flex items-center gap-2">
+                                    <CheckCircle size={18} />
+                                    Password updated successfully.
+                                </div>
+                            )}
+
+                            {!showPasswordForm ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPasswordForm(true)
+                                        setPasswordError(null)
+                                        setPasswordSuccess(false)
+                                    }}
+                                    className="w-full mt-2 py-3 border border-primary/10 dark:border-white/10 rounded-xl text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
+                                >
+                                    Change Password
+                                </button>
+                            ) : (
+                                <form
+                                    onSubmit={passwordForm.handleSubmit(onChangePassword)}
+                                    className="mt-2 p-4 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] space-y-4"
+                                >
+                                    <p className="text-sm font-bold text-primary dark:text-white">Set a new password</p>
+
+                                    {passwordError && (
+                                        <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
+                                            <AlertCircle size={18} className="shrink-0" />
+                                            {passwordError}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
+                                            Current password
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type={showCurrentPassword ? 'text' : 'password'}
+                                                className="w-full pl-4 pr-11 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/[0.02] font-medium text-primary dark:text-white text-sm"
+                                                {...passwordForm.register('currentPassword')}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40"
+                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                            >
+                                                <span className="material-symbols-outlined text-lg">
+                                                    {showCurrentPassword ? 'visibility_off' : 'visibility'}
+                                                </span>
+                                            </button>
+                                        </div>
+                                        {passwordForm.formState.errors.currentPassword && (
+                                            <p className="text-xs text-red-600">{passwordForm.formState.errors.currentPassword.message}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
+                                            New password
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type={showNewPassword ? 'text' : 'password'}
+                                                className="w-full pl-4 pr-11 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/[0.02] font-medium text-primary dark:text-white text-sm"
+                                                {...passwordForm.register('newPassword')}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40"
+                                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                            >
+                                                <span className="material-symbols-outlined text-lg">
+                                                    {showNewPassword ? 'visibility_off' : 'visibility'}
+                                                </span>
+                                            </button>
+                                        </div>
+                                        {passwordForm.formState.errors.newPassword && (
+                                            <p className="text-xs text-red-600">{passwordForm.formState.errors.newPassword.message}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
+                                            Confirm new password
+                                        </label>
+                                        <input
+                                            type={showNewPassword ? 'text' : 'password'}
+                                            className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/[0.02] font-medium text-primary dark:text-white text-sm"
+                                            {...passwordForm.register('confirmPassword')}
+                                        />
+                                        {passwordForm.formState.errors.confirmPassword && (
+                                            <p className="text-xs text-red-600">{passwordForm.formState.errors.confirmPassword.message}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-3 pt-1">
+                                        <button
+                                            type="submit"
+                                            disabled={passwordLoading}
+                                            className="flex-1 py-3 bg-primary dark:bg-white text-white dark:text-primary rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-60"
+                                        >
+                                            {passwordLoading ? 'Updating…' : 'Update password'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowPasswordForm(false)
+                                                passwordForm.reset()
+                                                setPasswordError(null)
+                                            }}
+                                            className="px-4 py-3 border border-primary/10 dark:border-white/10 rounded-xl text-sm font-bold text-primary/70 dark:text-white/70 hover:bg-primary/5 dark:hover:bg-white/5"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
                         </div>
                     </section>
                 )}

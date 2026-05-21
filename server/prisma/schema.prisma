@@ -24,11 +24,15 @@ model User {
   authProvider    String   @default("local")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  lastLogin       DateTime?
+  lastLogin            DateTime?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
 }
 
 model Requirement {
   id              String   @id @default(cuid())
+  jobCode         String?  @unique
+  client          String?
   title           String
   department      String
   hiringManager   String
@@ -44,9 +48,10 @@ model Requirement {
   approval        String?
   approvalHistory String   @default("[]")
   versions        String   @default("[]")
-  currentVersion  Int      @default(1)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  currentVersion        Int      @default(1)
+  visibleToCandidates   Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model Candidate {
@@ -60,8 +65,11 @@ model Candidate {
   appliedDate      DateTime @default(now())
   requirementId    String?
   jobTitle         String?
+  createdBy        String?
   avatar           String?
   resumeUrl        String?
+  resumeFileName   String?
+  resumeMimeType   String?
   phone            String?
   location         String?
   linkedIn         String?
@@ -100,6 +108,7 @@ model Feedback {
   communicationRating Int?
   comments            String
   recommendation      String
+  formData            String   @default("{}")
   createdAt           DateTime @default(now())
 }
 

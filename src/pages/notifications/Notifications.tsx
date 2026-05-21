@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
 import clsx from 'clsx'
 import { ActivityLog } from '../../types'
+import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { matchesAnySearch } from '../../lib/textSearch'
 
 interface NotificationAction {
     label: string
@@ -28,6 +30,7 @@ interface NotificationItem {
 
 const Notifications = () => {
     const { user } = useAuth()
+    const [searchTerm, setSearchTerm] = useState('')
     const isHr = ['ADMIN', 'HR_MANAGER', 'HR_HEAD'].includes(user?.role || '')
 
     const { data: pendingRequirements = [], isLoading: isLoadingReqs } = useQuery({
@@ -127,6 +130,14 @@ const Notifications = () => {
     // Sort by timestamp descending
     notifications.sort((a, b) => b.timestamp - a.timestamp)
 
+    const filteredNotifications = useMemo(
+        () =>
+            notifications.filter((n) =>
+                matchesAnySearch([n.title, n.subtitle, n.type], searchTerm)
+            ),
+        [notifications, searchTerm]
+    )
+
     return (
         <div className="max-w-4xl mx-auto animate-in fade-in duration-500 pb-20">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -144,6 +155,15 @@ const Notifications = () => {
                 </div>
             </div>
 
+            <div className="mb-4">
+                <ListSearchBar
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Search notifications..."
+                    className="max-w-none"
+                />
+            </div>
+
             <div className="bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 rounded-2xl shadow-sm overflow-hidden">
                 <div className="flex border-b border-primary/10 dark:border-white/10 overflow-x-auto">
                     <button className="px-6 py-4 text-sm font-bold text-primary dark:text-white border-b-2 border-primary dark:border-white">All</button>
@@ -155,14 +175,14 @@ const Notifications = () => {
                 <div className="divide-y divide-primary/5 dark:divide-white/5">
                     {isLoading && <div className="p-8 text-center text-primary/40">Loading notifications...</div>}
 
-                    {!isLoading && notifications.length === 0 && (
+                    {!isLoading && filteredNotifications.length === 0 && (
                         <div className="p-12 text-center text-primary/40">
                             <span className="material-symbols-outlined !text-4xl mb-2">notifications_off</span>
-                            <p>No new notifications</p>
+                            <p>{searchTerm.trim() ? 'No notifications match your search' : 'No new notifications'}</p>
                         </div>
                     )}
 
-                    {notifications.map(notification => (
+                    {filteredNotifications.map(notification => (
                         <div key={notification.id} className={clsx("p-6 hover:bg-primary/[0.02] dark:hover:bg-white/[0.02] transition-colors relative group", !notification.read && "bg-primary/[0.01]")}>
                             {!notification.read && (
                                 <div className="absolute left-0 top-6 bottom-6 w-1 bg-primary rounded-r"></div>

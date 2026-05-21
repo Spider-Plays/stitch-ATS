@@ -10,12 +10,54 @@ export const userService = {
     }
   },
 
-  create: async (_user: User): Promise<void> => {},
+  updateMe: (data: {
+    name?: string
+    phoneNumber?: string
+    address?: string
+    themePreference?: 'light' | 'dark' | 'system'
+    avatar?: string
+  }) =>
+    apiRequest<User>('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 
   update: async (uid: string, data: Partial<User>): Promise<void> => {
     if (data.role) await userService.updateRole(uid, data.role)
     if (data.status) await userService.toggleStatus(uid, data.status)
   },
+
+  updateProfile: (
+    uid: string,
+    data: {
+      name?: string
+      department?: string | null
+      phoneNumber?: string | null
+      address?: string | null
+    }
+  ) =>
+    apiRequest<User>(`/users/${uid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  resetPassword: (
+    uid: string,
+    data: {
+      newPassword?: string
+      generateTemporary?: boolean
+      sendEmail?: boolean
+    }
+  ) =>
+    apiRequest<{
+      ok: boolean
+      emailSent: boolean
+      temporaryPassword?: string
+      emailWarning?: string
+    }>(
+      `/users/${uid}/reset-password`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
 
   list: async (): Promise<User[]> => apiRequest<User[]>('/users'),
 
@@ -37,6 +79,7 @@ export const userService = {
     email: string
     name?: string
     role: UserRole
+    department?: string
   }): Promise<{ user: User; emailSent: boolean; temporaryPassword?: string }> => {
     return apiRequest('/users/invite', {
       method: 'POST',

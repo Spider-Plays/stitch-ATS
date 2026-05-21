@@ -1,13 +1,15 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useMemo } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Calendar, Clock, Video, MapPin, User, Link as LinkIcon, Users, CheckCircle } from 'lucide-react'
+import { Clock, Link as LinkIcon, User, CheckCircle } from 'lucide-react'
 import { api } from '../../services/api'
 import clsx from 'clsx'
-import { useAuth } from '../../hooks/useAuth'
+import { SearchableSelect } from '../../components/ui/SearchableSelect'
+import { SearchableMultiSelect } from '../../components/ui/SearchableMultiSelect'
+import { useToastStore } from '../../store/toastStore'
 
 const schema = z.object({
     candidateId: z.string().min(1, "Candidate is required"),
@@ -23,12 +25,20 @@ const schema = z.object({
 
 type InterviewFormValues = z.infer<typeof schema>
 
+function toDatetimeLocal(iso: string): string {
+    const d = new Date(iso)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const ScheduleInterview = () => {
     const navigate = useNavigate()
+    const { id: interviewId } = useParams<{ id: string }>()
+    const isEditMode = Boolean(interviewId)
     const queryClient = useQueryClient()
-    const { user } = useAuth()
+    const { addToast } = useToastStore()
 
-    const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<InterviewFormValues>({
+    const { register, handleSubmit, control, watch, reset, formState: { errors } } = useForm<InterviewFormValues>({
         resolver: zodResolver(schema),
         defaultValues: {
             duration: 60,
@@ -37,12 +47,62 @@ const ScheduleInterview = () => {
         }
     })
 
-    // Fetch Data for Dropdowns
+    const { data: interview, isLoading: loadingInterview, isError: interviewLoadError } = useQuery({
+        queryKey: ['interview', interviewId],
+        queryFn: () => api.interviews.get(interviewId!),
+        enabled: isEditMode && !!interviewId,
+    })
+
+    useEffect(() => {
+        if (!interview) return
+        reset({
+            candidateId: interview.candidateId,
+            requirementId: interview.requirementId,
+            interviewerIds: interview.interviewerIds,
+            scheduledAt: toDatetimeLocal(interview.scheduledAt),
+            duration: interview.duration ?? 60,
+            type: interview.type,
+            meetingLink: interview.meetingLink ?? '',
+            location: interview.location ?? '',
+            description: interview.description ?? '',
+        })
+    }, [interview, reset])
+
     const { data: candidates = [] } = useQuery({ queryKey: ['candidates'], queryFn: api.candidates.list })
     const { data: requirements = [] } = useQuery({ queryKey: ['requirements'], queryFn: api.requirements.list })
     const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: api.users.list })
 
     const interviewers = users.filter(u => ['INTERVIEWER', 'HIRING_MANAGER', 'TEAM_LEAD', 'RECRUITER', 'ADMIN'].includes(u.role))
+
+    const candidateOptions = useMemo(
+        () =>
+            candidates.map((c) => ({
+                value: c.id,
+                label: c.name,
+                sublabel: [c.role, c.email].filter(Boolean).join(' · '),
+            })),
+        [candidates]
+    )
+
+    const requirementOptions = useMemo(
+        () =>
+            requirements.map((r) => ({
+                value: r.id,
+                label: r.title,
+                sublabel: `${r.department} · ${r.status.replace('_', ' ')}`,
+            })),
+        [requirements]
+    )
+
+    const interviewerOptions = useMemo(
+        () =>
+            interviewers.map((u) => ({
+                value: u.uid,
+                label: u.name,
+                sublabel: `${u.role.replace('_', ' ')} · ${u.email}`,
+            })),
+        [interviewers]
+    )
 
     const createMutation = useMutation({
         mutationFn: (data: InterviewFormValues) => api.interviews.create({
@@ -51,31 +111,73 @@ const ScheduleInterview = () => {
         }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['interviews'] })
+            addToast('Interview scheduled', 'success')
             navigate('/interviews')
-        }
+        },
+        onError: () => addToast('Failed to schedule interview', 'error'),
+    })
+
+    const updateMutation = useMutation({
+        mutationFn: (data: InterviewFormValues) => api.interviews.update(interviewId!, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['interviews'] })
+            queryClient.invalidateQueries({ queryKey: ['interview', interviewId] })
+            addToast('Interview updated', 'success')
+            navigate('/interviews')
+        },
+        onError: () => addToast('Failed to update interview', 'error'),
     })
 
     const onSubmit = (data: InterviewFormValues) => {
-        createMutation.mutate(data)
+        if (isEditMode) updateMutation.mutate(data)
+        else createMutation.mutate(data)
     }
 
     const selectedType = watch('type')
+    const isPending = createMutation.isPending || updateMutation.isPending
+
+    if (isEditMode && loadingInterview) {
+        return (
+            <div className="max-w-4xl mx-auto py-16 text-center text-primary/60 dark:text-white/60 font-medium">
+                Loading interview...
+            </div>
+        )
+    }
+
+    if (isEditMode && (interviewLoadError || !interview)) {
+        return (
+            <div className="max-w-4xl mx-auto py-16 text-center space-y-4">
+                <p className="text-primary/60 dark:text-white/60 font-medium">Interview not found.</p>
+                <button
+                    type="button"
+                    onClick={() => navigate('/interviews')}
+                    className="text-sm font-bold text-primary dark:text-white hover:underline"
+                >
+                    Back to interviews
+                </button>
+            </div>
+        )
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header */}
             <div className="flex items-center gap-4">
                 <button onClick={() => navigate('/interviews')} className="p-2 hover:bg-primary/5 dark:hover:bg-white/5 rounded-full text-primary/60 dark:text-white/40 hover:text-primary dark:hover:text-white transition-colors">
                     <span className="material-symbols-outlined">arrow_back</span>
                 </button>
                 <div>
-                    <h1 className="text-2xl font-black text-primary dark:text-white tracking-tight">Schedule Interview</h1>
-                    <p className="text-sm font-medium text-primary/60 dark:text-white/60">Coordinate with candidates and your internal panel.</p>
+                    <h1 className="text-2xl font-black text-primary dark:text-white tracking-tight">
+                        {isEditMode ? 'Edit / Reschedule Interview' : 'Schedule Interview'}
+                    </h1>
+                    <p className="text-sm font-medium text-primary/60 dark:text-white/60">
+                        {isEditMode
+                            ? 'Update date, interviewers, or meeting details. The candidate is notified when the time changes.'
+                            : 'Coordinate with candidates and your internal panel.'}
+                    </p>
                 </div>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                {/* Participants */}
                 <section className="bg-white dark:bg-white/5 p-8 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 dark:bg-white/20"></div>
                     <div className="flex items-center gap-3 mb-6">
@@ -86,31 +188,41 @@ const ScheduleInterview = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider block">Candidate</label>
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/30" size={18} />
-                                <select
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-bold text-primary dark:text-white appearance-none"
-                                    {...register('candidateId')}
-                                >
-                                    <option value="">Select Candidate</option>
-                                    {candidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
+                            <Controller
+                                control={control}
+                                name="candidateId"
+                                render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        options={candidateOptions}
+                                        placeholder="Select candidate"
+                                        searchPlaceholder="Search candidates..."
+                                        icon={<User size={18} />}
+                                    />
+                                )}
+                            />
                             {errors.candidateId && <p className="text-xs font-bold text-red-500">{errors.candidateId.message}</p>}
                         </div>
 
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider block">Job Requirement</label>
-                            <div className="relative">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/30 !text-lg">work</span>
-                                <select
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-bold text-primary dark:text-white appearance-none"
-                                    {...register('requirementId')}
-                                >
-                                    <option value="">Select Job</option>
-                                    {requirements.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
-                                </select>
-                            </div>
+                            <Controller
+                                control={control}
+                                name="requirementId"
+                                render={({ field }) => (
+                                    <SearchableSelect
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        options={requirementOptions}
+                                        placeholder="Select job"
+                                        searchPlaceholder="Search requirements..."
+                                        icon={
+                                            <span className="material-symbols-outlined !text-lg">work</span>
+                                        }
+                                    />
+                                )}
+                            />
                             {errors.requirementId && <p className="text-xs font-bold text-red-500">{errors.requirementId.message}</p>}
                         </div>
 
@@ -120,34 +232,13 @@ const ScheduleInterview = () => {
                                 control={control}
                                 name="interviewerIds"
                                 render={({ field }) => (
-                                    <div className="flex flex-wrap gap-2 p-4 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] min-h-[60px]">
-                                        {users.filter(u => field.value.includes(u.uid)).map(u => (
-                                            <div key={u.uid} className="flex items-center gap-2 bg-white dark:bg-white/10 border border-primary/10 dark:border-white/10 rounded-full pl-1 pr-3 py-1">
-                                                <div className="size-6 rounded-full bg-primary/10 dark:bg-white/20 flex items-center justify-center text-[10px] font-bold text-primary dark:text-white">
-                                                    {u.name.charAt(0)}
-                                                </div>
-                                                <span className="text-xs font-bold text-primary dark:text-white">{u.name}</span>
-                                                <button type="button" onClick={() => field.onChange(field.value.filter(id => id !== u.uid))} className="text-primary/40 hover:text-red-500 transition-colors">
-                                                    <span className="material-symbols-outlined !text-sm">close</span>
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {/* Simple multiselect dropdown trigger could be here, strict implementation might need a custom component */}
-                                        <select
-                                            className="bg-transparent border-none text-sm font-medium text-primary/60 focus:ring-0 w-40"
-                                            onChange={(e) => {
-                                                if (e.target.value && !field.value.includes(e.target.value)) {
-                                                    field.onChange([...field.value, e.target.value])
-                                                }
-                                                e.target.value = ''
-                                            }}
-                                        >
-                                            <option value="">Add Interviewer...</option>
-                                            {interviewers.filter(u => !field.value.includes(u.uid)).map(u => (
-                                                <option key={u.uid} value={u.uid}>{u.name} ({u.role})</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <SearchableMultiSelect
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        options={interviewerOptions}
+                                        placeholder="Add interviewer..."
+                                        searchPlaceholder="Search interviewers..."
+                                    />
                                 )}
                             />
                             {errors.interviewerIds && <p className="text-xs font-bold text-red-500">{errors.interviewerIds.message}</p>}
@@ -155,8 +246,7 @@ const ScheduleInterview = () => {
                     </div>
                 </section>
 
-                {/* Logistics */}
-                <section className="bg-white dark:bg-white/5 p-8 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm relative overflow-hidden">
+                <section id="logistics" className="bg-white dark:bg-white/5 p-8 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 dark:bg-white/20"></div>
                     <div className="flex items-center gap-3 mb-6">
                         <div className="flex items-center justify-center size-8 rounded-full bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-bold text-sm">2</div>
@@ -229,11 +319,13 @@ const ScheduleInterview = () => {
                 <div className="flex justify-end pt-4">
                     <button
                         type="submit"
-                        disabled={createMutation.isPending}
+                        disabled={isPending}
                         className="flex items-center gap-2 px-8 py-4 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 dark:shadow-none"
                     >
-                        {createMutation.isPending ? 'Scheduling...' : 'Send Invitations'}
-                        {!createMutation.isPending && <CheckCircle size={18} />}
+                        {isPending
+                            ? (isEditMode ? 'Saving...' : 'Scheduling...')
+                            : (isEditMode ? 'Save changes' : 'Send Invitations')}
+                        {!isPending && <CheckCircle size={18} />}
                     </button>
                 </div>
             </form>

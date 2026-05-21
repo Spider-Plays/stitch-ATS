@@ -15,7 +15,9 @@ import RequirementDetail from './pages/requirements/RequirementDetail'
 import NewRequirement from './pages/requirements/NewRequirement'
 import RequirementsList from './pages/requirements/RequirementsList'
 import UserManagement from './pages/admin/UserManagement'
+import UserDetail from './pages/admin/UserDetail'
 import CandidateDashboard from './pages/candidate-portal/CandidateDashboard'
+import PortalJobDetail from './pages/candidate-portal/PortalJobDetail'
 import Interviews from './pages/interviews/Interviews'
 import ScheduleInterview from './pages/interviews/ScheduleInterview'
 import FeedbackForm from './pages/feedback/FeedbackForm'
@@ -36,12 +38,14 @@ const AppRoutes = () => {
             {/* Candidate Portal */}
             <Route path="/portal" element={<RequireAuth allowedRoles={['CANDIDATE']}><MainLayout /></RequireAuth>}>
                 <Route path="dashboard" element={<CandidateDashboard />} />
+                <Route path="jobs/:id" element={<PortalJobDetail />} />
                 <Route index element={<Navigate to="dashboard" replace />} />
             </Route>
 
             {/* Admin Only */}
             <Route path="/admin" element={<RequireAuth allowedRoles={['ADMIN']}><MainLayout /></RequireAuth>}>
                 <Route path="users" element={<UserManagement />} />
+                <Route path="users/:id" element={<UserDetail />} />
             </Route>
 
             {/* Internal Routes (Recruiters, Admin, etc.) */}
@@ -66,6 +70,7 @@ const AppRoutes = () => {
                 {/* Interviews & Offers */}
                 <Route path="interviews" element={<Interviews />} />
                 <Route path="interviews/new" element={<ScheduleInterview />} />
+                <Route path="interviews/:id/edit" element={<ScheduleInterview />} />
                 <Route path="interviews/:id/feedback" element={<FeedbackForm />} />
                 <Route path="offers" element={<Offers />} />
                 <Route path="offers/new" element={<NewOffer />} />

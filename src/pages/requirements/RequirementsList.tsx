@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
-import { RequirementStatus } from '../../types'
+import { Requirement, RequirementStatus } from '../../types'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
+import { ActionsMenu } from '../../components/ui/ActionsMenu'
+import { useToastStore } from '../../store/toastStore'
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -25,8 +27,12 @@ const itemVariants = {
 const RequirementsList = () => {
     const { user } = useAuth()
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
+    const { addToast } = useToastStore()
     const [searchTerm, setSearchTerm] = useState('')
     const [statusFilter, setStatusFilter] = useState<RequirementStatus | 'ALL'>('ALL')
+    const isAdmin = user?.role === 'ADMIN'
+    const canManagePortal = ['ADMIN', 'HR_HEAD', 'HR_MANAGER'].includes(user?.role || '')
 
     const { data: requirements = [], isLoading } = useQuery({
         queryKey: ['requirements'],
@@ -47,9 +53,95 @@ const RequirementsList = () => {
 
     const canCreate = ['ADMIN', 'HR_HEAD', 'HR_MANAGER'].includes(user?.role || '')
 
+    const invalidateRequirements = () => {
+        queryClient.invalidateQueries({ queryKey: ['requirements'] })
+        queryClient.invalidateQueries({ queryKey: ['pendingRequirements'] })
+    }
+
+    const handleDeleteRequirement = async (req: Requirement) => {
+        if (!confirm(`Delete "${req.title}"? Linked candidates will be unassigned.`)) return
+        try {
+            await api.requirements.delete(req.id)
+            addToast('Requirement deleted', 'success')
+            invalidateRequirements()
+        } catch {
+            addToast('Failed to delete requirement', 'error')
+        }
+    }
+
+    const requirementMenuItems = (req: Requirement) => {
+        const portalVisible = req.visibleToCandidates ?? true
+        return [
+            {
+                id: 'view',
+                label: 'View details',
+                onClick: () => navigate(`/requirements/${req.id}`),
+            },
+            {
+                id: 'pipeline',
+                label: 'Open pipeline',
+                onClick: () => navigate(`/pipeline/${req.id}`),
+            },
+            {
+                id: 'hold',
+                label: 'Put on hold',
+                hidden: !canManagePortal || req.status !== 'LIVE',
+                onClick: async () => {
+                    if (!confirm('Put this requirement on hold?')) return
+                    try {
+                        await api.requirements.updateStatus(req.id, 'ON_HOLD')
+                        addToast('Requirement placed on hold', 'success')
+                        invalidateRequirements()
+                    } catch {
+                        addToast('Failed to update status', 'error')
+                    }
+                },
+            },
+            {
+                id: 'resume',
+                label: 'Resume (go live)',
+                hidden: !canManagePortal || req.status !== 'ON_HOLD',
+                onClick: async () => {
+                    try {
+                        await api.requirements.updateStatus(req.id, 'LIVE')
+                        addToast('Requirement is live again', 'success')
+                        invalidateRequirements()
+                    } catch {
+                        addToast('Failed to update status', 'error')
+                    }
+                },
+            },
+            {
+                id: 'visibility',
+                label: portalVisible ? 'Hide from candidate portal' : 'Show on candidate portal',
+                hidden: !canManagePortal || req.status === 'ON_HOLD',
+                onClick: async () => {
+                    try {
+                        await api.requirements.setVisibility(req.id, !portalVisible)
+                        addToast(
+                            portalVisible ? 'Hidden from candidate portal' : 'Visible on candidate portal',
+                            'success'
+                        )
+                        invalidateRequirements()
+                    } catch {
+                        addToast('Failed to update visibility', 'error')
+                    }
+                },
+            },
+            {
+                id: 'delete',
+                label: 'Delete requirement',
+                variant: 'danger' as const,
+                hidden: !isAdmin,
+                onClick: () => handleDeleteRequirement(req),
+            },
+        ]
+    }
+
     const getStatusStyles = (status: string) => {
         switch (status) {
             case 'LIVE': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+            case 'ON_HOLD': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
             case 'PENDING_APPROVAL': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
             case 'DRAFT': return 'bg-gray-200 text-gray-700 dark:bg-white/10 dark:text-white/60'
             case 'CLOSED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -72,6 +164,7 @@ const RequirementsList = () => {
     const counts = {
         ALL: requirements.length,
         LIVE: requirements.filter(r => r.status === 'LIVE').length,
+        ON_HOLD: requirements.filter(r => r.status === 'ON_HOLD').length,
         PENDING_APPROVAL: requirements.filter(r => r.status === 'PENDING_APPROVAL').length,
         DRAFT: requirements.filter(r => r.status === 'DRAFT').length
     }
@@ -79,6 +172,7 @@ const RequirementsList = () => {
     const TABS = [
         { id: 'ALL', label: 'All Jobs' },
         { id: 'LIVE', label: 'Active' },
+        { id: 'ON_HOLD', label: 'On Hold' },
         { id: 'PENDING_APPROVAL', label: 'Pending Approval' },
         { id: 'DRAFT', label: 'Drafts' }
     ] as const
@@ -100,7 +194,7 @@ const RequirementsList = () => {
                 )}
             </div>
 
-            <div className="bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 rounded-xl overflow-visible shadow-sm">
                 <div className="flex border-b border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5 overflow-x-auto scrollbar-hide">
                     {TABS.map((tab) => (
                         <button
@@ -143,7 +237,7 @@ const RequirementsList = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-visible">
                     <table className="w-full text-left border-collapse min-w-[900px]">
                         <thead>
                             <tr className="bg-primary/5 dark:bg-white/5 border-b border-primary/10 dark:border-white/10">
@@ -224,10 +318,16 @@ const RequirementsList = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-5 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <Link to={`/pipeline/${req.id}`} className="inline-flex items-center px-3 py-1 bg-primary/5 dark:bg-white/5 text-[10px] font-bold text-primary dark:text-white/60 rounded uppercase tracking-wider hover:bg-primary hover:text-white transition-all mr-2">Pipeline</Link>
-                                            <button className="text-primary/40 hover:text-primary dark:hover:text-white transition-colors align-middle">
-                                                <span className="material-symbols-outlined">more_vert</span>
-                                            </button>
+                                            <Link
+                                                to={`/pipeline/${req.id}`}
+                                                className="inline-flex items-center px-3 py-1 bg-primary/5 dark:bg-white/5 text-[10px] font-bold text-primary dark:text-white/60 rounded uppercase tracking-wider hover:bg-primary hover:text-white transition-all mr-2"
+                                            >
+                                                Pipeline
+                                            </Link>
+                                            <ActionsMenu
+                                                items={requirementMenuItems(req)}
+                                                aria-label={`Actions for ${req.title}`}
+                                            />
                                         </td>
                                     </motion.tr>
                                 )

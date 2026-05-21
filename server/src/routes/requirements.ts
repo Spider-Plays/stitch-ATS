@@ -1,11 +1,13 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { mapRequirement } from '../utils/mappers.js'
-import { requireAuth, requireActiveUser } from '../middleware/auth.js'
+import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
+import { INTERNAL_ROLES, REQ_APPROVERS, STAFF_MUTATE } from '../lib/roles.js'
 import { logActivity } from '../services/activityLog.js'
+import { generateJobCode } from '../lib/jobCode.js'
 
 const router = Router()
-router.use(requireAuth, requireActiveUser)
+router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
 
 router.get('/', async (_req, res) => {
   const rows = await prisma.requirement.findMany({ orderBy: { createdAt: 'desc' } })
@@ -26,11 +28,17 @@ router.get('/:id', async (req, res) => {
   res.json(mapRequirement(row))
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireRoles(...STAFF_MUTATE, 'HIRING_MANAGER'), async (req, res) => {
   const body = req.body
   const timestamp = new Date()
+  const jobCode =
+    typeof body.jobCode === 'string' && body.jobCode.trim()
+      ? body.jobCode.trim().toUpperCase()
+      : generateJobCode()
   const row = await prisma.requirement.create({
     data: {
+      jobCode,
+      client: typeof body.client === 'string' ? body.client.trim() || null : null,
       title: body.title,
       department: body.department,
       hiringManager: body.hiringManager,
@@ -54,6 +62,7 @@ router.post('/', async (req, res) => {
       ]),
       versions: '[]',
       currentVersion: 1,
+      visibleToCandidates: body.visibleToCandidates ?? false,
     },
   })
   await logActivity({
@@ -67,7 +76,7 @@ router.post('/', async (req, res) => {
   res.status(201).json(mapRequirement(row))
 })
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireRoles(...STAFF_MUTATE, 'HIRING_MANAGER'), async (req, res) => {
   const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
 
@@ -101,16 +110,69 @@ router.patch('/:id', async (req, res) => {
   res.json(mapRequirement(row))
 })
 
-router.patch('/:id/status', async (req, res) => {
-  const { status } = req.body
+const REQUIREMENT_STATUSES = [
+  'DRAFT',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'LIVE',
+  'ON_HOLD',
+  'CLOSED',
+  'REJECTED',
+] as const
+
+router.patch('/:id/status', requireRoles('ADMIN', 'HR_HEAD', 'HR_MANAGER'), async (req, res) => {
+  const status = req.body.status as string
+  if (!REQUIREMENT_STATUSES.includes(status as (typeof REQUIREMENT_STATUSES)[number])) {
+    return res.status(400).json({ error: 'Invalid status' })
+  }
+
+  const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+
   const row = await prisma.requirement.update({
     where: { id: req.params.id },
-    data: { status, updatedAt: new Date() },
+    data: {
+      status,
+      updatedAt: new Date(),
+      ...(status === 'ON_HOLD' && { visibleToCandidates: false }),
+      ...(status === 'LIVE' && existing.status === 'ON_HOLD' && { visibleToCandidates: true }),
+    },
   })
+
+  await logActivity({
+    entityType: 'REQUIREMENT',
+    entityId: row.id,
+    action: 'STATUS_CHANGED',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: { status },
+  })
+
   res.json(mapRequirement(row))
 })
 
-router.post('/:id/approve', async (req, res) => {
+router.patch('/:id/visibility', requireRoles('ADMIN', 'HR_HEAD', 'HR_MANAGER'), async (req, res) => {
+  const visibleToCandidates = Boolean(req.body.visibleToCandidates)
+  const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+
+  const row = await prisma.requirement.update({
+    where: { id: req.params.id },
+    data: { visibleToCandidates, updatedAt: new Date() },
+  })
+
+  await logActivity({
+    entityType: 'REQUIREMENT',
+    entityId: row.id,
+    action: visibleToCandidates ? 'VISIBLE_ON_PORTAL' : 'HIDDEN_FROM_PORTAL',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+  })
+
+  res.json(mapRequirement(row))
+})
+
+router.post('/:id/approve', requireRoles(...REQ_APPROVERS), async (req, res) => {
   const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
   const timestamp = new Date().toISOString()
@@ -120,6 +182,7 @@ router.post('/:id/approve', async (req, res) => {
     where: { id: req.params.id },
     data: {
       status: 'LIVE',
+      visibleToCandidates: true,
       approval: JSON.stringify({ decision: 'APPROVED', decidedBy: req.auth!.userId, decidedAt: timestamp }),
       approvalHistory: JSON.stringify(history),
       updatedAt: new Date(),
@@ -129,7 +192,7 @@ router.post('/:id/approve', async (req, res) => {
   res.json(mapRequirement(row))
 })
 
-router.post('/:id/reject', async (req, res) => {
+router.post('/:id/reject', requireRoles(...REQ_APPROVERS), async (req, res) => {
   const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
   const timestamp = new Date().toISOString()
@@ -148,7 +211,7 @@ router.post('/:id/reject', async (req, res) => {
   res.json(mapRequirement(row))
 })
 
-router.post('/:id/assign-recruiter', async (req, res) => {
+router.post('/:id/assign-recruiter', requireRoles(...STAFF_MUTATE), async (req, res) => {
   const { recruiterId } = req.body
   const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
@@ -169,8 +232,48 @@ router.post('/:id/assign-recruiter', async (req, res) => {
   res.json(mapRequirement(row))
 })
 
+router.delete('/:id', requireRoles('ADMIN'), async (req, res) => {
+  const existing = await prisma.requirement.findUnique({ where: { id: req.params.id } })
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+
+  const interviews = await prisma.interview.findMany({
+    where: { requirementId: req.params.id },
+    select: { id: true },
+  })
+  const interviewIds = interviews.map((i) => i.id)
+
+  await prisma.$transaction([
+    prisma.feedback.deleteMany({ where: { interviewId: { in: interviewIds } } }),
+    prisma.interview.deleteMany({ where: { requirementId: req.params.id } }),
+    prisma.offer.deleteMany({ where: { requirementId: req.params.id } }),
+    prisma.candidate.updateMany({
+      where: { requirementId: req.params.id },
+      data: { requirementId: null, updatedAt: new Date() },
+    }),
+    prisma.activityLog.deleteMany({
+      where: { entityType: 'REQUIREMENT', entityId: req.params.id },
+    }),
+  ])
+
+  await prisma.requirement.delete({ where: { id: req.params.id } })
+  res.status(204).send()
+})
+
 function pickRequirementFields(data: Record<string, unknown>) {
-  const allowed = ['title', 'department', 'hiringManager', 'status', 'openings', 'filled', 'priority', 'location', 'description']
+  const allowed = [
+    'jobCode',
+    'client',
+    'title',
+    'department',
+    'hiringManager',
+    'status',
+    'openings',
+    'filled',
+    'priority',
+    'location',
+    'description',
+    'visibleToCandidates',
+  ]
   const out: Record<string, unknown> = {}
   for (const k of allowed) {
     if (data[k] !== undefined) out[k] = data[k]

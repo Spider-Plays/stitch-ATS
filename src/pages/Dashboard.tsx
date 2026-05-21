@@ -84,10 +84,10 @@ const AdminDashboard = ({ requirements, candidates, activityLogs, users, user }:
                         )}
                     </div>
                     <div className="p-4 bg-primary/5 dark:bg-white/5">
-                        <button className="w-full bg-primary dark:bg-white dark:text-primary text-white text-sm font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
+                        <Link to="/admin/users" className="w-full bg-primary dark:bg-white dark:text-primary text-white text-sm font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
                             <span className="material-symbols-outlined text-sm">person_add</span>
                             Invite New Team Member
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -95,7 +95,7 @@ const AdminDashboard = ({ requirements, candidates, activityLogs, users, user }:
             <div className="bg-white dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-primary/5 dark:border-white/10 flex items-center justify-between">
                     <h3 className="text-lg font-bold text-primary dark:text-white">Recent Security Audit Logs</h3>
-                    <Link to="#" className="text-sm font-bold text-primary dark:text-blue-400 hover:underline">View Full Audit Trail</Link>
+                    <Link to="/notifications" className="text-sm font-bold text-primary dark:text-blue-400 hover:underline">View activity & notifications</Link>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -191,7 +191,7 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, offers, user
                                     ) : requirements.slice(0, 3).map((req: any, i: number) => (
                                         <tr key={i} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                             <td className="px-6 py-4">
-                                                <p className="font-semibold">{req.role}</p>
+                                                <p className="font-semibold">{req.title}</p>
                                                 <p className="text-xs text-slate-500 italic">{req.department} • {req.location}</p>
                                             </td>
                                             <td className="px-6 py-4">
@@ -285,7 +285,9 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, offers, user
                                     <p className="text-xs leading-relaxed">
                                         <span className="font-bold">{c.name}</span> was moved to <span className="text-primary font-bold">{c.status}</span>
                                     </p>
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight mt-1">{i + 1}h ago</p>
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight mt-1">
+                                        {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : 'Recently'}
+                                    </p>
                                 </div>
                             ))}
                         </div>
@@ -299,7 +301,7 @@ const RecruiterDashboard = ({ requirements, candidates, interviews, offers, user
 const Dashboard = () => {
     const { user } = useAuth()
     const role = user?.role || 'RECRUITER'
-    const isAdminOrHR = ['ADMIN', 'HR_MANAGER'].includes(role)
+    const isAdminOrHR = ['ADMIN', 'HR_MANAGER', 'HR_HEAD'].includes(role)
 
     const { data: requirements } = useQuery({ queryKey: ['requirements'], queryFn: api.requirements.list })
     const { data: candidates } = useQuery({ queryKey: ['candidates'], queryFn: api.candidates.list })
