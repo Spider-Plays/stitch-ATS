@@ -15,11 +15,32 @@ export interface ApprovalHistory {
     comments?: string
 }
 
+export type RequirementVersionKind = 'UPDATE' | 'CANDIDATE_LINKED'
+
+export interface RequirementVersionLinkedCandidate {
+    id: string
+    name: string
+    email: string
+    status: string
+    matchScore: number
+}
+
+export interface RequirementVersionMatchingProfile {
+    candidateId: string
+    name: string
+    matchScore: number
+    alreadyLinked: boolean
+    linkedToOther: boolean
+}
+
 export interface RequirementVersion {
     version: number
     changedBy: string // User ID
     changedAt: string // ISO Date
-    changes: Record<string, any> // Object containing changed fields
+    kind?: RequirementVersionKind
+    changes: Record<string, unknown>
+    linkedCandidates?: RequirementVersionLinkedCandidate[]
+    matchingProfiles?: RequirementVersionMatchingProfile[]
 }
 
 export interface Requirement {

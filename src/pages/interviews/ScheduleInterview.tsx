@@ -11,6 +11,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect'
 import { SearchableMultiSelect } from '../../components/ui/SearchableMultiSelect'
 import { useToastStore } from '../../store/toastStore'
 import { canEditInterview } from '../../lib/interviewDisplayStatus'
+import { useAuth } from '../../hooks/useAuth'
 
 const schema = z.object({
     candidateId: z.string().min(1, "Candidate is required"),
@@ -38,6 +39,7 @@ const ScheduleInterview = () => {
     const isEditMode = Boolean(interviewId)
     const queryClient = useQueryClient()
     const { addToast } = useToastStore()
+    const { user } = useAuth()
 
     const { register, handleSubmit, control, watch, reset, formState: { errors } } = useForm<InterviewFormValues>({
         resolver: zodResolver(schema),

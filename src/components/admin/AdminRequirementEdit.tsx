@@ -22,7 +22,9 @@ export function AdminRequirementEdit({ requirement, users, departmentNames }: Ad
   const [hiringManager, setHiringManager] = useState(requirement.hiringManager)
   const [location, setLocation] = useState(requirement.location ?? '')
   const [openings, setOpenings] = useState(requirement.openings)
-  const [priority, setPriority] = useState(requirement.priority ?? 'MEDIUM')
+  const [priority, setPriority] = useState<'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'>(
+    requirement.priority ?? 'MEDIUM'
+  )
   const [jobDescription, setJobDescription] = useState(
     requirement.jobDescription || requirement.description || ''
   )
@@ -149,7 +151,9 @@ export function AdminRequirementEdit({ requirement, users, departmentNames }: Ad
           <select
             className="mt-1 w-full px-3 py-2 rounded-lg border border-primary/10 dark:border-white/10 bg-white dark:bg-white/5 text-sm font-medium text-primary dark:text-white"
             value={priority}
-            onChange={(e) => setPriority(e.target.value)}
+            onChange={(e) =>
+              setPriority(e.target.value as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW')
+            }
           >
             <option value="CRITICAL">Critical</option>
             <option value="HIGH">High</option>
