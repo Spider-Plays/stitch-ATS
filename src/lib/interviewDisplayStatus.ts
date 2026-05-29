@@ -68,6 +68,7 @@ export function interviewDisplayStatusClass(label: InterviewDisplayLabel): strin
   }
 }
 
-export function canEditInterview(interview: Interview): boolean {
+export function canEditInterview(interview: Interview, role?: string | null): boolean {
+  if (role === 'ADMIN') return interview.status !== 'CANCELLED'
   return interview.status !== 'CANCELLED' && !interview.hasFeedback
 }

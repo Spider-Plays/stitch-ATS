@@ -40,6 +40,8 @@ const Sidebar = () => {
     const logoTitle = APP_NAME
 
     const show = (page: PageKey) => canAccessPage(allowedPages, page)
+    const isAdmin = role === 'ADMIN'
+    const showAdminSection = isAdmin || show('admin_users')
 
     return (
         <aside className={clsx(
@@ -96,11 +98,46 @@ const Sidebar = () => {
                     <NavItem to="/offers" icon="card_giftcard" label="Offers" active={path.startsWith('/offers')} theme={theme} />
                 )}
 
-                {show('admin_users') && (
+                {showAdminSection && (
                     <>
-                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-3 mt-6 mb-2">System</div>
-                        <NavItem to="/admin/users" icon="policy" label="User Management" active={path.startsWith('/admin/users')} theme={theme} />
-                        <NavItem to="/admin/role-access" icon="tune" label="Role access" active={path.startsWith('/admin/role-access')} theme={theme} />
+                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-3 mt-6 mb-2">
+                            Administration
+                        </div>
+                        <NavItem
+                            to="/admin"
+                            icon="admin_panel_settings"
+                            label="Admin home"
+                            active={path === '/admin'}
+                            theme={theme}
+                        />
+                        <NavItem
+                            to="/admin/users"
+                            icon="manage_accounts"
+                            label="Users"
+                            active={path.startsWith('/admin/users')}
+                            theme={theme}
+                        />
+                        <NavItem
+                            to="/admin/departments"
+                            icon="corporate_fare"
+                            label="Departments"
+                            active={path.startsWith('/admin/departments')}
+                            theme={theme}
+                        />
+                        <NavItem
+                            to="/admin/skills"
+                            icon="psychology"
+                            label="Skills"
+                            active={path.startsWith('/admin/skills')}
+                            theme={theme}
+                        />
+                        <NavItem
+                            to="/admin/role-access"
+                            icon="tune"
+                            label="Role access"
+                            active={path.startsWith('/admin/role-access')}
+                            theme={theme}
+                        />
                     </>
                 )}
             </nav>

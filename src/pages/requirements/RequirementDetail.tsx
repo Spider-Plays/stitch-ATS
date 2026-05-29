@@ -11,8 +11,10 @@ import {
     ChevronRight, PauseCircle, PlayCircle, Eye, EyeOff, Trash2,
 } from 'lucide-react'
 import { useToastStore } from '../../store/toastStore'
+import { ApiError } from '../../lib/apiClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SearchableSelect } from '../../components/ui/SearchableSelect'
+import { AdminRequirementEdit } from '../../components/admin/AdminRequirementEdit'
 import { ListSearchBar } from '../../components/ui/ListSearchBar'
 import { matchesAnySearch } from '../../lib/textSearch'
 
@@ -75,10 +77,21 @@ const RequirementDetail = () => {
 
     // Derived Data
     const recruiters = users.filter(u => ['RECRUITER', 'HR_MANAGER', 'HR_HEAD', 'ADMIN'].includes(u.role))
-    const hiringManager = users.find(u => u.uid === requirement?.hiringManager)
+    const hiringManager = users.find(
+        (u) =>
+            u.uid === requirement?.hiringManager ||
+            u.name === requirement?.hiringManager
+    )
     const isHr = ['ADMIN', 'HR_MANAGER', 'HR_HEAD'].includes(user?.role || '')
     const isAdmin = user?.role === 'ADMIN'
     const canManagePortal = isAdmin || isHr
+
+    const { data: departmentCatalog = [] } = useQuery({
+        queryKey: ['department-catalog'],
+        queryFn: api.departments.list,
+        enabled: isAdmin,
+    })
+    const departmentNames = departmentCatalog.map((d) => d.name)
 
     const recruiterOptions = useMemo(
         () =>
@@ -189,6 +202,18 @@ const RequirementDetail = () => {
         onError: () => addToast('Failed to delete requirement', 'error'),
     })
 
+    const departmentMutation = useMutation({
+        mutationFn: (department: string) => api.requirements.update(id!, { department }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            addToast('Department updated', 'success')
+        },
+        onError: (err: unknown) => {
+            const msg = err instanceof ApiError ? err.message : 'Failed to update department'
+            addToast(msg, 'error')
+        },
+    })
+
     const handleApproval = (action: 'APPROVE' | 'REJECT' | 'CLOSE') => {
         if (!confirm(`Are you sure you want to ${action.toLowerCase()} this requirement?`)) return
         if (action === 'APPROVE') approveMutation.mutate()
@@ -206,7 +231,7 @@ const RequirementDetail = () => {
     const isRejected = requirement.status === 'REJECTED'
     const portalVisible = requirement.visibleToCandidates ?? true
 
-    const canEdit = isHr || user?.uid === requirement.createdBy
+    const canEdit = isAdmin || isHr || user?.uid === requirement.createdBy
 
     return (
         <div className="p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
@@ -273,9 +298,13 @@ const RequirementDetail = () => {
                         </>
                     )}
 
-                    {canEdit && (
-                        <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-primary dark:text-white text-sm font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all">
-                            <Edit size={16} /> Edit
+                    {(canEdit || isAdmin) && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('details')}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-primary dark:text-white text-sm font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all"
+                        >
+                            <Edit size={16} /> {isAdmin ? 'Edit (admin)' : 'Edit'}
                         </button>
                     )}
 
@@ -336,6 +365,14 @@ const RequirementDetail = () => {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 {/* Left Column (2/3) */}
                                 <div className="lg:col-span-2 space-y-6">
+                                    {isAdmin && (
+                                        <AdminRequirementEdit
+                                            requirement={requirement}
+                                            users={users}
+                                            departmentNames={departmentNames}
+                                        />
+                                    )}
+
                                     {canManagePortal && (isLive || isOnHold) && (
                                         <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
                                             <h3 className="text-lg font-bold mb-4 text-primary dark:text-white">Portal &amp; posting controls</h3>
@@ -444,6 +481,39 @@ const RequirementDetail = () => {
                                         <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Position Details</h3>
 
                                         <div className="space-y-6">
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Department</p>
+                                                {isAdmin ? (
+                                                    <select
+                                                        value={requirement.department}
+                                                        disabled={departmentMutation.isPending}
+                                                        onChange={(e) => {
+                                                            const next = e.target.value
+                                                            if (next && next !== requirement.department) {
+                                                                departmentMutation.mutate(next)
+                                                            }
+                                                        }}
+                                                        className="w-full text-sm font-bold text-primary dark:text-white border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 bg-white dark:bg-white/5 disabled:opacity-50"
+                                                    >
+                                                        {requirement.department &&
+                                                            !departmentNames.includes(requirement.department) && (
+                                                                <option value={requirement.department}>
+                                                                    {requirement.department}
+                                                                </option>
+                                                            )}
+                                                        {departmentNames.map((name) => (
+                                                            <option key={name} value={name}>
+                                                                {name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {requirement.department}
+                                                    </p>
+                                                )}
+                                            </div>
+
                                             <div>
                                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Total Openings</p>
                                                 <p className="text-xl font-black text-primary dark:text-white flex items-center gap-2">

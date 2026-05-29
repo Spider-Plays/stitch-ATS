@@ -30,7 +30,8 @@ const PortalJobDetail = () => {
         portalMe?.linked &&
         portalMe.candidate.requirementId === id
 
-    const alreadyRegistered = portalMe?.linked === true
+    const profileComplete = portalMe?.profileComplete === true
+    const alreadyRegistered = portalMe?.linked === true && profileComplete
 
     const applyMutation = useMutation({
         mutationFn: () => api.portal.applyToPosition(id!),
@@ -46,6 +47,11 @@ const PortalJobDetail = () => {
             navigate('/portal/dashboard')
         },
         onError: (err: unknown) => {
+            if (err instanceof ApiError && err.message.includes('Complete your candidate profile')) {
+                addToast(err.message, 'error')
+                navigate(`/portal/profile?returnTo=${encodeURIComponent(`/portal/jobs/${id}`)}`)
+                return
+            }
             addToast(err instanceof ApiError ? err.message : 'Failed to apply', 'error')
         },
     })
@@ -158,10 +164,17 @@ const PortalJobDetail = () => {
                         Your profile is linked to this requisition ({job.jobCode}).
                     </p>
                 )}
-                {alreadyRegistered && !alreadyOnThisJob && (
+                {!profileComplete && (
                     <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
-                        You already have a candidate profile in the system. View your dashboard for
-                        application status.
+                        <Link to={`/portal/profile?returnTo=${encodeURIComponent(`/portal/jobs/${id}`)}`} className="underline font-bold">
+                            Complete your profile
+                        </Link>{' '}
+                        before applying.
+                    </p>
+                )}
+                {profileComplete && portalMe?.linked && !alreadyOnThisJob && portalMe.candidate.requirementId && (
+                    <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                        You are already linked to another application. View your dashboard for status.
                     </p>
                 )}
             </article>

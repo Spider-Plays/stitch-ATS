@@ -26,7 +26,7 @@ export const RequireAuth = ({
     if (allowedRoles && !allowedRoles.includes(user.role)) {
         if (user.role === 'CANDIDATE') return <Navigate to="/portal/dashboard" replace />
         if (user.role === 'VENDOR') return <Navigate to="/vendor-portal/dashboard" replace />
-        if (user.role === 'ADMIN') return <Navigate to="/admin/users" replace />
+        if (user.role === 'ADMIN') return <Navigate to="/admin" replace />
         return <Navigate to="/dashboard" replace />
     }
 

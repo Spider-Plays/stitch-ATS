@@ -17,6 +17,7 @@ import portalRoutes from './routes/portal.js'
 import vendorRoutes from './routes/vendors.js'
 import vendorPortalRoutes from './routes/vendorPortal.js'
 import skillRoutes from './routes/skills.js'
+import departmentRoutes from './routes/departments.js'
 import roleAccessRoutes from './routes/roleAccess.js'
 
 export const app = express()
@@ -54,6 +55,7 @@ app.use('/api/portal', portalRoutes)
 app.use('/api/vendors', vendorRoutes)
 app.use('/api/vendor-portal', vendorPortalRoutes)
 app.use('/api/skills', skillRoutes)
+app.use('/api/departments', departmentRoutes)
 app.use('/api/role-access', roleAccessRoutes)
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

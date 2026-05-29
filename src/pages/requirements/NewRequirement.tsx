@@ -1,13 +1,14 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import clsx from 'clsx'
 import { useAuth } from '../../hooks/useAuth'
 import { SkillSelectSection } from '../../components/skills/SkillSelectSection'
+import { SearchableSelect } from '../../components/ui/SearchableSelect'
 
 const schema = z.object({
     jobCode: z.string().max(32).optional(),
@@ -37,6 +38,40 @@ const NewRequirement = () => {
     const { user } = useAuth()
     const [currentStep, setCurrentStep] = useState(0)
 
+    const { data: users = [] } = useQuery({
+        queryKey: ['users'],
+        queryFn: api.users.list,
+    })
+
+    const { data: departmentCatalog = [] } = useQuery({
+        queryKey: ['department-catalog'],
+        queryFn: api.departments.list,
+    })
+
+    const departmentOptions = useMemo(
+        () =>
+            departmentCatalog.map((d) => ({
+                value: d.name,
+                label: d.name,
+            })),
+        [departmentCatalog]
+    )
+
+    const hiringManagerOptions = useMemo(
+        () =>
+            users
+                .filter((u) => u.status === 'ACTIVE' && u.role === 'HIRING_MANAGER')
+                .map((u) => ({
+                    value: u.name,
+                    label: u.name,
+                    sublabel: [u.department, u.email].filter(Boolean).join(' · '),
+                })),
+        [users]
+    )
+
+    const defaultHiringManager =
+        user?.role === 'HIRING_MANAGER' && user.name ? user.name : ''
+
     const { register, handleSubmit, control, formState: { errors }, trigger, watch } = useForm<RequirementFormValues>({
         resolver: zodResolver(schema),
         defaultValues: {
@@ -44,6 +79,7 @@ const NewRequirement = () => {
             priority: 'MEDIUM',
             primarySkills: [],
             secondarySkills: [],
+            hiringManager: defaultHiringManager,
         }
     })
 
@@ -155,35 +191,62 @@ const NewRequirement = () => {
 
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Department</label>
-                                <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/30">business</span>
-                                    <select
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white"
-                                        {...register('department')}
-                                    >
-                                        <option value="">Select Department</option>
-                                        <option value="Engineering">Engineering</option>
-                                        <option value="Product">Product</option>
-                                        <option value="Design">Design</option>
-                                        <option value="Marketing">Marketing</option>
-                                        <option value="Sales">Sales</option>
-                                        <option value="HR">HR</option>
-                                    </select>
-                                </div>
+                                <Controller
+                                    control={control}
+                                    name="department"
+                                    render={({ field }) => (
+                                        <SearchableSelect
+                                            value={field.value ?? ''}
+                                            onChange={field.onChange}
+                                            options={departmentOptions}
+                                            placeholder="Select department"
+                                            emptyLabel={
+                                                departmentOptions.length === 0
+                                                    ? 'No departments yet — ask an admin to add them under Administration → Departments.'
+                                                    : 'No matching department'
+                                            }
+                                        />
+                                    )}
+                                />
                                 {errors.department && <p className="text-xs font-bold text-red-500">{errors.department.message}</p>}
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Hiring Manager</label>
-                                <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/30">person</span>
-                                    <input
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/20"
-                                        placeholder="Manager Name"
-                                        {...register('hiringManager')}
-                                    />
-                                </div>
-                                {errors.hiringManager && <p className="text-xs font-bold text-red-500">{errors.hiringManager.message}</p>}
+                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
+                                    Hiring Manager <span className="text-red-500">*</span>
+                                </label>
+                                <Controller
+                                    control={control}
+                                    name="hiringManager"
+                                    render={({ field }) => (
+                                        <SearchableSelect
+                                            value={field.value ?? ''}
+                                            onChange={field.onChange}
+                                            options={hiringManagerOptions}
+                                            placeholder={
+                                                hiringManagerOptions.length
+                                                    ? 'Select hiring manager'
+                                                    : 'No hiring managers — invite one in Admin'
+                                            }
+                                            searchPlaceholder="Search managers…"
+                                            emptyLabel="No hiring managers found"
+                                            allowClear={false}
+                                            icon={
+                                                <span className="material-symbols-outlined !text-lg">
+                                                    person
+                                                </span>
+                                            }
+                                        />
+                                    )}
+                                />
+                                {errors.hiringManager && (
+                                    <p className="text-xs font-bold text-red-500">{errors.hiringManager.message}</p>
+                                )}
+                                {hiringManagerOptions.length === 0 && (
+                                    <p className="text-xs text-primary/50 dark:text-white/50">
+                                        Add users with the Hiring Manager role in Admin → User Management.
+                                    </p>
+                                )}
                             </div>
 
                             <div className="space-y-2">

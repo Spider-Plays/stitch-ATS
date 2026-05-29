@@ -44,8 +44,6 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
     { value: 'CANDIDATE', label: 'Candidate' },
 ]
 
-const DEPARTMENT_SUGGESTIONS = ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'HR', 'Operations', 'Finance']
-
 const UserDetail = () => {
     const { id } = useParams<{ id: string }>()
     const queryClient = useQueryClient()
@@ -68,6 +66,12 @@ const UserDetail = () => {
         queryFn: () => api.users.get(id!),
         enabled: !!id,
     })
+
+    const { data: departmentCatalog = [] } = useQuery({
+        queryKey: ['department-catalog'],
+        queryFn: api.departments.list,
+    })
+    const departmentNames = departmentCatalog.map((d) => d.name)
 
     React.useEffect(() => {
         if (!user) return
@@ -284,18 +288,21 @@ const UserDetail = () => {
                         </div>
                         <div>
                             <label className={LABEL}>Department</label>
-                            <input
+                            <select
                                 className={INPUT}
                                 value={department}
                                 onChange={(e) => setDepartment(e.target.value)}
-                                list="user-dept-suggestions"
-                                placeholder="e.g. Engineering"
-                            />
-                            <datalist id="user-dept-suggestions">
-                                {DEPARTMENT_SUGGESTIONS.map((d) => (
-                                    <option key={d} value={d} />
+                            >
+                                <option value="">— None —</option>
+                                {department && !departmentNames.includes(department) && (
+                                    <option value={department}>{department}</option>
+                                )}
+                                {departmentNames.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
                                 ))}
-                            </datalist>
+                            </select>
                         </div>
                         <div>
                             <label className={LABEL}>Phone</label>

@@ -90,11 +90,11 @@ const RoleAccessEditor = () => {
     return (
         <div className="max-w-4xl mx-auto p-8 animate-in fade-in duration-500">
             <Link
-                to="/admin/users"
+                to="/admin"
                 className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-primary dark:hover:text-white mb-6"
             >
                 <ArrowLeft size={16} />
-                Back to User Management
+                Administration
             </Link>
 
             <div className="flex items-start gap-4 mb-8">

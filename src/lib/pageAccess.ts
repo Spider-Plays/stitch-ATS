@@ -73,7 +73,7 @@ export function firstAllowedPath(allowedPages: PageKey[]): string {
   for (const key of order) {
     if (allowedPages.includes(key)) {
       if (key === 'dashboard') return '/dashboard'
-      if (key === 'admin_users') return '/admin/users'
+      if (key === 'admin_users') return '/admin'
       return `/${key}`
     }
   }

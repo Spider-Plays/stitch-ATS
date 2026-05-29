@@ -1,4 +1,4 @@
-import { requirementService, candidateService, userService, interviewService, offerService, feedbackService, searchService, portalService, skillService } from './http'
+import { requirementService, candidateService, userService, interviewService, offerService, feedbackService, searchService, portalService, skillService, departmentService } from './http'
 import { vendorService } from './http/vendors'
 import { vendorPortalService } from './http/vendorPortal'
 import { activityLogService } from './http/activityLogs'
@@ -43,6 +43,8 @@ export const api = {
     },
     portal: {
         getMe: portalService.getMe,
+        saveProfile: portalService.saveProfile,
+        uploadResume: portalService.uploadResume,
         getOpenPositions: portalService.getOpenPositions,
         getPosition: portalService.getPosition,
         applyToPosition: portalService.applyToPosition,
@@ -67,6 +69,11 @@ export const api = {
         list: skillService.list,
         create: skillService.create,
         remove: skillService.remove,
+    },
+    departments: {
+        list: departmentService.list,
+        create: departmentService.create,
+        remove: departmentService.remove,
     },
     users: {
         list: userService.list,

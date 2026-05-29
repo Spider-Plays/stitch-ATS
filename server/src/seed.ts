@@ -1,6 +1,14 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from './lib/prisma.js'
+import { withDbRetry } from './lib/dbRetry.js'
+import { DEV_PASSWORD } from './config/devUsers.js'
 import { SEED_USERS } from './config/users.js'
+
+/** Portal demo accounts (also on dev quick-login panel). */
+const PORTAL_DEV_USERS = [
+  { email: 'demo.portal1@local.test', password: DEV_PASSWORD, name: 'Aisha Mehta', role: 'CANDIDATE' },
+  { email: 'demo.portal-browse@local.test', password: DEV_PASSWORD, name: 'Karan Joshi', role: 'CANDIDATE' },
+] as const
 
 const DEV_VENDOR_CODE = 'DEV-VENDOR'
 
@@ -36,7 +44,9 @@ async function main() {
     console.log('No seed users configured. Run npm run db:bootstrap to create an admin.')
     return
   }
-  console.log('Seeding database...')
+  console.log('Seeding database (will retry if Neon is waking up)...')
+
+  await withDbRetry(() => prisma.$queryRaw`SELECT 1`, { label: 'Neon' })
 
   const devVendor = await prisma.vendor.upsert({
     where: { code: DEV_VENDOR_CODE },
@@ -68,7 +78,12 @@ async function main() {
   for (const u of SEED_USERS) {
     await upsertDevUser(u, u.role === 'VENDOR' ? devVendor.id : undefined)
   }
-  console.log(`Seeded ${SEED_USERS.length} users and ${sampleVendors.length + 1} vendors.`)
+  for (const u of PORTAL_DEV_USERS) {
+    await upsertDevUser(u)
+  }
+  console.log(
+    `Seeded ${SEED_USERS.length + PORTAL_DEV_USERS.length} users and ${sampleVendors.length + 1} vendors.`
+  )
 }
 
 main()

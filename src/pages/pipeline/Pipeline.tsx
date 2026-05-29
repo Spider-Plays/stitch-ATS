@@ -270,7 +270,7 @@ const Pipeline = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-2 no-scrollbar">
+            <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-2">
                 <button
                     onClick={() => setSearchTerm('')}
                     className={clsx("flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors", !searchTerm ? "bg-primary/10 border-primary text-primary dark:bg-white/10 dark:border-white dark:text-white" : "border-primary/10 bg-white hover:bg-primary/5 dark:border-white/10 dark:bg-white/5 dark:text-white")}

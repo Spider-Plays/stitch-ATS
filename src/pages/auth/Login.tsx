@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { authApi } from '../../services/http/auth'
 import { ApiError } from '../../lib/apiClient'
 import { firstAllowedPath, PageKey } from '../../lib/pageAccess'
+import { DevQuickLogin } from '../../dev/DevQuickLogin'
 
 const Login = () => {
     const navigate = useNavigate()
@@ -25,10 +26,10 @@ const Login = () => {
     const { register, handleSubmit } = useForm<{ email: string; password: string }>()
 
     const redirectByRole = (role: string, allowedPages: PageKey[] = []) => {
-        if (role === 'CANDIDATE') navigate('/portal/dashboard')
+        if (role === 'CANDIDATE') navigate('/portal/profile')
         else if (role === 'VENDOR') navigate('/vendor-portal/dashboard')
         else if (allowedPages.length > 0) navigate(firstAllowedPath(allowedPages), { replace: true })
-        else if (role === 'ADMIN') navigate('/admin/users')
+        else if (role === 'ADMIN') navigate('/admin')
         else navigate(from === '/' ? '/dashboard' : from, { replace: true })
     }
 
@@ -261,6 +262,15 @@ const Login = () => {
                             >
                                 Forgot password?
                             </button>
+                        )}
+
+                        {mode === 'login' && import.meta.env.DEV && (
+                            <DevQuickLogin
+                                onError={(msg) => {
+                                    setAuthError(msg || null)
+                                    setInfoMessage(null)
+                                }}
+                            />
                         )}
 
                     </div>

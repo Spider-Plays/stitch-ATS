@@ -20,62 +20,23 @@ const CandidateDashboard = () => {
         queryFn: api.portal.getOpenPositions,
     })
 
-    if (isLoading) {
+    if (isLoading || !data?.linked) {
         return <div className="p-12 text-center text-slate-500">Loading your portal...</div>
-    }
-
-    if (!data?.linked) {
-        return (
-            <div className="max-w-3xl mx-auto p-8 space-y-8">
-                <section className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6">
-                    <h2 className="font-bold text-lg text-primary dark:text-white mb-4 flex items-center gap-2">
-                        <Briefcase size={20} /> Open positions
-                    </h2>
-                    {openPositions.length === 0 ? (
-                        <EmptyState
-                            icon="work"
-                            title="No open roles"
-                            description="Check back later for new opportunities."
-                        />
-                    ) : (
-                        <ul className="space-y-3">
-                            {openPositions.map((job) => (
-                                <li key={job.id}>
-                                    <Link
-                                        to={`/portal/jobs/${job.id}`}
-                                        className="block p-4 rounded-xl border border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors"
-                                    >
-                                        <p className="text-[10px] font-bold uppercase text-primary/50">{job.jobCode}</p>
-                                        <p className="font-bold text-primary dark:text-white mt-0.5">{job.title}</p>
-                                        <p className="text-sm text-slate-500 mt-1">
-                                            {job.client ? `${job.client} · ` : ''}
-                                            {job.department}
-                                            {job.location ? ` · ${job.location}` : ''}
-                                        </p>
-                                        {job.description && (
-                                            <p className="text-xs text-slate-500 mt-2 line-clamp-2">{job.description}</p>
-                                        )}
-                                        <span className="inline-block mt-2 text-xs font-bold text-primary">View details & apply →</span>
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </section>
-                <EmptyState
-                    icon="person"
-                    title="No application linked"
-                    description={data?.message || 'Your recruiter has not linked an application to this account yet.'}
-                />
-                <p className="text-center text-sm text-slate-500">Signed in as {user?.email}</p>
-            </div>
-        )
     }
 
     const { candidate, requirement, requirementHidden, requirementMessage, interviews, offers } = data
 
     return (
         <div className="max-w-[1440px] mx-auto w-full p-4 md:p-8 space-y-8">
+            <div className="flex justify-end">
+                <Link
+                    to="/portal/profile"
+                    className="text-sm font-bold text-primary dark:text-white hover:underline"
+                >
+                    Edit profile
+                </Link>
+            </div>
+
             <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6 shadow-sm">
                 <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
                     <div className="size-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-2xl">

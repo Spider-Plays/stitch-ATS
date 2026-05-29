@@ -455,7 +455,7 @@ const CandidateProfile = () => {
 
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex-1 min-h-[500px]">
                         <div className="border-b border-slate-200 bg-slate-50/50 px-6">
-                            <div className="flex gap-8 overflow-x-auto no-scrollbar">
+                            <div className="flex gap-8 overflow-x-auto">
                                 {[
                                     { id: 'parsed', label: 'Professional' },
                                     { id: 'resume', label: 'Resume' },

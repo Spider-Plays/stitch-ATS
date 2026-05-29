@@ -172,7 +172,7 @@ const ScheduleInterview = () => {
         )
     }
 
-    if (isEditMode && interview && !canEditInterview(interview)) {
+    if (isEditMode && interview && !canEditInterview(interview, user?.role)) {
         return (
             <div className="max-w-4xl mx-auto py-16 text-center space-y-4">
                 <p className="text-primary/60 dark:text-white/60 font-medium">

@@ -196,6 +196,10 @@ router.patch('/:id', requireRoles(...STAFF_MUTATE, 'HIRING_MANAGER'), async (req
   const data = { ...req.body } as Record<string, unknown>
   delete data._user
 
+  if (data.department !== undefined && req.auth!.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Only admins can change department' })
+  }
+
   const versions = parseRequirementVersions(existing.versions)
   const timestamp = new Date().toISOString()
   const [linkedCandidates, matchingProfiles] = await Promise.all([

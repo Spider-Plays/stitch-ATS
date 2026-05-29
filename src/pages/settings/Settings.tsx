@@ -138,16 +138,17 @@ const Settings = () => {
                     >
                         <Bell size={20} /> Notifications
                     </button>
-                    <button
-                        onClick={() => setActiveTab('TEAM')}
-                        className={clsx(
-                            "flex items-center gap-2 py-4 px-1 text-sm font-bold border-b-2 transition-all",
-                            activeTab === 'TEAM' ? "border-primary dark:border-white text-primary dark:text-white" : "border-transparent text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
-                        )}
-                    >
-                        <Users size={20} /> Team & Permissions
-                        <span className="bg-primary/10 dark:bg-white/10 text-primary dark:text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ml-1">Admin</span>
-                    </button>
+                    {user?.role === 'ADMIN' && (
+                        <button
+                            onClick={() => setActiveTab('TEAM')}
+                            className={clsx(
+                                "flex items-center gap-2 py-4 px-1 text-sm font-bold border-b-2 transition-all",
+                                activeTab === 'TEAM' ? "border-primary dark:border-white text-primary dark:text-white" : "border-transparent text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
+                            )}
+                        >
+                            <Users size={20} /> Administration
+                        </button>
+                    )}
                 </nav>
             </div>
 
@@ -424,12 +425,19 @@ const Settings = () => {
                         <p className="text-primary/60 dark:text-white/60">Configure how you receive updates.</p>
                     </div>
                 )}
-                {activeTab === 'TEAM' && (
-                    <div className="p-12 text-center bg-primary/[0.02] dark:bg-white/[0.02] rounded-2xl border border-dashed border-primary/10 dark:border-white/10">
-                        <Users size={48} className="mx-auto text-primary/20 dark:text-white/20 mb-4" />
-                        <h3 className="text-lg font-bold text-primary dark:text-white">Team Management</h3>
-                        <p className="text-primary/60 dark:text-white/60 outline-none">Redirecting to admin panel...</p>
-                        <Button className="mt-4" onClick={() => navigate('/admin/users')}>Go to User Management</Button>
+                {activeTab === 'TEAM' && user?.role === 'ADMIN' && (
+                    <div className="p-8 bg-primary/[0.02] dark:bg-white/[0.02] rounded-2xl border border-primary/10 dark:border-white/10 space-y-4">
+                        <h3 className="text-lg font-bold text-primary dark:text-white">Administration</h3>
+                        <p className="text-sm text-primary/60 dark:text-white/60">
+                            Manage users, departments, skills, and role access from the admin section.
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                            <Button onClick={() => navigate('/admin')}>Admin home</Button>
+                            <Button variant="secondary" onClick={() => navigate('/admin/users')}>Users</Button>
+                            <Button variant="secondary" onClick={() => navigate('/admin/departments')}>Departments</Button>
+                            <Button variant="secondary" onClick={() => navigate('/admin/skills')}>Skills</Button>
+                            <Button variant="secondary" onClick={() => navigate('/admin/role-access')}>Role access</Button>
+                        </div>
                     </div>
                 )}
             </div>

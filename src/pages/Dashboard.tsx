@@ -84,7 +84,7 @@ const AdminDashboard = ({ requirements, candidates, activityLogs, users, user }:
                         )}
                     </div>
                     <div className="p-4 bg-primary/5 dark:bg-white/5">
-                        <Link to="/admin/users" className="w-full bg-primary dark:bg-white dark:text-primary text-white text-sm font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
+                        <Link to="/admin" className="w-full bg-primary dark:bg-white dark:text-primary text-white text-sm font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
                             <span className="material-symbols-outlined text-sm">person_add</span>
                             Invite New Team Member
                         </Link>

@@ -1,14 +1,14 @@
 import React from 'react'
-import type { SkillCatalogItem } from '../../services/http/skills'
-import { SkillCatalogEditor } from './SkillCatalogEditor'
+import type { DepartmentCatalogItem } from '../../services/http/departments'
+import { DepartmentCatalogEditor } from './DepartmentCatalogEditor'
 
-type EditSkillsModalProps = {
+type EditDepartmentsModalProps = {
   open: boolean
   onClose: () => void
-  skills: SkillCatalogItem[]
+  departments: DepartmentCatalogItem[]
 }
 
-export function EditSkillsModal({ open, onClose, skills }: EditSkillsModalProps) {
+export function EditDepartmentsModal({ open, onClose, departments }: EditDepartmentsModalProps) {
   if (!open) return null
 
   return (
@@ -16,15 +16,15 @@ export function EditSkillsModal({ open, onClose, skills }: EditSkillsModalProps)
       <div
         className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[85vh] rounded-2xl shadow-xl border border-primary/10 dark:border-white/10 flex flex-col"
         role="dialog"
-        aria-labelledby="edit-skills-title"
+        aria-labelledby="edit-departments-title"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-primary/10 dark:border-white/10">
           <div>
-            <h2 id="edit-skills-title" className="text-lg font-black text-primary dark:text-white">
-              Edit skill catalog
+            <h2 id="edit-departments-title" className="text-lg font-black text-primary dark:text-white">
+              Edit departments
             </h2>
             <p className="text-xs text-primary/50 dark:text-white/50 mt-0.5">
-              Skills appear in candidate and requirement dropdowns.
+              Used when posting jobs and assigning user departments.
             </p>
           </div>
           <button
@@ -37,7 +37,7 @@ export function EditSkillsModal({ open, onClose, skills }: EditSkillsModalProps)
           </button>
         </div>
 
-        <SkillCatalogEditor skills={skills} variant="modal" />
+        <DepartmentCatalogEditor departments={departments} variant="modal" />
 
         <div className="px-6 py-4 border-t border-primary/10 dark:border-white/10 flex justify-end">
           <button

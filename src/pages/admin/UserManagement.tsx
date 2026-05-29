@@ -6,7 +6,7 @@ import { User, UserRole } from '../../types';
 import {
     Users, Search, Shield,
     Mail, XCircle, Trash2,
-    Download, UserPlus, Briefcase, Monitor, ChevronLeft, ChevronRight, SlidersHorizontal
+    Download, UserPlus, Briefcase, Monitor, ChevronLeft, ChevronRight, Building2
 } from 'lucide-react';
 import { ActionsMenu } from '../../components/ui/ActionsMenu';
 import { useToastStore } from '../../store/toastStore';
@@ -16,8 +16,6 @@ import clsx from 'clsx';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-const DEPARTMENT_SUGGESTIONS = ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'HR', 'Operations', 'Finance']
 
 const inviteSchema = z.object({
     email: z.string().email('Enter a valid email'),
@@ -48,6 +46,12 @@ const UserManagement = () => {
         queryFn: api.users.list,
     });
     const users = isError ? [] : (data ?? []);
+
+    const { data: departmentCatalog = [] } = useQuery({
+        queryKey: ['department-catalog'],
+        queryFn: api.departments.list,
+    });
+    const departmentNames = departmentCatalog.map((d) => d.name);
 
     // Mutations
     const updateRoleMutation = useMutation({
@@ -88,14 +92,11 @@ const UserManagement = () => {
         updateRoleMutation.mutate({ uid, role: newRole as UserRole });
     };
 
-    const handleSetDepartment = (u: User) => {
-        const next = window.prompt(
-            `Department for ${u.name}`,
-            u.department ?? ''
-        );
-        if (next === null) return;
-        const trimmed = next.trim();
-        updateProfileMutation.mutate({ uid: u.uid, department: trimmed || null });
+    const handleDepartmentChange = (u: User, value: string) => {
+        const trimmed = value.trim();
+        const next = trimmed || null;
+        if ((u.department ?? null) === next) return;
+        updateProfileMutation.mutate({ uid: u.uid, department: next });
     };
 
     const userMenuItems = (u: User) => [
@@ -107,7 +108,7 @@ const UserManagement = () => {
         {
             id: 'department',
             label: u.department ? 'Edit department' : 'Add department',
-            onClick: () => handleSetDepartment(u),
+            onClick: () => navigate(`/admin/users/${u.uid}`),
         },
         {
             id: 'status',
@@ -183,11 +184,11 @@ const UserManagement = () => {
                 </div>
                 <div className="flex gap-3 flex-wrap">
                     <Link
-                        to="/admin/role-access"
+                        to="/admin"
                         className="px-4 py-2 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white font-bold rounded-xl text-sm flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/10 shadow-sm transition-all"
                     >
-                        <SlidersHorizontal size={18} />
-                        Edit role access
+                        <Building2 size={18} />
+                        Administration
                     </Link>
                     <button className="px-4 py-2 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white font-bold rounded-xl text-sm flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/10 shadow-sm transition-all">
                         <Download size={18} />
@@ -304,18 +305,23 @@ const UserManagement = () => {
                                             </select>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleSetDepartment(u)}
-                                                className="text-sm font-medium text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white underline-offset-2 hover:underline text-left"
-                                                title="Click to set department"
+                                            <select
+                                                value={u.department ?? ''}
+                                                onChange={(e) => handleDepartmentChange(u, e.target.value)}
+                                                disabled={updateProfileMutation.isPending}
+                                                className="text-sm font-medium text-primary dark:text-white border border-primary/10 dark:border-white/10 rounded-lg px-2 py-1.5 bg-white dark:bg-white/5 max-w-[180px] disabled:opacity-50"
+                                                title="Set user department"
                                             >
-                                                {u.department || (
-                                                    <span className="text-primary/40 dark:text-white/40 italic">
-                                                        Add department
-                                                    </span>
+                                                <option value="">— None —</option>
+                                                {u.department && !departmentNames.includes(u.department) && (
+                                                    <option value={u.department}>{u.department}</option>
                                                 )}
-                                            </button>
+                                                {departmentNames.map((name) => (
+                                                    <option key={name} value={name}>
+                                                        {name}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={clsx(
@@ -407,18 +413,17 @@ const UserManagement = () => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">Department</label>
-                                    <input
-                                        type="text"
-                                        list="department-suggestions"
-                                        placeholder="e.g. Engineering"
+                                    <select
                                         className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium text-primary dark:text-white"
                                         {...inviteForm.register('department')}
-                                    />
-                                    <datalist id="department-suggestions">
-                                        {DEPARTMENT_SUGGESTIONS.map((d) => (
-                                            <option key={d} value={d} />
+                                    >
+                                        <option value="">— None —</option>
+                                        {departmentNames.map((name) => (
+                                            <option key={name} value={name}>
+                                                {name}
+                                            </option>
                                         ))}
-                                    </datalist>
+                                    </select>
                                 </div>
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-xl text-sm leading-relaxed">
                                     An email with a temporary password is sent via Resend. For testing, use <code className="text-xs">onboarding@resend.dev</code> as the sender until your domain is verified.
@@ -438,6 +443,7 @@ const UserManagement = () => {
                     </div>
                 </div>
             )}
+
         </div>
     );
 };

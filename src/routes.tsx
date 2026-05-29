@@ -19,8 +19,13 @@ import RequirementsList from './pages/requirements/RequirementsList'
 import UserManagement from './pages/admin/UserManagement'
 import UserDetail from './pages/admin/UserDetail'
 import RoleAccessEditor from './pages/admin/RoleAccessEditor'
+import AdminOverview from './pages/admin/AdminOverview'
+import AdminDepartments from './pages/admin/AdminDepartments'
+import AdminSkills from './pages/admin/AdminSkills'
 import CandidateDashboard from './pages/candidate-portal/CandidateDashboard'
 import PortalJobDetail from './pages/candidate-portal/PortalJobDetail'
+import PortalProfileSetup from './pages/candidate-portal/PortalProfileSetup'
+import { PortalProfileGate } from './components/portal/PortalProfileGate'
 import Interviews from './pages/interviews/Interviews'
 import ScheduleInterview from './pages/interviews/ScheduleInterview'
 import FeedbackForm from './pages/feedback/FeedbackForm'
@@ -57,15 +62,21 @@ const AppRoutes = () => {
 
             {/* Candidate Portal */}
             <Route path="/portal" element={<RequireAuth allowedRoles={['CANDIDATE']}><MainLayout /></RequireAuth>}>
-                <Route path="dashboard" element={<CandidateDashboard />} />
-                <Route path="jobs/:id" element={<PortalJobDetail />} />
-                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="profile" element={<PortalProfileSetup />} />
+                <Route element={<PortalProfileGate />}>
+                    <Route path="dashboard" element={<CandidateDashboard />} />
+                    <Route path="jobs/:id" element={<PortalJobDetail />} />
+                </Route>
+                <Route index element={<Navigate to="profile" replace />} />
             </Route>
 
             {/* Admin Only */}
             <Route path="/admin" element={<RequireAuth allowedRoles={['ADMIN']}><MainLayout /></RequireAuth>}>
+                <Route index element={<AdminOverview />} />
                 <Route path="users" element={<UserManagement />} />
                 <Route path="users/:id" element={<UserDetail />} />
+                <Route path="departments" element={<AdminDepartments />} />
+                <Route path="skills" element={<AdminSkills />} />
                 <Route path="role-access" element={<RoleAccessEditor />} />
             </Route>
 

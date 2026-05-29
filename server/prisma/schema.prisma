@@ -170,6 +170,12 @@ model SkillCatalog {
   createdAt DateTime @default(now())
 }
 
+model DepartmentCatalog {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model ActivityLog {
   id            String   @id @default(cuid())
   entityType    String

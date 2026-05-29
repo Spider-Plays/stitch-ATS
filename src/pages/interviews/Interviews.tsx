@@ -154,7 +154,7 @@ const Interviews = () => {
                                         <ExternalLink size={14} /> Join
                                     </a>
                                 )}
-                                {canManage && canEditInterview(interview) && (
+                                {canManage && canEditInterview(interview, user?.role) && (
                                     <>
                                         <Link
                                             to={`/interviews/${interview.id}/edit`}
@@ -228,7 +228,7 @@ const Interviews = () => {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-3">
-                                            {canManage && canEditInterview(interview) && (
+                                            {canManage && canEditInterview(interview, user?.role) && (
                                                 <Link
                                                     to={`/interviews/${interview.id}/edit`}
                                                     className="text-xs font-bold text-primary hover:underline dark:text-white"
