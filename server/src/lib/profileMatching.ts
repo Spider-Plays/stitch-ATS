@@ -20,8 +20,14 @@ export type CandidateMatchResult = {
   linkedToOther: boolean
 }
 
+/** Fields used for scoring — allows partial draft rows before create. */
+export type CandidateMatchInput = Pick<
+  Candidate,
+  'role' | 'currentCompany' | 'totalExperience' | 'primarySkills' | 'secondarySkills'
+>
+
 function buildCorpus(
-  candidate: Candidate,
+  candidate: CandidateMatchInput,
   resumeText: string
 ): string {
   const primary = deserializeSkills(candidate.primarySkills)
@@ -80,7 +86,7 @@ function scoreJdOverlap(jd: string, corpus: string): number {
 }
 
 export function computeMatchScore(
-  candidate: Candidate,
+  candidate: CandidateMatchInput,
   requirement: Requirement,
   resumeText: string
 ): { score: number; breakdown: MatchBreakdown } {
