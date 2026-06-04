@@ -11,7 +11,6 @@ export const DEV_LOGIN_ACCOUNTS = [
   { label: 'Hiring Manager', role: 'HIRING_MANAGER', email: 'dev-hiringmanager@local.test', password: 'DevTest123!' },
   { label: 'Interviewer', role: 'INTERVIEWER', email: 'dev-interviewer@local.test', password: 'DevTest123!' },
   { label: 'Vendor', role: 'VENDOR', email: 'dev-vendor@local.test', password: 'DevTest123!' },
+  { label: 'Employee', role: 'EMPLOYEE', email: 'dev-employee@local.test', password: 'DevTest123!' },
   { label: 'Candidate', role: 'CANDIDATE', email: 'dev-candidate@local.test', password: 'DevTest123!' },
-  { label: 'Portal (applied)', role: 'CANDIDATE', email: 'demo.portal1@local.test', password: 'DevTest123!' },
-  { label: 'Portal (browse)', role: 'CANDIDATE', email: 'demo.portal-browse@local.test', password: 'DevTest123!' },
 ] as const

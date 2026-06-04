@@ -19,12 +19,12 @@ export const Toaster = () => {
     const { toasts, removeToast } = useToastStore()
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
             <AnimatePresence>
                 {toasts.map((toast) => (
                     <motion.div
                         key={toast.id}
-                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                        initial={{ opacity: 0, y: -20, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                         layout

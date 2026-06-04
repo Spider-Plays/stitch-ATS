@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import { RefreshCw, Sparkles } from 'lucide-react'
+import { PageHero, heroBtnSecondary } from '../../components/layout/PageHero'
 import clsx from 'clsx'
 import { api } from '../../services/api'
 import { ListSearchBar } from '../../components/ui/ListSearchBar'
@@ -61,39 +62,30 @@ const RequirementMatchingProfiles = () => {
 
     return (
         <div className="p-8 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
-            <Link
-                to={`/requirements/${id}?tab=candidates`}
-                className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-primary dark:hover:text-white mb-6"
-            >
-                <ArrowLeft size={16} />
-                Back to requirement
-            </Link>
-
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                <div>
-                    <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">
-                        Matching profiles
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
-                        {requirement?.title}
-                        {requirement?.jobCode && (
-                            <span className="font-mono ml-2">· {requirement.jobCode}</span>
-                        )}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-2">
-                        {matchingData?.totalCandidates ?? 0} candidates scored · {filtered.length} shown
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-bold text-primary dark:text-white hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50"
-                >
-                    <RefreshCw size={16} className={clsx(isFetching && 'animate-spin')} />
-                    Refresh
-                </button>
-            </div>
+            <PageHero
+                icon={Sparkles}
+                eyebrow="AI matching"
+                title="Matching profiles"
+                description={
+                    [requirement?.title, requirement?.jobCode].filter(Boolean).join(' · ') ||
+                    'Ranked candidates for this requirement'
+                }
+                className="mb-3"
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => refetch()}
+                        disabled={isFetching}
+                        className={clsx(heroBtnSecondary, isFetching && 'opacity-60')}
+                    >
+                        <RefreshCw size={16} className={clsx(isFetching && 'animate-spin')} />
+                        Refresh
+                    </button>
+                }
+            />
+            <p className="text-xs font-semibold text-muted-foreground mb-6 px-1">
+                {matchingData?.totalCandidates ?? 0} candidates scored · {filtered.length} shown
+            </p>
 
             <ListSearchBar
                 value={search}
@@ -156,7 +148,7 @@ const RequirementMatchingProfiles = () => {
                                     type="button"
                                     disabled={linkMutation.isPending || m.alreadyLinked}
                                     onClick={() => linkMutation.mutate(m.candidateId)}
-                                    className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 disabled:opacity-50"
+                                    className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50"
                                 >
                                     {m.alreadyLinked ? 'Linked' : 'Link to requirement'}
                                 </button>

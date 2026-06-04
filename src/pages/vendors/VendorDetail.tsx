@@ -1,21 +1,59 @@
-import React, { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { AnimatedTabNav } from '../../components/motion/AnimatedTabNav'
+import { TabContent } from '../../components/motion/TabContent'
 import { api } from '../../services/api'
 import { useToastStore } from '../../store/toastStore'
 import { ApiError } from '../../lib/apiClient'
-import clsx from 'clsx'
 import type { VendorStatus } from '../../types'
+import { useAuth } from '../../hooks/useAuth'
+import {
+  sanitizeVendorProfileTab,
+  VENDOR_PROFILE_TABS,
+  type VendorProfileTab,
+} from '../../lib/vendorProfilePage'
+import { VendorProfileHeader } from '../../components/vendors/profile/VendorProfileHeader'
+import { VendorProfileOverview } from '../../components/vendors/profile/VendorProfileOverview'
+import { VendorProfileJobs } from '../../components/vendors/profile/VendorProfileJobs'
+import { VendorProfileUsers } from '../../components/vendors/profile/VendorProfileUsers'
+import { VendorProfileSubmissions } from '../../components/vendors/profile/VendorProfileSubmissions'
+import { VendorProfileSidebar } from '../../components/vendors/profile/VendorProfileSidebar'
 
 const VendorDetail = () => {
   const { id } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const { addToast } = useToastStore()
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteName, setInviteName] = useState('')
+  const { user } = useAuth()
+
+  const tabFromUrl = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<VendorProfileTab>(
+    sanitizeVendorProfileTab(tabFromUrl)
+  )
+
+  useEffect(() => {
+    setActiveTab(sanitizeVendorProfileTab(searchParams.get('tab')))
+  }, [searchParams])
+
+  const setTab = (tab: VendorProfileTab) => {
+    setActiveTab(tab)
+    setSearchParams(tab === 'overview' ? {} : { tab }, { replace: true })
+  }
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editCode, setEditCode] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editWebsite, setEditWebsite] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [editContactName, setEditContactName] = useState('')
+  const [editNotes, setEditNotes] = useState('')
   const [selectedJobs, setSelectedJobs] = useState<string[]>([])
 
-  const { data: vendor, isLoading } = useQuery({
+  const { data: vendor, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor', id],
     queryFn: () => api.vendors.get(id!),
     enabled: !!id,
@@ -27,7 +65,28 @@ const VendorDetail = () => {
   })
 
   const liveJobs = requirements.filter((r) => r.status === 'LIVE')
-  const assignedIds = new Set(vendor?.assignments.map((a) => a.requirementId) ?? [])
+
+  const canEdit =
+    user?.role === 'ADMIN' ||
+    user?.role === 'HR_HEAD' ||
+    user?.role === 'HR_MANAGER' ||
+    user?.role === 'RECRUITER'
+
+  const syncEditFields = () => {
+    if (!vendor) return
+    setEditName(vendor.name)
+    setEditCode(vendor.code ?? '')
+    setEditEmail(vendor.email)
+    setEditPhone(vendor.phone ?? '')
+    setEditWebsite(vendor.website ?? '')
+    setEditAddress(vendor.address ?? '')
+    setEditContactName(vendor.contactName ?? '')
+    setEditNotes(vendor.notes ?? '')
+  }
+
+  useEffect(() => {
+    if (vendor && !isEditing) syncEditFields()
+  }, [vendor, isEditing])
 
   const statusMutation = useMutation({
     mutationFn: (status: VendorStatus) => api.vendors.update(id!, { status }),
@@ -60,14 +119,8 @@ const VendorDetail = () => {
   })
 
   const inviteMutation = useMutation({
-    mutationFn: () =>
-      api.vendors.inviteUser(id!, {
-        email: inviteEmail,
-        name: inviteName || undefined,
-      }),
+    mutationFn: (data: { email: string; name?: string }) => api.vendors.inviteUser(id!, data),
     onSuccess: (res) => {
-      setInviteEmail('')
-      setInviteName('')
       queryClient.invalidateQueries({ queryKey: ['vendor', id] })
       addToast('User invited', 'success')
       if (res.temporaryPassword) {
@@ -78,183 +131,209 @@ const VendorDetail = () => {
       addToast(err instanceof ApiError ? err.message : 'Invite failed', 'error'),
   })
 
-  if (isLoading) return <div className="p-12 text-center">Loading...</div>
-  if (!vendor) return <div className="p-12 text-center">Vendor not found</div>
+  const startEditing = () => {
+    syncEditFields()
+    setActiveTab('overview')
+    setTab('overview')
+    setIsEditing(true)
+  }
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex items-center gap-4">
-        <Link to="/vendors" className="p-2 hover:bg-primary/5 rounded-full">
-          <span className="material-symbols-outlined">arrow_back</span>
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-black text-primary dark:text-white">{vendor.name}</h1>
-          <p className="text-sm text-primary/60">
-            {vendor.code && `${vendor.code} · `}
-            {vendor.email}
-          </p>
-        </div>
-        <select
-          value={vendor.status}
-          onChange={(e) => statusMutation.mutate(e.target.value as VendorStatus)}
-          className="px-3 py-2 rounded-lg border border-primary/10 text-sm font-bold"
-        >
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="INACTIVE">INACTIVE</option>
-          <option value="SUSPENDED">SUSPENDED</option>
-        </select>
+  const cancelEditing = () => {
+    syncEditFields()
+    setIsEditing(false)
+  }
+
+  const handleSave = async () => {
+    if (!vendor) return
+    if (!editName.trim()) {
+      addToast('Vendor name is required', 'error')
+      return
+    }
+    if (!editEmail.trim()) {
+      addToast('Email is required', 'error')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await api.vendors.update(vendor.id, {
+        name: editName.trim(),
+        code: editCode.trim() || null,
+        email: editEmail.trim(),
+        phone: editPhone.trim() || null,
+        website: editWebsite.trim() || null,
+        address: editAddress.trim() || null,
+        contactName: editContactName.trim() || null,
+        notes: editNotes.trim() || null,
+      })
+      addToast('Vendor updated', 'success')
+      await queryClient.invalidateQueries({ queryKey: ['vendor', id] })
+      await queryClient.invalidateQueries({ queryKey: ['vendors'] })
+      setIsEditing(false)
+    } catch (err) {
+      addToast(err instanceof ApiError ? err.message : 'Failed to update vendor', 'error')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto py-24 text-center text-muted-foreground font-medium animate-pulse">
+        Loading vendor profile…
       </div>
+    )
+  }
 
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Portal users', value: vendor.users.length },
-          { label: 'Assigned jobs', value: vendor.assignments.length },
-          { label: 'Submissions', value: vendor.submissions.length },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white dark:bg-white/5 p-4 rounded-xl border border-primary/10 text-center"
-          >
-            <p className="text-2xl font-black text-primary dark:text-white">{s.value}</p>
-            <p className="text-xs font-bold text-primary/50 uppercase">{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-primary/10 space-y-4">
-        <h2 className="font-bold text-lg">Assign LIVE jobs</h2>
-        <div className="max-h-48 overflow-y-auto space-y-2 border border-primary/10 rounded-xl p-3">
-          {liveJobs
-            .filter((j) => !assignedIds.has(j.id))
-            .map((j) => (
-              <label key={j.id} className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedJobs.includes(j.id)}
-                  onChange={(e) =>
-                    setSelectedJobs((prev) =>
-                      e.target.checked ? [...prev, j.id] : prev.filter((x) => x !== j.id)
-                    )
-                  }
-                />
-                <span>
-                  {j.title} <span className="text-primary/40">({j.jobCode ?? j.id.slice(-6)})</span>
-                </span>
-              </label>
-            ))}
-          {liveJobs.filter((j) => !assignedIds.has(j.id)).length === 0 && (
-            <p className="text-sm text-primary/40">All LIVE jobs already assigned or none available.</p>
-          )}
-        </div>
-        <button
-          type="button"
-          disabled={selectedJobs.length === 0 || assignMutation.isPending}
-          onClick={() => assignMutation.mutate()}
-          className="px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50"
-        >
-          Assign selected
-        </button>
-
-        {vendor.assignments.length > 0 && (
-          <ul className="divide-y divide-primary/5 mt-4">
-            {vendor.assignments.map((a) => (
-              <li key={a.id} className="py-3 flex justify-between items-center gap-4">
-                <div>
-                  <p className="font-bold text-sm">{a.title}</p>
-                  <p className="text-xs text-primary/50">
-                    {a.jobCode} · {a.status}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => unassignMutation.mutate(a.requirementId)}
-                  className="text-xs font-bold text-red-600 hover:underline"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-primary/10 space-y-4">
-        <h2 className="font-bold text-lg">Portal users</h2>
-        <ul className="space-y-2">
-          {vendor.users.map((u) => (
-            <li
-              key={u.uid}
-              className="flex justify-between items-center py-2 border-b border-primary/5 last:border-0"
-            >
-              <div>
-                <p className="font-bold text-sm">{u.name}</p>
-                <p className="text-xs text-primary/50">{u.email}</p>
-              </div>
-              <span
-                className={clsx(
-                  'text-[10px] font-bold uppercase px-2 py-0.5 rounded',
-                  u.status === 'DISABLED' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
-                )}
-              >
-                {u.status ?? 'ACTIVE'}
-              </span>
-            </li>
-          ))}
-          {vendor.users.length === 0 && (
-            <p className="text-sm text-primary/40">No portal users yet.</p>
-          )}
-        </ul>
-        <div className="flex flex-wrap gap-2 pt-2">
-          <input
-            className="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-primary/10 text-sm"
-            placeholder="Email"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-          />
-          <input
-            className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-primary/10 text-sm"
-            placeholder="Name (optional)"
-            value={inviteName}
-            onChange={(e) => setInviteName(e.target.value)}
-          />
+  if (isError || !vendor) {
+    return (
+      <div className="max-w-7xl mx-auto py-16 text-center space-y-4">
+        <p className="text-primary dark:text-white font-bold">
+          {error instanceof ApiError ? error.message : 'Vendor not found'}
+        </p>
+        <div className="flex gap-3 justify-center">
           <button
             type="button"
-            onClick={() => inviteMutation.mutate()}
-            disabled={!inviteEmail || inviteMutation.isPending}
-            className="px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50"
+            onClick={() => refetch()}
+            className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
           >
-            Invite user
+            Retry
           </button>
         </div>
-      </section>
+      </div>
+    )
+  }
 
-      <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-primary/10">
-        <h2 className="font-bold text-lg mb-4">Recent submissions</h2>
-        {vendor.submissions.length === 0 ? (
-          <p className="text-sm text-primary/40">No candidates submitted yet.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs font-bold text-primary/50 uppercase">
-                <th className="pb-2">Candidate</th>
-                <th className="pb-2">Job</th>
-                <th className="pb-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vendor.submissions.map((s) => (
-                <tr key={s.id} className="border-t border-primary/5">
-                  <td className="py-2 font-medium">{s.name}</td>
-                  <td className="py-2 text-primary/60">{s.jobTitle ?? '—'}</td>
-                  <td className="py-2">
-                    <span className="text-[10px] font-bold uppercase">{s.status}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+  const displayName = isEditing ? editName || vendor.name : vendor.name
+
+  return (
+    <div className="max-w-7xl mx-auto w-full space-y-6 pb-12 animate-in fade-in duration-500">
+      <VendorProfileHeader
+        vendor={vendor}
+        displayName={displayName}
+        isEditing={isEditing}
+        editName={editName}
+        editCode={editCode}
+        editEmail={editEmail}
+        setEditName={setEditName}
+        setEditCode={setEditCode}
+        setEditEmail={setEditEmail}
+        canEdit={canEdit}
+        isSaving={isSaving}
+        statusPending={statusMutation.isPending}
+        onStartEdit={startEditing}
+        onCancelEdit={cancelEditing}
+        onSave={handleSave}
+        onStatusChange={(status) => statusMutation.mutate(status)}
+      />
+
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        <div className="flex-1 min-w-0 space-y-4">
+          <AnimatedTabNav
+            layoutId="vendor-profile-tabs"
+            variant="pill"
+            className="overflow-x-auto custom-scrollbar"
+            aria-label="Vendor profile sections"
+            tabs={VENDOR_PROFILE_TABS.map((tab) => ({
+              id: tab.id,
+              label: (
+                <>
+                  {tab.label}
+                  {tab.id === 'jobs' && vendor.assignments.length > 0 && (
+                    <span className="ml-1.5 text-[10px] tabular-nums opacity-80">
+                      ({vendor.assignments.length})
+                    </span>
+                  )}
+                  {tab.id === 'users' && vendor.users.length > 0 && (
+                    <span className="ml-1.5 text-[10px] tabular-nums opacity-80">
+                      ({vendor.users.length})
+                    </span>
+                  )}
+                  {tab.id === 'submissions' && vendor.submissions.length > 0 && (
+                    <span className="ml-1.5 text-[10px] tabular-nums opacity-80">
+                      ({vendor.submissions.length})
+                    </span>
+                  )}
+                </>
+              ),
+            }))}
+            activeId={activeTab}
+            onChange={(id) => setTab(id as VendorProfileTab)}
+          />
+
+          <div className="app-card p-5 md:p-6 min-h-[320px] shadow-sm">
+            <TabContent activeKey={activeTab + (isEditing ? '-edit' : '')}>
+                {isEditing && activeTab !== 'overview' && (
+                  <div className="mb-4 p-4 rounded-xl border border-amber-200/60 dark:border-amber-500/30 bg-amber-500/10 text-sm font-medium text-amber-900 dark:text-amber-200">
+                    Company details are edited on the{' '}
+                    <button
+                      type="button"
+                      onClick={() => setTab('overview')}
+                      className="font-bold underline"
+                    >
+                      Overview
+                    </button>{' '}
+                    tab. Save changes from the header when finished.
+                  </div>
+                )}
+
+                {activeTab === 'overview' && (
+                  <VendorProfileOverview
+                    vendor={vendor}
+                    isEditing={isEditing}
+                    editPhone={editPhone}
+                    editWebsite={editWebsite}
+                    editAddress={editAddress}
+                    editContactName={editContactName}
+                    editNotes={editNotes}
+                    setEditPhone={setEditPhone}
+                    setEditWebsite={setEditWebsite}
+                    setEditAddress={setEditAddress}
+                    setEditContactName={setEditContactName}
+                    setEditNotes={setEditNotes}
+                  />
+                )}
+                {activeTab === 'jobs' && canEdit && (
+                  <VendorProfileJobs
+                    vendor={vendor}
+                    liveJobs={liveJobs}
+                    selectedJobs={selectedJobs}
+                    setSelectedJobs={setSelectedJobs}
+                    onAssign={() => assignMutation.mutate()}
+                    onUnassign={(reqId) => unassignMutation.mutate(reqId)}
+                    assignPending={assignMutation.isPending}
+                    unassignPending={unassignMutation.isPending}
+                  />
+                )}
+                {activeTab === 'jobs' && !canEdit && (
+                  <p className="text-sm text-primary/50 dark:text-white/50">
+                    You do not have permission to manage job assignments.
+                  </p>
+                )}
+                {activeTab === 'users' && canEdit && (
+                  <VendorProfileUsers
+                    vendor={vendor}
+                    onInvite={(data) => inviteMutation.mutate(data)}
+                    invitePending={inviteMutation.isPending}
+                  />
+                )}
+                {activeTab === 'users' && !canEdit && (
+                  <p className="text-sm text-primary/50 dark:text-white/50">
+                    You do not have permission to invite portal users.
+                  </p>
+                )}
+                {activeTab === 'submissions' && <VendorProfileSubmissions vendor={vendor} />}
+            </TabContent>
+          </div>
+        </div>
+
+        <VendorProfileSidebar
+          vendor={vendor}
+          onOpenJobsTab={() => setTab('jobs')}
+          onOpenUsersTab={() => setTab('users')}
+          onOpenSubmissionsTab={() => setTab('submissions')}
+        />
+      </div>
     </div>
   )
 }

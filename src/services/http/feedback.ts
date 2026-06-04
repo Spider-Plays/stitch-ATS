@@ -13,6 +13,8 @@ export const feedbackService = {
   create: (data: Omit<Feedback, 'id' | 'createdAt' | 'interviewerName'>) =>
     apiRequest<Feedback>('/feedback', { method: 'POST', body: JSON.stringify(data) }),
 
+  remove: (id: string) => apiRequest<void>(`/feedback/${id}`, { method: 'DELETE' }),
+
   downloadHtml: async (id: string, filename: string): Promise<void> => {
     const token = getToken()
     const headers: Record<string, string> = {}

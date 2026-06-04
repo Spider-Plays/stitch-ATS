@@ -68,7 +68,19 @@ export function interviewDisplayStatusClass(label: InterviewDisplayLabel): strin
   }
 }
 
-export function canEditInterview(interview: Interview, role?: string | null): boolean {
-  if (role === 'ADMIN') return interview.status !== 'CANCELLED'
-  return interview.status !== 'CANCELLED' && !interview.hasFeedback
+/** Interview has a final feedback outcome (selected, on hold, rejected). */
+export function isInterviewDecided(interview: Interview): boolean {
+  if (interview.status === 'CANCELLED') return false
+  const label = getInterviewDisplayLabel(interview)
+  return ['Selected', 'On Hold', 'Rejected'].includes(label)
+}
+
+export function canViewInterviewFeedback(interview: Interview): boolean {
+  return interview.status !== 'CANCELLED' && !!interview.hasFeedback
+}
+
+export function canEditInterview(interview: Interview, _role?: string | null): boolean {
+  if (interview.status === 'CANCELLED') return false
+  if (interview.hasFeedback || isInterviewDecided(interview)) return false
+  return true
 }

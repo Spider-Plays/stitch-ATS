@@ -1,5 +1,6 @@
-import { apiRequest } from '../../lib/apiClient'
+import { apiRequest, uploadFormData } from '../../lib/apiClient'
 import type { Candidate, Vendor } from '../../types'
+import type { CandidateEmailCheck, ParsedResumeFields } from './candidates'
 
 export type VendorPortalPosition = {
   id: string
@@ -35,10 +36,10 @@ export type VendorPortalMe = {
 }
 
 export type VendorSubmitPayload = {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   phone: string
-  role: string
   location: string
   pan: string
   totalExperience: string
@@ -48,6 +49,8 @@ export type VendorSubmitPayload = {
   noticePeriod: string
   linkedIn?: string
   portfolio?: string
+  primarySkills: string[]
+  secondarySkills?: string[]
 }
 
 export const vendorPortalService = {
@@ -55,9 +58,30 @@ export const vendorPortalService = {
   getPositions: () => apiRequest<VendorPortalPosition[]>('/vendor-portal/positions'),
   getPosition: (id: string) => apiRequest<VendorPortalPosition>(`/vendor-portal/positions/${id}`),
   getSubmissions: () => apiRequest<Candidate[]>('/vendor-portal/submissions'),
+
+  parseResume: (file: File) => {
+    const formData = new FormData()
+    formData.append('resume', file)
+    return uploadFormData<{ fields: ParsedResumeFields }>(
+      '/vendor-portal/parse-resume',
+      formData
+    )
+  },
+
+  checkEmail: (email: string) =>
+    apiRequest<CandidateEmailCheck>(
+      `/vendor-portal/check-email?email=${encodeURIComponent(email.trim())}`
+    ),
+
   submitCandidate: (requirementId: string, data: VendorSubmitPayload) =>
     apiRequest<Candidate>(`/vendor-portal/positions/${requirementId}/submit`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  uploadResume: (candidateId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('resume', file)
+    return uploadFormData<Candidate>(`/vendor-portal/submissions/${candidateId}/resume`, formData)
+  },
 }

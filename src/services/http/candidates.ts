@@ -1,5 +1,9 @@
 import { apiRequest, fetchResumeBlob, uploadFormData } from '../../lib/apiClient'
 import { Candidate } from '../../types'
+import type {
+  HiredMilestoneInput,
+  OfferMilestoneInput,
+} from '../../lib/candidateMilestones'
 
 export type CandidateEmailCheck = {
   exists: boolean
@@ -49,10 +53,14 @@ export const candidateService = {
   update: (id: string, data: Partial<Candidate>) =>
     apiRequest<Candidate>(`/candidates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
-  updateStatus: (id: string, status: Candidate['status']) =>
+  updateStatus: (
+    id: string,
+    status: Candidate['status'],
+    milestone?: OfferMilestoneInput | HiredMilestoneInput
+  ) =>
     apiRequest<Candidate>(`/candidates/${id}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...(milestone ? { milestone } : {}) }),
     }),
 
   uploadResume: (id: string, file: File) => {

@@ -62,8 +62,48 @@ export type PortalApplyResult = {
   candidate: Candidate
 }
 
+export type PortalJobStatus = 'ACTIVE' | 'CLOSED'
+
+export type PortalApplication = {
+  requirementId: string
+  jobCode: string
+  title: string
+  department: string
+  client?: string
+  location?: string
+  description?: string
+  requirementStatus: string
+  pipelineStatus: string
+  portalJobStatus: PortalJobStatus
+  closedReason?: string
+  matchScore: number
+  appliedAt: string
+  isCurrent: boolean
+  listedOnPortal: boolean
+}
+
+export type PortalApplicationUpdate = {
+  id: string
+  action: string
+  title: string
+  summary: string
+  at: string
+  performerName?: string
+}
+
+export type PortalApplicationDetail = {
+  application: PortalApplication
+  interviews: Interview[]
+  offers: Offer[]
+  updates: PortalApplicationUpdate[]
+}
+
 export const portalService = {
   getMe: () => apiRequest<PortalData>('/portal/me'),
+  getApplications: () =>
+    apiRequest<{ applications: PortalApplication[] }>('/portal/applications'),
+  getApplication: (requirementId: string) =>
+    apiRequest<PortalApplicationDetail>(`/portal/applications/${requirementId}`),
   saveProfile: (data: PortalProfileInput) =>
     apiRequest<PortalProfileResult>('/portal/profile', {
       method: 'PUT',

@@ -16,6 +16,7 @@ import {
 } from '../lib/resumeParse.js'
 import { computeMatchScore } from '../lib/profileMatching.js'
 import { findCandidateByEmail } from '../lib/candidateDuplicate.js'
+import { ensureInterviewPlan } from '../lib/interviewPlan.js'
 
 const FRESH = process.argv.includes('--fresh')
 
@@ -26,6 +27,7 @@ async function clearHiringData() {
     prisma.feedback.deleteMany(),
     prisma.offer.deleteMany(),
     prisma.interview.deleteMany(),
+    prisma.interviewPlan.deleteMany(),
     prisma.candidate.deleteMany(),
     prisma.vendorRequirement.deleteMany(),
     prisma.requirement.deleteMany(),
@@ -256,6 +258,7 @@ async function main() {
       },
     })
     reqByCode.set(r.jobCode, { id: row.id, title: row.title })
+    await ensureInterviewPlan(row.id)
 
     if (r.visibleToVendors) {
       await prisma.vendorRequirement.upsert({
@@ -425,15 +428,19 @@ async function main() {
       where: { candidateId: c.id },
     })
     if (existing) continue
+    const plan = await ensureInterviewPlan(c.requirementId!)
+    const firstStage = plan.stages[0]
+    if (!firstStage) continue
     await prisma.interview.create({
       data: {
         candidateId: c.id,
         requirementId: c.requirementId!,
+        planStageId: firstStage.id,
         scheduledAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         interviewerIds: JSON.stringify([interviewerId]),
-        type: 'Technical',
+        type: firstStage.interviewType,
         status: 'SCHEDULED',
-        duration: 60,
+        duration: firstStage.defaultDuration,
         meetingLink: 'https://meet.example.com/demo-interview',
       },
     })

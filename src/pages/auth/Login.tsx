@@ -1,18 +1,17 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { APP_NAME } from '../../config/branding'
 import { AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { authApi } from '../../services/http/auth'
 import { ApiError } from '../../lib/apiClient'
 import { firstAllowedPath, PageKey } from '../../lib/pageAccess'
 import { DevQuickLogin } from '../../dev/DevQuickLogin'
-
+import { LoginHero, LoginHeroMobile } from '../../components/auth/LoginHero'
 const Login = () => {
     const navigate = useNavigate()
     const location = useLocation()
-    const { login, user, allowedPages } = useAuth()
+    const { login, logout, user, allowedPages } = useAuth()
     const [loading, setLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
     const [showPassword, setShowPassword] = useState(false)
@@ -26,7 +25,8 @@ const Login = () => {
     const { register, handleSubmit } = useForm<{ email: string; password: string }>()
 
     const redirectByRole = (role: string, allowedPages: PageKey[] = []) => {
-        if (role === 'CANDIDATE') navigate('/portal/profile')
+        if (role === 'CANDIDATE') navigate('/portal/dashboard')
+        else if (role === 'EMPLOYEE') navigate('/referral-portal/dashboard')
         else if (role === 'VENDOR') navigate('/vendor-portal/dashboard')
         else if (allowedPages.length > 0) navigate(firstAllowedPath(allowedPages), { replace: true })
         else if (role === 'ADMIN') navigate('/admin')
@@ -39,6 +39,16 @@ const Login = () => {
 
         try {
             const session = await login(data.email, data.password)
+            if (session.user.role === 'CANDIDATE') {
+                await logout()
+                setAuthError('Use the candidate portal to sign in.')
+                return
+            }
+            if (session.user.role === 'EMPLOYEE') {
+                await logout()
+                setAuthError('Use the employee referral portal to sign in.')
+                return
+            }
             redirectByRole(session.user.role, session.allowedPages)
         } catch (err: unknown) {
             console.error(err)
@@ -65,52 +75,50 @@ const Login = () => {
     }, [location.search])
 
     React.useEffect(() => {
-        if (user) redirectByRole(user.role || 'CANDIDATE', allowedPages)
+        if (!user?.role) return
+        redirectByRole(user.role, allowedPages)
     }, [user, allowedPages])
 
+    const pageTitle =
+        mode === 'forgot' ? 'Reset password' : mode === 'reset' ? 'Set new password' : 'Welcome back'
+    const pageDesc =
+        mode === 'forgot'
+            ? 'Enter your email and we will send a reset link.'
+            : mode === 'reset'
+              ? 'Choose a new password for your account.'
+              : 'Sign in to your hiring workspace.'
+
     return (
-        <div className="min-h-screen flex bg-background-light dark:bg-background-dark">
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary text-white p-12 flex-col justify-between">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=2029&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/95 to-primary/80"></div>
+        <div className="min-h-screen flex login-page-bg">
+            <LoginHero />
 
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="size-10 bg-white rounded-xl flex items-center justify-center">
-                            <span className="material-symbols-outlined text-primary !text-2xl">grid_view</span>
-                        </div>
-                        <span className="text-2xl font-black tracking-tight">{APP_NAME}</span>
-                    </div>
-                </div>
+            <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-10 lg:p-12">
+                <div className="w-full max-w-[26rem] space-y-6 animate-scale-in">
+                    <LoginHeroMobile />
 
-                <div className="relative z-10 max-w-lg">
-                    <h1 className="text-5xl font-black mb-6 tracking-tight">Recruit top talent at warp speed.</h1>
-                    <p className="text-white/80 text-lg font-medium leading-relaxed">
-                        The all-in-one platform for modern recruiting teams. Streamline your entire hiring pipeline from sourcing to offer letter.
-                    </p>
-                </div>
-
-                <div className="relative z-10 flex gap-4 text-sm font-medium text-white/60">
-                    <span>© 2024 {APP_NAME}</span>
-                    <span>Privacy Policy</span>
-                    <span>Terms of Service</span>
-                </div>
-            </div>
-
-            <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white dark:bg-background-dark">
-                <div className="w-full max-w-md space-y-8">
-                    <div className="text-center lg:text-left">
-                        <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-                            <div className="size-12 bg-primary rounded-xl flex items-center justify-center">
-                                <span className="material-symbols-outlined text-white !text-2xl">grid_view</span>
-                            </div>
-                            <span className="text-2xl font-black text-primary dark:text-white tracking-tight">{APP_NAME}</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-primary dark:text-white tracking-tight">Welcome back</h2>
-                        <p className="mt-2 text-primary/60 dark:text-white/60 font-medium">Please enter your details to sign in.</p>
+                    <div className="login-panel-accent space-y-8">
+                    <div className="text-center lg:text-left space-y-3">
+                        {mode === 'login' && (
+                            <span className="badge-eyebrow mx-auto lg:mx-0 w-fit">Team sign in</span>
+                        )}
+                        <h2 className="text-page-title">{pageTitle}</h2>
+                        <p className="text-page-desc mx-auto lg:mx-0">{pageDesc}</p>
                     </div>
 
                     <div className="space-y-6">
+                        {(mode === 'forgot' || mode === 'reset') && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMode('login')
+                                    setAuthError(null)
+                                    setInfoMessage(null)
+                                }}
+                                className="text-sm font-bold text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white"
+                            >
+                                Back to sign in
+                            </button>
+                        )}
                         {authError && (
                             <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-400 text-sm animate-in fade-in slide-in-from-top-2">
                                 <AlertCircle size={18} className="shrink-0" />
@@ -149,11 +157,11 @@ const Login = () => {
                                         required
                                         value={forgotEmail}
                                         onChange={(e) => setForgotEmail(e.target.value)}
-                                        className="w-full px-4 py-3.5 rounded-xl border border-primary/10 font-medium"
+                                        className="app-input w-full"
                                         placeholder="you@company.com"
                                     />
                                 </div>
-                                <button type="submit" disabled={loading} className="w-full py-4 bg-primary text-white rounded-xl font-bold text-sm">
+                                <button type="submit" disabled={loading} className="w-full py-4 btn-primary rounded-xl text-sm">
                                     Send reset link
                                 </button>
                                 <button type="button" onClick={() => setMode('login')} className="w-full text-sm font-bold text-primary/60">
@@ -188,10 +196,10 @@ const Login = () => {
                                         minLength={8}
                                         value={resetPassword}
                                         onChange={(e) => setResetPassword(e.target.value)}
-                                        className="w-full px-4 py-3.5 rounded-xl border border-primary/10 font-medium"
+                                        className="app-input w-full"
                                     />
                                 </div>
-                                <button type="submit" disabled={loading} className="w-full py-4 bg-primary text-white rounded-xl font-bold text-sm">
+                                <button type="submit" disabled={loading} className="w-full py-4 btn-primary rounded-xl text-sm">
                                     Set new password
                                 </button>
                                 <button type="button" onClick={() => setMode('login')} className="w-full text-sm font-bold text-primary/60">
@@ -205,10 +213,10 @@ const Login = () => {
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Email Address</label>
                                 <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40">mail</span>
+                                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">mail</span>
                                     <input
                                         type="email"
-                                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/30"
+                                        className="app-input app-input-leading-icon w-full !py-3.5 focus:border-primary dark:focus:border-ring focus:ring-0"
                                         placeholder="you@company.com"
                                         {...register('email')}
                                     />
@@ -216,12 +224,27 @@ const Login = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Password</label>
+                                <div className="flex items-center justify-between gap-2">
+                                    <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
+                                        Password
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setMode('forgot')
+                                            setAuthError(null)
+                                            setInfoMessage(null)
+                                        }}
+                                        className="text-xs font-bold text-primary hover:underline"
+                                    >
+                                        Forgot password?
+                                    </button>
+                                </div>
                                 <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40">lock</span>
+                                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">lock</span>
                                     <input
                                         type={showPassword ? 'text' : 'password'}
-                                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/30"
+                                        className="app-input app-input-leading-icon w-full !pr-12 focus:!pr-12 !py-3.5 focus:border-primary dark:focus:border-ring focus:ring-0"
                                         placeholder="••••••••"
                                         {...register('password')}
                                     />
@@ -230,7 +253,7 @@ const Login = () => {
                                         className="absolute inset-y-0 right-0 flex items-center pr-3"
                                         onClick={() => setShowPassword(!showPassword)}
                                     >
-                                        <span className="material-symbols-outlined text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white">
+                                        <span className="material-symbols-outlined text-muted-foreground hover:text-primary dark:hover:text-white">
                                             {showPassword ? 'visibility_off' : 'visibility'}
                                         </span>
                                     </button>
@@ -240,7 +263,7 @@ const Login = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-4 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-xl shadow-primary/20 dark:shadow-none flex items-center justify-center gap-2"
+                                className="w-full py-4 btn-primary rounded-xl text-sm flex items-center justify-center gap-2"
                             >
                                 {loading ? (
                                     <span className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
@@ -254,27 +277,44 @@ const Login = () => {
                         </form>
                         )}
 
-                        {mode === 'login' && (
-                            <button
-                                type="button"
-                                onClick={() => { setMode('forgot'); setAuthError(null); setInfoMessage(null) }}
-                                className="w-full text-sm font-bold text-primary/60 hover:text-primary"
-                            >
-                                Forgot password?
-                            </button>
-                        )}
-
                         {mode === 'login' && import.meta.env.DEV && (
                             <DevQuickLogin
                                 onError={(msg) => {
                                     setAuthError(msg || null)
                                     setInfoMessage(null)
                                 }}
+                                onLoggedIn={(session) =>
+                                    redirectByRole(session.user.role, session.allowedPages)
+                                }
                             />
                         )}
 
-                    </div>
+                        {mode === 'login' && (
+                            <div className="pt-6 border-t border-primary/10 dark:border-white/10 text-center space-y-3">
+                                <p className="text-sm font-medium text-primary/60 dark:text-white/60">
+                                    Other portals
+                                </p>
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                                    <Link
+                                        to="/portal/login"
+                                        className="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                                    >
+                                        Candidate portal
+                                        <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                                    </Link>
+                                    <Link
+                                        to="/referral-portal/login"
+                                        className="inline-flex items-center gap-2 text-sm font-bold text-violet-700 dark:text-violet-400 hover:underline"
+                                    >
+                                        Employee referrals
+                                        <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
 
+                    </div>
+                    </div>
                 </div>
             </div>
         </div>

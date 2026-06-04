@@ -12,14 +12,14 @@
     "start": "node dist/index.js",
     "start:deploy": "npm run db:push && npm start",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push",
+    "db:push": "prisma db push && prisma generate",
     "db:seed": "tsx src/seed.ts",
     "db:seed-vendors": "tsx src/scripts/seed-vendors.ts",
     "db:seed-demo": "tsx src/scripts/seed-demo-data.ts --fresh",
     "db:clear": "tsx src/scripts/clear-db.ts",
     "db:bootstrap": "tsx src/scripts/bootstrap-admin.ts",
     "db:verify": "tsx src/scripts/verify-db.ts",
-    "db:setup": "prisma db push"
+    "db:setup": "prisma db push && prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

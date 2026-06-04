@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Search } from 'lucide-react'
+import React, { useId, useMemo, useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
+import type { AppSelectOption } from './select/types'
+import { SelectMenu } from './select/SelectMenu'
+import { useSelectMenuPortal } from './select/useSelectMenuPortal'
 
-export type SelectOption = {
-  value: string
-  label: string
-  sublabel?: string
-}
+export type SelectOption = AppSelectOption
 
 type SearchableSelectProps = {
   value: string
@@ -20,6 +19,7 @@ type SearchableSelectProps = {
   icon?: React.ReactNode
   disabled?: boolean
   className?: string
+  size?: 'sm' | 'md'
 }
 
 export function SearchableSelect({
@@ -34,10 +34,19 @@ export function SearchableSelect({
   icon,
   disabled = false,
   className,
+  size = 'md',
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuId = useId().replace(/:/g, '')
+
+  const close = () => {
+    setOpen(false)
+    setQuery('')
+  }
+
+  const { anchor } = useSelectMenuPortal(open, triggerRef, menuId, close)
 
   const selected = options.find((o) => o.value === value)
 
@@ -51,48 +60,64 @@ export function SearchableSelect({
     )
   }, [options, query])
 
-  useEffect(() => {
-    const onPointerDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        setQuery('')
-      }
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [])
-
   const pick = (next: string) => {
     onChange(next)
-    setOpen(false)
-    setQuery('')
+    close()
   }
 
+  const search = (
+    <div className="app-select-search">
+      <div className="relative">
+        <span
+          className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-lg pointer-events-none z-[1]"
+          aria-hidden
+        >
+          search
+        </span>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={searchPlaceholder}
+          autoFocus
+          className="app-select-search-input"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    </div>
+  )
+
   return (
-    <div ref={rootRef} className={clsx('relative', className)}>
+    <div className={clsx('relative', className)}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         onClick={() => !disabled && setOpen((o) => !o)}
         className={clsx(
-          'w-full flex items-center gap-2 rounded-xl border border-primary/10 dark:border-white/10',
-          'bg-primary/[0.02] dark:bg-white/[0.02] py-3 text-left font-bold text-primary dark:text-white',
-          'focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors',
-          disabled && 'opacity-50 cursor-not-allowed',
-          icon ? 'pl-10 pr-10' : 'pl-4 pr-10'
+          'app-select-trigger app-select-trigger-outlined w-full relative',
+          size === 'sm' && 'app-select-trigger-sm',
+          icon ? 'pl-10' : '',
+          disabled && 'opacity-[0.38] cursor-not-allowed'
         )}
       >
         {icon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/30 pointer-events-none">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
             {icon}
           </span>
         )}
-        <span className={clsx('flex-1 truncate text-sm', !selected && 'text-primary/40 dark:text-white/40 font-medium')}>
+        <span className={clsx('flex-1 truncate text-left', !selected && 'text-muted-foreground font-medium')}>
           {selected ? (
             <>
-              <span className="block truncate">{selected.label}</span>
-              {selected.sublabel && (
-                <span className="block truncate text-[11px] font-medium text-primary/50 dark:text-white/50">
+              {selected.chipClassName ? (
+                <span className={clsx('app-select-chip', selected.chipClassName)}>{selected.label}</span>
+              ) : (
+                <span className="block truncate">{selected.label}</span>
+              )}
+              {selected.sublabel && !selected.chipClassName && (
+                <span className="block truncate text-[11px] font-medium text-muted-foreground">
                   {selected.sublabel}
                 </span>
               )}
@@ -101,74 +126,21 @@ export function SearchableSelect({
             placeholder
           )}
         </span>
-        <ChevronDown
-          size={18}
-          className={clsx(
-            'absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 transition-transform',
-            open && 'rotate-180'
-          )}
-        />
+        <ChevronDown size={size === 'sm' ? 16 : 18} className={clsx('shrink-0 opacity-70', open && 'rotate-180')} />
       </button>
 
-      {open && (
-        <div className="absolute z-50 mt-2 w-full rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-primary/5 dark:border-white/5">
-            <div className="relative">
-              <Search
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-primary/40"
-                size={16}
-                aria-hidden
-              />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={searchPlaceholder}
-                autoFocus
-                className="w-full pl-8 pr-3 py-2 rounded-lg border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] text-sm text-primary dark:text-white outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-          <ul className="max-h-56 overflow-y-auto custom-scrollbar py-1" role="listbox">
-            {allowClear && value && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => pick('')}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-500 hover:bg-primary/5 dark:hover:bg-white/5"
-                >
-                  {clearLabel}
-                </button>
-              </li>
-            )}
-            {filtered.length === 0 ? (
-              <li className="px-3 py-4 text-sm text-slate-500 text-center">{emptyLabel}</li>
-            ) : (
-              filtered.map((o) => (
-                <li key={o.value}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={o.value === value}
-                    onClick={() => pick(o.value)}
-                    className={clsx(
-                      'w-full px-3 py-2.5 text-left hover:bg-primary/5 dark:hover:bg-white/5 transition-colors',
-                      o.value === value && 'bg-primary/10 dark:bg-white/10'
-                    )}
-                  >
-                    <p className="text-sm font-bold text-primary dark:text-white truncate">{o.label}</p>
-                    {o.sublabel && (
-                      <p className="text-[11px] font-medium text-primary/50 dark:text-white/50 truncate">
-                        {o.sublabel}
-                      </p>
-                    )}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
+      <SelectMenu
+        menuId={menuId}
+        anchor={open ? anchor : null}
+        options={filtered}
+        value={value}
+        onSelect={pick}
+        search={search}
+        emptyLabel={emptyLabel}
+        allowClear={allowClear}
+        clearLabel={clearLabel}
+        onClear={() => pick('')}
+      />
     </div>
   )
 }

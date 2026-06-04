@@ -4,12 +4,16 @@ import { useForm, useFieldArray, useFormState, Controller, type Control } from '
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, Printer, ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { Download, Printer, Plus, Trash2 } from 'lucide-react'
+import { useConfirm } from '../../hooks/useConfirm'
+import { isAdminRole } from '../../lib/adminAccess'
+import { ApiError } from '../../lib/apiClient'
 import { api } from '../../services/api'
 import clsx from 'clsx'
 import { useAuth } from '../../hooks/useAuth'
 import { useToastStore } from '../../store/toastStore'
 import { StarRatingDisplay, StarRatingInput } from '../../components/ui/StarRating'
+import { AppSelect } from '../../components/ui/AppSelect'
 import {
   PROFICIENCY_LEVELS,
   RECOMMENDATION_OPTIONS,
@@ -80,21 +84,40 @@ function FieldError({
   return <p className="text-xs text-red-500 mt-1">{message}</p>
 }
 
-function FeedbackReadOnly({ feedback, meta, onDownload, onPrint }: {
+function FeedbackReadOnly({
+  feedback,
+  meta,
+  onDownload,
+  onPrint,
+  onDelete,
+  deletePending,
+}: {
   feedback: Feedback
   meta: { candidateName: string; candidateRole?: string; interviewType: string; interviewDate: string; interviewerName: string }
   onDownload: () => void
   onPrint: () => void
+  onDelete?: () => void
+  deletePending?: boolean
 }) {
   const formData = parseFormData(feedback.formData)
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap gap-3 justify-end">
-        <button type="button" onClick={onPrint} className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-bold hover:bg-slate-50">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deletePending}
+            className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-700 rounded-lg text-sm font-bold hover:bg-red-50 disabled:opacity-50 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
+          >
+            <Trash2 size={16} /> Delete feedback
+          </button>
+        )}
+        <button type="button" onClick={onPrint} className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-bold hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800">
           <Printer size={16} /> Print
         </button>
-        <button type="button" onClick={onDownload} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90">
+        <button type="button" onClick={onDownload} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-bold hover:opacity-90">
           <Download size={16} /> Download
         </button>
       </div>
@@ -178,6 +201,8 @@ const FeedbackForm = () => {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { addToast } = useToastStore()
+  const confirm = useConfirm()
+  const isAdmin = isAdminRole(user?.role)
 
   const { data: interview, isLoading } = useQuery({
     queryKey: ['interview', id],
@@ -198,13 +223,20 @@ const FeedbackForm = () => {
 
   const myFeedback = existingList.find((f) => f.interviewerId === user?.uid)
   const [viewId, setViewId] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (existingList.length > 0 && viewId === null) {
+      setViewId(myFeedback?.id ?? existingList[0].id)
+    }
+  }, [existingList, myFeedback?.id, viewId])
+
   const viewingFeedback = viewId
     ? existingList.find((f) => f.id === viewId)
-    : myFeedback
+    : myFeedback ?? existingList[0]
 
   const defaultForm = useMemo(() => createDefaultFormData(), [])
 
-  const { register, handleSubmit, control } = useForm<FormValues>({
+  const { register, handleSubmit, control, watch, setValue } = useForm<FormValues>({
     resolver: zodResolver(schema),
     mode: 'onSubmit',
     reValidateMode: 'onSubmit',
@@ -265,6 +297,43 @@ const FeedbackForm = () => {
     onError: () => addToast('Failed to submit feedback', 'error'),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (feedbackId: string) => api.feedback.remove(feedbackId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feedback', id] })
+      queryClient.invalidateQueries({ queryKey: ['interviews'] })
+      queryClient.invalidateQueries({ queryKey: ['interview', id] })
+      if (interview?.candidateId) {
+        queryClient.invalidateQueries({
+          queryKey: ['candidate-activity', interview.candidateId],
+        })
+        queryClient.invalidateQueries({
+          queryKey: ['interview-progress', interview.requirementId, interview.candidateId],
+        })
+        queryClient.invalidateQueries({
+          queryKey: ['candidate-interviews', interview.candidateId],
+        })
+      }
+      setViewId(null)
+      addToast('Feedback deleted', 'success')
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof ApiError ? err.message : 'Failed to delete feedback'
+      addToast(msg, 'error')
+    },
+  })
+
+  const handleDeleteFeedback = async (fb: Feedback) => {
+    const ok = await confirm({
+      title: 'Delete feedback',
+      message: `Permanently remove this feedback for ${candidate?.name ?? 'the candidate'}? The interview round will return to awaiting feedback.`,
+      confirmLabel: 'Delete feedback',
+      variant: 'danger',
+    })
+    if (!ok) return
+    deleteMutation.mutate(fb.id)
+  }
+
   const handleDownload = (fb: Feedback) => {
     const name = `Interview_Feedback_${reportMeta.candidateName.replace(/\s+/g, '_')}.html`
     api.feedback.downloadHtml(fb.id, name).catch(() => {
@@ -275,16 +344,13 @@ const FeedbackForm = () => {
   if (isLoading) return <div className="p-8 text-center">Loading interview...</div>
   if (!interview) return <div className="p-8 text-center">Interview not found.</div>
 
-  const showForm = !myFeedback && !viewId
+  const showForm = !viewingFeedback && existingList.length === 0
 
   return (
     <div className="min-h-full -m-6 bg-slate-100 dark:bg-black">
       <div className="max-w-5xl mx-auto p-6 md:p-10 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <Link to="/interviews" className="inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-primary mb-2">
-              <ArrowLeft size={16} /> Back to interviews
-            </Link>
             <h1 className="text-2xl font-black text-slate-900 dark:text-white">Interview Feedback Form</h1>
             <p className="text-sm text-slate-600 mt-1">
               {candidate?.name} · {interview.type} · {new Date(interview.scheduledAt).toLocaleString()}
@@ -302,7 +368,7 @@ const FeedbackForm = () => {
                 className={clsx(
                   'px-3 py-1.5 rounded-lg text-xs font-bold border',
                   (viewId === fb.id || (!viewId && fb.id === myFeedback?.id))
-                    ? 'bg-primary text-white border-primary'
+                    ? 'bg-primary text-primary-foreground border-primary'
                     : 'bg-white border-slate-200 text-slate-700'
                 )}
               >
@@ -327,6 +393,8 @@ const FeedbackForm = () => {
             meta={reportMeta}
             onDownload={() => handleDownload(viewingFeedback)}
             onPrint={() => printFeedbackReport(viewingFeedback, reportMeta)}
+            onDelete={isAdmin ? () => handleDeleteFeedback(viewingFeedback) : undefined}
+            deletePending={deleteMutation.isPending}
           />
         ) : (
           <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-8">
@@ -338,13 +406,12 @@ const FeedbackForm = () => {
                   <label className="block text-xs font-bold uppercase text-slate-500 mb-2">
                     Recommendation
                   </label>
-                  <select className={tableSelect} {...register('recommendation')}>
-                    {RECOMMENDATION_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                  <AppSelect
+                    value={watch('recommendation')}
+                    onChange={(v) => setValue('recommendation', v as FormValues['recommendation'], { shouldValidate: true })}
+                    options={RECOMMENDATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    aria-label="Recommendation"
+                  />
                   <FieldError control={control} name="recommendation" />
                 </div>
                 <div className="md:col-span-2">
@@ -404,28 +471,26 @@ const FeedbackForm = () => {
                           />
                         </td>
                         <td className="p-2 min-w-0">
-                          <select
-                            className={tableSelect}
-                            {...register(`formData.skillAssessment.${index}.expectedProficiency`)}
-                          >
-                            {PROFICIENCY_LEVELS.map((l) => (
-                              <option key={l} value={l}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
+                          <AppSelect
+                            size="sm"
+                            value={watch(`formData.skillAssessment.${index}.expectedProficiency`)}
+                            onChange={(v) =>
+                              setValue(`formData.skillAssessment.${index}.expectedProficiency`, v)
+                            }
+                            options={PROFICIENCY_LEVELS.map((l) => ({ value: l, label: l }))}
+                            aria-label="Expected proficiency"
+                          />
                         </td>
                         <td className="p-2 min-w-0">
-                          <select
-                            className={tableSelect}
-                            {...register(`formData.skillAssessment.${index}.possessProficiency`)}
-                          >
-                            {PROFICIENCY_LEVELS.map((l) => (
-                              <option key={l} value={l}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
+                          <AppSelect
+                            size="sm"
+                            value={watch(`formData.skillAssessment.${index}.possessProficiency`)}
+                            onChange={(v) =>
+                              setValue(`formData.skillAssessment.${index}.possessProficiency`, v)
+                            }
+                            options={PROFICIENCY_LEVELS.map((l) => ({ value: l, label: l }))}
+                            aria-label="Possess proficiency"
+                          />
                         </td>
                         <td className="p-2 min-w-0">
                           <Controller
@@ -522,7 +587,7 @@ const FeedbackForm = () => {
               <button
                 type="submit"
                 disabled={createMutation.isPending}
-                className="px-8 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:opacity-90 disabled:opacity-50"
+                className="px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:opacity-90 disabled:opacity-50"
               >
                 {createMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
               </button>

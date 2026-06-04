@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Briefcase, MapPin, Building2, Hash, Loader2 } from 'lucide-react'
+import { Briefcase, MapPin, Building2, Hash, Loader2 } from 'lucide-react'
 import { api } from '../../services/api'
 import { ApiError } from '../../lib/apiClient'
 import { useToastStore } from '../../store/toastStore'
@@ -26,12 +26,24 @@ const PortalJobDetail = () => {
         queryFn: api.portal.getMe,
     })
 
+    const profileComplete = portalMe?.profileComplete === true
+
     const alreadyOnThisJob =
-        portalMe?.linked &&
+        portalMe?.linked === true &&
         portalMe.candidate.requirementId === id
 
-    const profileComplete = portalMe?.profileComplete === true
-    const alreadyRegistered = portalMe?.linked === true && profileComplete
+    /** Linked to a different requisition — one active application per profile. */
+    const appliedToOtherJob =
+        portalMe?.linked === true &&
+        !!portalMe.candidate.requirementId &&
+        portalMe.candidate.requirementId !== id
+
+    const canApply =
+        profileComplete &&
+        portalMe?.linked === true &&
+        !alreadyOnThisJob &&
+        !appliedToOtherJob &&
+        !applied
 
     const applyMutation = useMutation({
         mutationFn: () => api.portal.applyToPosition(id!),
@@ -44,12 +56,13 @@ const PortalJobDetail = () => {
             } else {
                 addToast('Application submitted successfully', 'success')
             }
-            navigate('/portal/dashboard')
+            queryClient.invalidateQueries({ queryKey: ['portal-applications'] })
+            navigate(`/portal/jobs/applied/${id}`)
         },
         onError: (err: unknown) => {
             if (err instanceof ApiError && err.message.includes('Complete your candidate profile')) {
                 addToast(err.message, 'error')
-                navigate(`/portal/profile?returnTo=${encodeURIComponent(`/portal/jobs/${id}`)}`)
+                navigate(`/portal/onboarding?returnTo=${encodeURIComponent(`/portal/jobs/${id}`)}`)
                 return
             }
             addToast(err instanceof ApiError ? err.message : 'Failed to apply', 'error')
@@ -70,9 +83,6 @@ const PortalJobDetail = () => {
                 <p className="text-red-600 font-medium">
                     {error instanceof ApiError ? error.message : 'Job not found'}
                 </p>
-                <Link to="/portal/dashboard" className="text-primary font-bold text-sm hover:underline inline-flex items-center gap-1">
-                    <ArrowLeft size={16} /> Back to portal
-                </Link>
             </div>
         )
     }
@@ -81,14 +91,7 @@ const PortalJobDetail = () => {
 
     return (
         <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
-            <Link
-                to="/portal/dashboard"
-                className="inline-flex items-center gap-2 text-sm font-bold text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white"
-            >
-                <ArrowLeft size={16} /> Back to open positions
-            </Link>
-
-            <article className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6 md:p-8 shadow-sm space-y-6">
+            <article className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-6">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-primary/50 dark:text-white/50 flex items-center gap-1.5">
                         <Hash size={14} /> Req ID: {job.jobCode}
@@ -140,22 +143,17 @@ const PortalJobDetail = () => {
                 <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                         onClick={() => applyMutation.mutate()}
-                        disabled={
-                            applyMutation.isPending ||
-                            applied ||
-                            alreadyOnThisJob ||
-                            (alreadyRegistered && !alreadyOnThisJob)
-                        }
-                        className={clsx(
-                            (alreadyOnThisJob || alreadyRegistered) && 'opacity-70'
-                        )}
+                        disabled={!canApply || applyMutation.isPending}
+                        className={clsx((!canApply || alreadyOnThisJob) && 'opacity-70')}
                     >
                         {applyMutation.isPending
                             ? 'Submitting…'
                             : alreadyOnThisJob
                               ? 'Already applied'
-                              : alreadyRegistered
-                                ? 'Profile already registered'
+                              : appliedToOtherJob
+                                ? 'Applied to another role'
+                              : !profileComplete
+                                ? 'Complete profile to apply'
                                 : 'Apply for this position'}
                     </Button>
                 </div>
@@ -166,15 +164,19 @@ const PortalJobDetail = () => {
                 )}
                 {!profileComplete && (
                     <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
-                        <Link to={`/portal/profile?returnTo=${encodeURIComponent(`/portal/jobs/${id}`)}`} className="underline font-bold">
+                        <Link to={`/portal/onboarding?returnTo=${encodeURIComponent(`/portal/jobs/${id}`)}`} className="underline font-bold">
                             Complete your profile
                         </Link>{' '}
                         before applying.
                     </p>
                 )}
-                {profileComplete && portalMe?.linked && !alreadyOnThisJob && portalMe.candidate.requirementId && (
+                {appliedToOtherJob && (
                     <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
-                        You are already linked to another application. View your dashboard for status.
+                        You already have an active application for another role.{' '}
+                        <Link to="/portal/dashboard" className="underline font-bold">
+                            View your dashboard
+                        </Link>{' '}
+                        for status.
                     </p>
                 )}
             </article>

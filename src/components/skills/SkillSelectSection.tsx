@@ -109,7 +109,7 @@ export function SkillSelectSection({
         {primaryError && (
           <p className="text-xs font-bold text-red-500">{primaryError}</p>
         )}
-        <p className="text-xs text-primary/40 dark:text-white/40">
+        <p className="text-xs text-muted-foreground">
           Used to match this profile against job requirements.
         </p>
       </div>

@@ -14,7 +14,7 @@ export function EditSkillsModal({ open, onClose, skills }: EditSkillsModalProps)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div
-        className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[85vh] rounded-2xl shadow-xl border border-primary/10 dark:border-white/10 flex flex-col"
+        className="app-modal w-full max-w-lg max-h-[85vh] flex flex-col"
         role="dialog"
         aria-labelledby="edit-skills-title"
       >

@@ -3,24 +3,40 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { User, UserRole } from '../../types';
+import { FEATURE_TAG_DEFINITIONS } from '../../lib/userTags';
 import {
-    Users, Search, Shield,
+    Users, Shield,
     Mail, XCircle, Trash2,
-    Download, UserPlus, Briefcase, Monitor, ChevronLeft, ChevronRight, Building2
+    Download, UserPlus, Briefcase, Monitor, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { ActionsMenu } from '../../components/ui/ActionsMenu';
 import { useToastStore } from '../../store/toastStore';
+import { useConfirm } from '../../hooks/useConfirm';
 import { useAuth } from '../../hooks/useAuth';
 import { ApiError } from '../../lib/apiClient';
 import clsx from 'clsx';
+import { UserAvatar } from '../../components/ui/UserAvatar';
+import { UserStatusToggle } from '../../components/admin/UserStatusToggle';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AppSelect } from '../../components/ui/AppSelect';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { ListSearchBar } from '../../components/ui/ListSearchBar';
+import { heroBtnPrimary, heroBtnSecondary } from '../../components/layout/PageHero';
+import {
+    departmentSelectOptions,
+    INVITE_ROLE_OPTIONS,
+    USER_ROLE_FILTER_OPTIONS,
+    USER_ROLE_OPTIONS,
+    USER_STATUS_FILTER_OPTIONS,
+    toRole,
+} from '../../lib/selectOptions';
 
 const inviteSchema = z.object({
     email: z.string().email('Enter a valid email'),
     name: z.string().optional(),
-    role: z.enum(['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER', 'TEAM_LEAD', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE', 'VENDOR']),
+    role: z.enum(['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER', 'TEAM_LEAD', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE', 'VENDOR', 'EMPLOYEE']),
     department: z.string().max(120).optional(),
 })
 
@@ -31,6 +47,7 @@ const UserManagement = () => {
     const { user: currentUser } = useAuth();
     const queryClient = useQueryClient();
     const { addToast } = useToastStore();
+    const confirm = useConfirm();
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>('ALL');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
@@ -66,9 +83,14 @@ const UserManagement = () => {
     const toggleStatusMutation = useMutation({
         mutationFn: ({ uid, status }: { uid: string, status: 'ACTIVE' | 'DISABLED' }) =>
             api.users.toggleStatus(uid, status),
-        onSuccess: () => {
+        onSuccess: (_data, { status }) => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
-        }
+            addToast(status === 'DISABLED' ? 'User disabled' : 'User enabled', 'success');
+        },
+        onError: (err: unknown) => {
+            const msg = err instanceof ApiError ? err.message : 'Failed to update user status';
+            addToast(msg, 'error');
+        },
     });
 
     const updateProfileMutation = useMutation({
@@ -118,15 +140,19 @@ const UserManagement = () => {
         },
     ];
 
-    const handleToggleStatus = (uid: string, currentStatus?: 'ACTIVE' | 'DISABLED') => {
+    const handleToggleStatus = async (uid: string, currentStatus?: 'ACTIVE' | 'DISABLED') => {
         if (uid === currentUser?.uid) {
-            alert("You cannot disable yourself.");
+            addToast('You cannot disable yourself.', 'error');
             return;
         }
         const newStatus = currentStatus === 'DISABLED' ? 'ACTIVE' : 'DISABLED';
-        if (confirm(`Are you sure you want to ${newStatus === 'DISABLED' ? 'disable' : 'enable'} this user?`)) {
-            toggleStatusMutation.mutate({ uid, status: newStatus });
-        }
+        const ok = await confirm({
+            title: newStatus === 'DISABLED' ? 'Disable user' : 'Enable user',
+            message: `Are you sure you want to ${newStatus === 'DISABLED' ? 'disable' : 'enable'} this user?`,
+            confirmLabel: newStatus === 'DISABLED' ? 'Disable' : 'Enable',
+            variant: newStatus === 'DISABLED' ? 'danger' : 'primary',
+        });
+        if (ok) toggleStatusMutation.mutate({ uid, status: newStatus });
     };
 
     const filteredUsers = users.filter(user => {
@@ -163,7 +189,7 @@ const UserManagement = () => {
     const handleInvite = inviteForm.handleSubmit((data) => inviteMutation.mutate(data))
 
     const StatCard = ({ title, value, icon: Icon, colorClass }: any) => (
-        <div className="bg-white dark:bg-white/5 p-5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm relative overflow-hidden group">
+        <div className="app-card p-5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between mb-3">
                 <div className={clsx("p-2 rounded-lg", colorClass)}>
                     <Icon size={20} />
@@ -176,33 +202,26 @@ const UserManagement = () => {
 
     return (
         <div className="max-w-7xl mx-auto h-[calc(100vh-100px)] flex flex-col animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-8 shrink-0">
-                <div>
-                    <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">User Administration</h1>
-                    <p className="text-primary/60 dark:text-white/60 font-medium mt-1">Manage your team's access levels and roles.</p>
-                </div>
-                <div className="flex gap-3 flex-wrap">
-                    <Link
-                        to="/admin"
-                        className="px-4 py-2 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white font-bold rounded-xl text-sm flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/10 shadow-sm transition-all"
-                    >
-                        <Building2 size={18} />
-                        Administration
-                    </Link>
-                    <button className="px-4 py-2 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white font-bold rounded-xl text-sm flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/10 shadow-sm transition-all">
-                        <Download size={18} />
-                        Export
-                    </button>
-                    <button
-                        onClick={() => setIsInviteOpen(true)}
-                        className="px-6 py-2 bg-primary dark:bg-white text-white dark:text-primary font-bold rounded-xl text-sm flex items-center gap-2 hover:opacity-90 shadow-lg shadow-primary/20 dark:shadow-none transition-all"
-                    >
-                        <UserPlus size={18} />
-                        Invite New User
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                highlighted
+                icon={Users}
+                eyebrow="Team access"
+                title="User Administration"
+                description="Manage your team's access levels and roles."
+                className="mb-8 shrink-0"
+                actions={
+                    <div className="flex gap-2 flex-wrap">
+                        <button type="button" className={heroBtnSecondary}>
+                            <Download size={18} />
+                            Export
+                        </button>
+                        <button type="button" onClick={() => setIsInviteOpen(true)} className={heroBtnPrimary}>
+                            <UserPlus size={18} />
+                            Invite New User
+                        </button>
+                    </div>
+                }
+            />
 
             {isError && !isFetching && (
                 <div className="mb-6 p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-300 text-sm font-medium">
@@ -223,60 +242,61 @@ const UserManagement = () => {
             </div>
 
             {/* Filters & Search */}
-            <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-primary/10 dark:border-white/10 mb-6 flex gap-4 flex-wrap shrink-0 shadow-sm">
-                <div className="flex-1 min-w-[300px] relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search users by name or email..."
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:ring-2 focus:ring-primary/20 outline-none font-medium text-primary dark:text-white"
+            <div className="app-card p-4 rounded-xl border border-primary/10 dark:border-white/10 mb-6 flex gap-4 flex-wrap shrink-0 shadow-sm">
+                <div className="flex-1 min-w-[300px]">
+                    <ListSearchBar
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={setSearchTerm}
+                        placeholder="Search users by name or email..."
+                        className="max-w-none"
                     />
                 </div>
-                <select
-                    className="px-4 py-2 rounded-lg border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm text-primary dark:text-white cursor-pointer"
+                <AppSelect
+                    className="min-w-[160px]"
                     value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value as any)}
-                >
-                    <option value="ALL">All Roles</option>
-                    <option value="ADMIN">Admin</option>
-                    <option value="HR_HEAD">HR Head</option>
-                    <option value="HR_MANAGER">HR Manager</option>
-                    <option value="RECRUITER">Recruiter</option>
-                    <option value="HIRING_MANAGER">Hiring Manager</option>
-                    <option value="INTERVIEWER">Interviewer</option>
-                    <option value="CANDIDATE">Candidate</option>
-                </select>
+                    onChange={(v) => setRoleFilter(v as UserRole | 'ALL')}
+                    options={USER_ROLE_FILTER_OPTIONS}
+                    aria-label="Filter by role"
+                />
+                <AppSelect
+                    className="min-w-[160px]"
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v as 'ALL' | 'ACTIVE' | 'DISABLED')}
+                    options={USER_STATUS_FILTER_OPTIONS}
+                    aria-label="Filter by status"
+                />
             </div>
 
             {/* Users Table */}
-            <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 overflow-visible shadow-sm flex-1 flex flex-col">
+            <div className="app-card rounded-2xl border border-primary/10 dark:border-white/10 overflow-visible shadow-sm flex-1 flex flex-col">
                 <div className="overflow-auto overflow-x-auto flex-1">
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-primary/[0.02] dark:bg-white/[0.02] border-b border-primary/10 dark:border-white/10 sticky top-0 z-10 backdrop-blur-sm">
                             <tr>
-                                <th className="px-6 py-4 text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">User Details</th>
-                                <th className="px-6 py-4 text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">Role</th>
-                                <th className="px-6 py-4 text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">Department</th>
-                                <th className="px-6 py-4 text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">Last Login</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider">Actions</th>
+                                <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">User Details</th>
+                                <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Role</th>
+                                <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Department</th>
+                                <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Feature tags</th>
+                                <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Last Login</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-primary/5 dark:divide-white/5">
                             {isLoading ? (
-                                <tr><td colSpan={6} className="p-12 text-center text-primary/60 dark:text-white/60 font-medium">Loading users...</td></tr>
+                                <tr><td colSpan={7} className="p-12 text-center text-page-desc">Loading users...</td></tr>
                             ) : filteredUsers.length === 0 ? (
-                                <tr><td colSpan={6} className="p-12 text-center text-primary/60 dark:text-white/60 font-medium">No users found.</td></tr>
+                                <tr><td colSpan={7} className="p-12 text-center text-page-desc">No users found.</td></tr>
                             ) : (
                                 filteredUsers.map((u) => (
                                     <tr key={u.uid} className="hover:bg-primary/[0.02] dark:hover:bg-white/[0.02] transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="size-10 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-primary dark:text-white font-bold overflow-hidden border border-primary/10 dark:border-white/10">
-                                                    {u.avatar ? <img src={u.avatar} className="size-full object-cover" alt={u.name} /> : u.name.charAt(0)}
-                                                </div>
+                                                <UserAvatar
+                                                    name={u.name}
+                                                    avatar={u.avatar}
+                                                    borderClassName="border border-primary/10 dark:border-white/10"
+                                                />
                                                 <div className="min-w-0">
                                                     <Link
                                                         to={`/admin/users/${u.uid}`}
@@ -284,55 +304,62 @@ const UserManagement = () => {
                                                     >
                                                         {u.name}
                                                     </Link>
-                                                    <p className="text-xs text-primary/60 dark:text-white/60 font-medium truncate">{u.email}</p>
+                                                    <p className="text-xs text-page-desc truncate">{u.email}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <select
+                                        <td className="px-6 py-4 max-w-[200px]">
+                                            <AppSelect
+                                                size="sm"
                                                 value={u.role}
-                                                onChange={(e) => handleRoleChange(u.uid, e.target.value)}
+                                                onChange={(v) => handleRoleChange(u.uid, v)}
+                                                options={USER_ROLE_OPTIONS}
                                                 disabled={u.uid === currentUser?.uid}
-                                                className="bg-transparent text-sm font-bold text-primary dark:text-white border-none outline-none focus:ring-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed py-0 pl-0 pr-6"
-                                            >
-                                                <option value="ADMIN">Admin</option>
-                                                <option value="HR_HEAD">HR Head</option>
-                                                <option value="HR_MANAGER">HR Manager</option>
-                                                <option value="RECRUITER">Recruiter</option>
-                                                <option value="HIRING_MANAGER">Hiring Manager</option>
-                                                <option value="INTERVIEWER">Interviewer</option>
-                                                <option value="CANDIDATE">Candidate</option>
-                                            </select>
+                                                aria-label={`Role for ${u.name}`}
+                                            />
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <select
+                                        <td className="px-6 py-4 max-w-[200px]">
+                                            <AppSelect
+                                                size="sm"
                                                 value={u.department ?? ''}
-                                                onChange={(e) => handleDepartmentChange(u, e.target.value)}
+                                                onChange={(v) => handleDepartmentChange(u, v)}
+                                                options={departmentSelectOptions(departmentNames, u.department)}
                                                 disabled={updateProfileMutation.isPending}
-                                                className="text-sm font-medium text-primary dark:text-white border border-primary/10 dark:border-white/10 rounded-lg px-2 py-1.5 bg-white dark:bg-white/5 max-w-[180px] disabled:opacity-50"
-                                                title="Set user department"
-                                            >
-                                                <option value="">— None —</option>
-                                                {u.department && !departmentNames.includes(u.department) && (
-                                                    <option value={u.department}>{u.department}</option>
-                                                )}
-                                                {departmentNames.map((name) => (
-                                                    <option key={name} value={name}>
-                                                        {name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                aria-label={`Department for ${u.name}`}
+                                            />
+                                        </td>
+                                        <td className="px-6 py-4 max-w-[200px]">
+                                            {u.role === 'ADMIN' ? (
+                                                <span className="text-[10px] font-bold uppercase text-primary/40 dark:text-white/40">All features</span>
+                                            ) : (u.tags?.length ?? 0) === 0 ? (
+                                                <span className="text-xs text-page-desc">—</span>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {u.tags.map((t) => {
+                                                        const label = FEATURE_TAG_DEFINITIONS.find((d) => d.key === t)?.label ?? t
+                                                        return (
+                                                            <span
+                                                                key={t}
+                                                                className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-primary/10 dark:bg-white/10 text-primary/80 dark:text-white/80"
+                                                            >
+                                                                {label}
+                                                            </span>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={clsx(
-                                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border",
-                                                u.status === 'DISABLED'
-                                                    ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30'
-                                                    : 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-900/30'
-                                            )}>
-                                                <span className={clsx("size-1.5 rounded-full", u.status === 'DISABLED' ? "bg-red-500" : "bg-emerald-500")}></span>
-                                                {u.status === 'DISABLED' ? 'Disabled' : 'Active'}
-                                            </span>
+                                            <UserStatusToggle
+                                                active={u.status !== 'DISABLED'}
+                                                disabled={u.uid === currentUser?.uid}
+                                                pending={
+                                                    toggleStatusMutation.isPending &&
+                                                    toggleStatusMutation.variables?.uid === u.uid
+                                                }
+                                                onToggle={() => handleToggleStatus(u.uid, u.status)}
+                                                size="sm"
+                                            />
                                         </td>
                                         <td className="px-6 py-4 text-sm font-medium text-primary/50 dark:text-white/50">
                                             {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never'}
@@ -355,7 +382,7 @@ const UserManagement = () => {
                         <ChevronLeft size={14} /> Previous
                     </button>
                     <div className="flex gap-1">
-                        <button className="size-8 rounded flex items-center justify-center text-xs font-bold bg-primary dark:bg-white text-white dark:text-primary">1</button>
+                        <button className="size-8 rounded flex items-center justify-center text-xs font-bold bg-primary text-primary-foreground">1</button>
                     </div>
                     <button className="px-3 py-1 text-xs font-bold text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors flex items-center gap-1 disabled:opacity-30">
                         Next <ChevronRight size={14} />
@@ -397,33 +424,21 @@ const UserManagement = () => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">Role</label>
-                                    <select
-                                        className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium text-primary dark:text-white"
-                                        {...inviteForm.register('role')}
-                                    >
-                                        <option value="RECRUITER">Recruiter</option>
-                                        <option value="HR_MANAGER">HR Manager</option>
-                                        <option value="HR_HEAD">HR Head</option>
-                                        <option value="HIRING_MANAGER">Hiring Manager</option>
-                                        <option value="INTERVIEWER">Interviewer</option>
-                                        <option value="TEAM_LEAD">Team Lead</option>
-                                        <option value="ADMIN">Admin</option>
-                                        <option value="CANDIDATE">Candidate</option>
-                                    </select>
+                                    <AppSelect
+                                        value={inviteForm.watch('role')}
+                                        onChange={(v) => inviteForm.setValue('role', toRole(v) as InviteFormValues['role'])}
+                                        options={INVITE_ROLE_OPTIONS}
+                                        aria-label="Invite role"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-2">Department</label>
-                                    <select
-                                        className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary font-medium text-primary dark:text-white"
-                                        {...inviteForm.register('department')}
-                                    >
-                                        <option value="">— None —</option>
-                                        {departmentNames.map((name) => (
-                                            <option key={name} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <AppSelect
+                                        value={inviteForm.watch('department') ?? ''}
+                                        onChange={(v) => inviteForm.setValue('department', v || undefined)}
+                                        options={departmentSelectOptions(departmentNames)}
+                                        aria-label="Invite department"
+                                    />
                                 </div>
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-xl text-sm leading-relaxed">
                                     An email with a temporary password is sent via Resend. For testing, use <code className="text-xs">onboarding@resend.dev</code> as the sender until your domain is verified.
@@ -434,7 +449,7 @@ const UserManagement = () => {
                             <button
                                 type="submit"
                                 disabled={inviteMutation.isPending}
-                                className="w-full py-3 bg-primary dark:bg-white text-white dark:text-primary font-bold rounded-xl hover:opacity-90 shadow-lg shadow-primary/20 dark:shadow-none transition-all disabled:opacity-60"
+                                className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 shadow-lg shadow-primary/20 dark:shadow-none transition-all disabled:opacity-60"
                             >
                                 {inviteMutation.isPending ? 'Sending…' : 'Send Invitation'}
                             </button>

@@ -1,20 +1,42 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { UserAvatar } from '../../components/ui/UserAvatar'
 import { useThemeStore } from '../../store/themeStore'
 import {
-    User, Shield, Bell, Users, Moon, LogOut,
-    CheckCircle, History, Lock, Globe, Monitor, AlertCircle
+    User,
+    Shield,
+    Moon,
+    CheckCircle,
+    Lock,
+    Globe,
+    Monitor,
+    AlertCircle,
+    Mail,
+    Phone,
+    KeyRound,
+    Settings2,
+    Sun,
+    Eye,
+    EyeOff,
+    BadgeCheck,
+    Building2,
 } from 'lucide-react'
 import clsx from 'clsx'
-import { useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { AppSelect } from '../../components/ui/AppSelect'
+import { LANGUAGE_OPTIONS } from '../../lib/selectOptions'
+import { useForm, type UseFormRegisterReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Button } from '../../components/ui/Button'
 import { authApi } from '../../services/http/auth'
 import { api } from '../../services/api'
 import { ApiError } from '../../lib/apiClient'
 import { useToastStore } from '../../store/toastStore'
+import { PageHero } from '../../components/layout/PageHero'
+import { AnimatedTabNav } from '../../components/motion/AnimatedTabNav'
+import { TabContent } from '../../components/motion/TabContent'
+import { Button } from '../../components/ui/Button'
+import { Switch } from '../../components/ui/Switch'
+import { InterviewStatCard } from '../../components/interviews/InterviewStatCard'
 
 const changePasswordSchema = z
     .object({
@@ -29,8 +51,153 @@ const changePasswordSchema = z
 
 type ChangePasswordForm = z.infer<typeof changePasswordSchema>
 
+function roleLabel(role?: string) {
+    return role?.replace(/_/g, ' ') ?? '—'
+}
+
+function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
+    return (
+        <label
+            htmlFor={htmlFor}
+            className="text-xs font-bold uppercase tracking-wider text-primary/50 dark:text-white/50 block"
+        >
+            {children}
+        </label>
+    )
+}
+
+function SettingsSection({
+    icon: Icon,
+    title,
+    description,
+    children,
+    action,
+}: {
+    icon: React.ComponentType<{ size?: number; className?: string }>
+    title: string
+    description: string
+    children: React.ReactNode
+    action?: React.ReactNode
+}) {
+    return (
+        <section className="app-card shadow-sm overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 md:p-6 border-b border-outline-variant/40 bg-surface-container-low/80">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="size-11 shrink-0 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center text-primary dark:text-white">
+                        <Icon size={22} strokeWidth={2} />
+                    </div>
+                    <div className="min-w-0">
+                        <h2 className="text-base font-bold text-primary dark:text-white">{title}</h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                    </div>
+                </div>
+                {action}
+            </div>
+            <div className="p-5 md:p-6">{children}</div>
+        </section>
+    )
+}
+
+function ProfileDetailRow({
+    icon: Icon,
+    label,
+    value,
+    muted,
+}: {
+    icon: React.ComponentType<{ size?: number; className?: string }>
+    label: string
+    value: string
+    muted?: boolean
+}) {
+    return (
+        <div className="flex items-start gap-3 p-3 rounded-xl border border-outline-variant/60 bg-surface-container-low shadow-[var(--app-control-shadow)]">
+            <div className="size-8 shrink-0 rounded-lg bg-primary/10 dark:bg-white/10 flex items-center justify-center text-primary dark:text-white">
+                <Icon size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+                <p
+                    className={clsx(
+                        'text-sm font-semibold mt-0.5 break-all',
+                        muted ? 'text-muted-foreground italic' : 'text-primary dark:text-white'
+                    )}
+                >
+                    {value}
+                </p>
+            </div>
+        </div>
+    )
+}
+
+function PreferenceRow({
+    icon: Icon,
+    title,
+    description,
+    control,
+}: {
+    icon: React.ComponentType<{ size?: number; className?: string }>
+    title: string
+    description: string
+    control: React.ReactNode
+}) {
+    return (
+        <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-outline-variant/50 bg-surface-container-low/50 hover:bg-surface-container-low transition-colors">
+            <div className="flex items-center gap-3 min-w-0">
+                <div className="size-9 shrink-0 rounded-lg bg-surface-container-high flex items-center justify-center text-primary/70 dark:text-white/70">
+                    <Icon size={18} />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-sm font-bold text-primary dark:text-white">{title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                </div>
+            </div>
+            <div className="shrink-0">{control}</div>
+        </div>
+    )
+}
+
+function PasswordField({
+    id,
+    label,
+    error,
+    show,
+    onToggleShow,
+    registration,
+}: {
+    id: string
+    label: string
+    error?: string
+    show: boolean
+    onToggleShow: () => void
+    registration: UseFormRegisterReturn
+}) {
+    return (
+        <div className="space-y-1.5">
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            <div className="relative">
+                <input
+                    id={id}
+                    type={show ? 'text' : 'password'}
+                    className="app-input w-full !min-h-12 !py-3 !pr-12"
+                    autoComplete={id.includes('current') ? 'current-password' : 'new-password'}
+                    {...registration}
+                />
+                <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-muted-foreground hover:text-primary dark:hover:text-white transition-colors"
+                    onClick={onToggleShow}
+                    aria-label={show ? 'Hide password' : 'Show password'}
+                >
+                    {show ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+            </div>
+            {error && <p className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>}
+        </div>
+    )
+}
+
 const Settings = () => {
-    const { user, logout, refreshUser } = useAuth()
+    const { user, refreshUser } = useAuth()
     const { addToast } = useToastStore()
     const [profileName, setProfileName] = useState(user?.name ?? '')
     const [profilePhone, setProfilePhone] = useState(user?.phoneNumber ?? '')
@@ -42,9 +209,10 @@ const Settings = () => {
             setProfilePhone(user.phoneNumber ?? '')
         }
     }, [user])
+
     const { theme, toggleTheme } = useThemeStore()
-    const navigate = useNavigate()
-    const [activeTab, setActiveTab] = useState<'GENERAL' | 'SECURITY' | 'NOTIFICATIONS' | 'TEAM'>('GENERAL')
+    const isDark = theme === 'dark'
+    const [activeTab, setActiveTab] = useState<'GENERAL' | 'SECURITY'>('GENERAL')
     const [showPasswordForm, setShowPasswordForm] = useState(false)
     const [passwordLoading, setPasswordLoading] = useState(false)
     const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -56,15 +224,6 @@ const Settings = () => {
         resolver: zodResolver(changePasswordSchema),
         defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
     })
-
-    const handleLogout = async () => {
-        try {
-            await logout()
-            navigate('/login')
-        } catch (error) {
-            console.error('Logout failed', error)
-        }
-    }
 
     const onSaveProfile = async () => {
         setProfileSaving(true)
@@ -92,6 +251,7 @@ const Settings = () => {
             setShowPasswordForm(false)
             setPasswordSuccess(true)
             setTimeout(() => setPasswordSuccess(false), 5000)
+            addToast('Password updated', 'success')
         } catch (err) {
             setPasswordError(
                 err instanceof ApiError ? err.message : 'Failed to update password. Try again.'
@@ -101,345 +261,391 @@ const Settings = () => {
         }
     }
 
+    const profileDirty =
+        profileName.trim() !== (user?.name ?? '').trim() ||
+        profilePhone.trim() !== (user?.phoneNumber ?? '').trim()
+
     return (
-        <div className="max-w-5xl mx-auto animate-in fade-in duration-500">
-            <div className="mb-8">
-                <h2 className="text-3xl font-black text-primary dark:text-white tracking-tight">Organization Settings</h2>
-                <p className="text-primary/60 dark:text-white/60 mt-1 font-medium">Manage your account details, security preferences, and team access.</p>
-            </div>
+        <div className="max-w-6xl mx-auto space-y-8 pb-12 animate-in fade-in duration-500">
+            <PageHero
+                icon={Settings2}
+                eyebrow="Your account"
+                title="Settings"
+                description="Update your profile, appearance, and security preferences for this workspace."
+            />
 
-            {/* Tabs Navigation */}
-            <div className="border-b border-primary/10 dark:border-white/10 mb-8 overflow-x-auto">
-                <nav className="flex gap-8 min-w-max">
-                    <button
-                        onClick={() => setActiveTab('GENERAL')}
-                        className={clsx(
-                            "flex items-center gap-2 py-4 px-1 text-sm font-bold border-b-2 transition-all",
-                            activeTab === 'GENERAL' ? "border-primary dark:border-white text-primary dark:text-white" : "border-transparent text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
-                        )}
-                    >
-                        <User size={20} /> General
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('SECURITY')}
-                        className={clsx(
-                            "flex items-center gap-2 py-4 px-1 text-sm font-bold border-b-2 transition-all",
-                            activeTab === 'SECURITY' ? "border-primary dark:border-white text-primary dark:text-white" : "border-transparent text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
-                        )}
-                    >
-                        <Shield size={20} /> Security
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('NOTIFICATIONS')}
-                        className={clsx(
-                            "flex items-center gap-2 py-4 px-1 text-sm font-bold border-b-2 transition-all",
-                            activeTab === 'NOTIFICATIONS' ? "border-primary dark:border-white text-primary dark:text-white" : "border-transparent text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
-                        )}
-                    >
-                        <Bell size={20} /> Notifications
-                    </button>
-                    {user?.role === 'ADMIN' && (
-                        <button
-                            onClick={() => setActiveTab('TEAM')}
-                            className={clsx(
-                                "flex items-center gap-2 py-4 px-1 text-sm font-bold border-b-2 transition-all",
-                                activeTab === 'TEAM' ? "border-primary dark:border-white text-primary dark:text-white" : "border-transparent text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
-                            )}
-                        >
-                            <Users size={20} /> Administration
-                        </button>
-                    )}
-                </nav>
-            </div>
-
-            <div className="space-y-6">
-                {activeTab === 'GENERAL' && (
-                    <>
-                        {/* Profile Card */}
-                        <section className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-primary/10 dark:border-white/10 overflow-hidden">
-                            <div className="p-6 border-b border-primary/10 dark:border-white/10 flex justify-between items-center bg-primary/[0.02] dark:bg-white/[0.02]">
-                                <div>
-                                    <h3 className="font-bold text-primary dark:text-white">Profile Information</h3>
-                                    <p className="text-xs text-primary/60 dark:text-white/60">Update your photo and personal details.</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={onSaveProfile}
-                                    disabled={profileSaving}
-                                    className="bg-primary dark:bg-white text-white dark:text-primary px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-                                >
-                                    {profileSaving ? 'Saving...' : 'Save Changes'}
-                                </button>
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,17rem)_1fr] gap-6 lg:gap-8 items-start">
+                {/* Profile sidebar */}
+                <aside className="app-card p-5 md:p-6 shadow-sm lg:sticky lg:top-6 space-y-5">
+                    <div className="flex flex-col items-center text-center gap-3">
+                        <div className="relative">
+                            <div className="size-24 rounded-2xl border-2 border-outline-variant/60 overflow-hidden shadow-m3-2 ring-4 ring-primary/10 dark:ring-white/10">
+                                <UserAvatar name={user?.name} avatar={user?.avatar} className="w-full h-full" />
                             </div>
-                            <div className="p-8">
-                                <div className="flex flex-col md:flex-row items-start gap-8">
-                                    <div className="relative group mx-auto md:mx-0">
-                                        <div className="size-24 rounded-full border-4 border-primary/5 dark:border-white/5 overflow-hidden">
-                                            <img className="w-full h-full object-cover" src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}`} alt="User Profile" />
+                            <span className="absolute -bottom-1 -right-1 size-7 rounded-full bg-emerald-500 border-2 border-surface-container-lowest flex items-center justify-center text-white">
+                                <BadgeCheck size={14} strokeWidth={2.5} />
+                            </span>
+                        </div>
+                        <div className="min-w-0 w-full">
+                            <p className="text-lg font-black text-primary dark:text-white truncate">
+                                {user?.name ?? 'User'}
+                            </p>
+                        </div>
+                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary-container text-on-primary-container border border-primary/15 shadow-[var(--app-control-shadow)]">
+                            {roleLabel(user?.role)}
+                        </span>
+                    </div>
+
+                    <div className="space-y-2.5 pt-4 border-t border-outline-variant/40">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+                            Account details
+                        </p>
+                        <ProfileDetailRow
+                            icon={Mail}
+                            label="Email"
+                            value={user?.email ?? '—'}
+                        />
+                        <ProfileDetailRow
+                            icon={Phone}
+                            label="Phone"
+                            value={user?.phoneNumber?.trim() || 'Not set'}
+                            muted={!user?.phoneNumber?.trim()}
+                        />
+                        {user?.department && (
+                            <ProfileDetailRow
+                                icon={Building2}
+                                label="Department"
+                                value={user.department}
+                            />
+                        )}
+                    </div>
+                </aside>
+
+                {/* Main panel */}
+                <div className="min-w-0 space-y-6">
+                    <AnimatedTabNav
+                        layoutId="settings-tabs"
+                        variant="pill"
+                        className="overflow-x-auto custom-scrollbar"
+                        aria-label="Settings sections"
+                        tabs={[
+                            {
+                                id: 'GENERAL',
+                                label: (
+                                    <>
+                                        <User size={18} aria-hidden />
+                                        General
+                                    </>
+                                ),
+                            },
+                            {
+                                id: 'SECURITY',
+                                label: (
+                                    <>
+                                        <Shield size={18} aria-hidden />
+                                        Security
+                                    </>
+                                ),
+                            },
+                        ]}
+                        activeId={activeTab}
+                        onChange={(id) => setActiveTab(id as 'GENERAL' | 'SECURITY')}
+                    />
+
+                    <TabContent activeKey={activeTab} className="space-y-6">
+                        {activeTab === 'GENERAL' && (
+                            <>
+                                <SettingsSection
+                                    icon={User}
+                                    title="Profile"
+                                    description="Name and contact details visible to your team."
+                                    action={
+                                        <Button
+                                            type="button"
+                                            variant="primary"
+                                            size="sm"
+                                            className="!rounded-xl shrink-0"
+                                            disabled={profileSaving || !profileDirty}
+                                            isLoading={profileSaving}
+                                            onClick={onSaveProfile}
+                                        >
+                                            Save changes
+                                        </Button>
+                                    }
+                                >
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div className="space-y-1.5 sm:col-span-2">
+                                            <FieldLabel htmlFor="profile-name">Full name</FieldLabel>
+                                            <input
+                                                id="profile-name"
+                                                type="text"
+                                                className="app-input w-full !min-h-12"
+                                                value={profileName}
+                                                onChange={(e) => setProfileName(e.target.value)}
+                                            />
                                         </div>
-                                    </div>
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Full Name</label>
-                                            <input className="w-full border-primary/10 dark:border-white/10 rounded-xl bg-primary/[0.02] dark:bg-white/[0.02] focus:ring-primary focus:border-primary font-bold text-primary dark:text-white text-sm p-3" type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Role</label>
-                                            <input className="w-full border-primary/10 dark:border-white/10 rounded-xl bg-primary/5 dark:bg-white/5 text-primary/40 dark:text-white/40 font-bold text-sm p-3 cursor-not-allowed" type="text" value={user?.role} disabled />
-                                        </div>
-                                        <div className="space-y-1.5 col-span-1 md:col-span-2">
-                                            <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Email Address</label>
+                                            <FieldLabel htmlFor="profile-email">Email</FieldLabel>
                                             <div className="relative">
-                                                <input className="w-full bg-primary/5 dark:bg-white/5 border-primary/10 dark:border-white/10 rounded-xl text-sm p-3 text-primary/40 dark:text-white/40 cursor-not-allowed pl-10 font-bold" disabled type="email" value={user?.email} />
-                                                <Lock className="absolute left-3 top-3 text-primary/30 dark:text-white/30" size={16} />
+                                                <Mail
+                                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                                                    size={18}
+                                                />
+                                                <input
+                                                    id="profile-email"
+                                                    type="email"
+                                                    disabled
+                                                    value={user?.email ?? ''}
+                                                    className="app-input app-input-leading-icon w-full !min-h-12 opacity-80 cursor-not-allowed"
+                                                />
                                             </div>
-                                            <div className="space-y-1.5 mt-4">
-                                                <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">Phone</label>
-                                                <input className="w-full border-primary/10 dark:border-white/10 rounded-xl bg-primary/[0.02] dark:bg-white/[0.02] focus:ring-primary font-bold text-primary dark:text-white text-sm p-3" type="text" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <FieldLabel htmlFor="profile-role">Role</FieldLabel>
+                                            <input
+                                                id="profile-role"
+                                                type="text"
+                                                disabled
+                                                value={roleLabel(user?.role)}
+                                                className="app-input w-full !min-h-12 opacity-80 cursor-not-allowed capitalize"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5 sm:col-span-2">
+                                            <FieldLabel htmlFor="profile-phone">Phone</FieldLabel>
+                                            <div className="relative">
+                                                <Phone
+                                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                                                    size={18}
+                                                />
+                                                <input
+                                                    id="profile-phone"
+                                                    type="tel"
+                                                    className="app-input app-input-leading-icon w-full !min-h-12"
+                                                    placeholder="Optional contact number"
+                                                    value={profilePhone}
+                                                    onChange={(e) => setProfilePhone(e.target.value)}
+                                                />
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </section>
+                                </SettingsSection>
 
-                        {/* Preferences Card */}
-                        <section className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-primary/10 dark:border-white/10 p-6">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="size-10 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 rounded-xl flex items-center justify-center">
-                                    <Monitor size={20} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-primary dark:text-white">System Preferences</h3>
-                                    <p className="text-xs text-primary/60 dark:text-white/60">Appearance and accessibility</p>
-                                </div>
-                            </div>
-                            <div className="space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Moon size={20} className="text-primary/60 dark:text-white/60" />
-                                        <div>
-                                            <p className="text-sm font-bold text-primary dark:text-white">Global Dark Mode</p>
-                                            <p className="text-[11px] text-primary/60 dark:text-white/60">Switch between light and dark theme</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={toggleTheme}
-                                        className={clsx(
-                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                                            theme === 'dark' ? 'bg-primary' : 'bg-slate-200'
-                                        )}
-                                    >
-                                        <span className={clsx("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", theme === 'dark' ? 'translate-x-6' : 'translate-x-1')} />
-                                    </button>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Globe size={20} className="text-primary/60 dark:text-white/60" />
-                                        <div>
-                                            <p className="text-sm font-bold text-primary dark:text-white">Default Language</p>
-                                            <p className="text-[11px] text-primary/60 dark:text-white/60">System-wide UI language</p>
-                                        </div>
-                                    </div>
-                                    <select className="bg-primary/5 dark:bg-white/5 border-primary/10 dark:border-white/10 text-primary dark:text-white text-xs rounded-lg focus:ring-primary focus:border-primary p-2 font-bold cursor-pointer outline-none">
-                                        <option>English (US)</option>
-                                        <option>German</option>
-                                        <option>Spanish</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </section>
-
-                        <div className="mt-8 pt-8 border-t border-primary/10 dark:border-white/10">
-                            <div className="flex items-center justify-between p-6 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/20">
-                                <div>
-                                    <h3 className="font-bold text-red-900 dark:text-red-200">Sign Out</h3>
-                                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">Securely log out of your account.</p>
-                                </div>
-                                <button onClick={handleLogout} className="bg-red-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 flex items-center gap-2">
-                                    <LogOut size={16} /> Sign Out
-                                </button>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {activeTab === 'SECURITY' && (
-                    <section className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-primary/10 dark:border-white/10 p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="size-10 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-xl flex items-center justify-center">
-                                <Shield size={20} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-primary dark:text-white">Security Status</h3>
-                                <p className="text-xs text-primary/60 dark:text-white/60">Enhanced account protection</p>
-                            </div>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 bg-primary/[0.02] dark:bg-white/[0.02] rounded-xl border border-primary/5 dark:border-white/5">
-                                <div className="flex items-center gap-3">
-                                    <CheckCircle size={20} className="text-emerald-500" />
-                                    <div>
-                                        <p className="text-sm font-bold text-primary dark:text-white">Two-Factor Auth</p>
-                                        <p className="text-[11px] text-primary/60 dark:text-white/60">Protect with SMS or Authenticator</p>
-                                    </div>
-                                </div>
-                                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold rounded uppercase">Enabled</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 bg-primary/[0.02] dark:bg-white/[0.02] rounded-xl border border-primary/5 dark:border-white/5">
-                                <div className="flex items-center gap-3">
-                                    <History size={20} className="text-primary/40 dark:text-white/40" />
-                                    <div>
-                                        <p className="text-sm font-bold text-primary dark:text-white">Login History</p>
-                                        <p className="text-[11px] text-primary/60 dark:text-white/60">Last activity: 2 hours ago</p>
-                                    </div>
-                                </div>
-                                <button className="text-primary dark:text-white text-[11px] font-bold hover:underline">VIEW</button>
-                            </div>
-                            {passwordSuccess && (
-                                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-sm font-medium flex items-center gap-2">
-                                    <CheckCircle size={18} />
-                                    Password updated successfully.
-                                </div>
-                            )}
-
-                            {!showPasswordForm ? (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowPasswordForm(true)
-                                        setPasswordError(null)
-                                        setPasswordSuccess(false)
-                                    }}
-                                    className="w-full mt-2 py-3 border border-primary/10 dark:border-white/10 rounded-xl text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
+                                <SettingsSection
+                                    icon={Monitor}
+                                    title="Appearance & language"
+                                    description="How Stitch ATS looks and reads for you."
                                 >
-                                    Change Password
-                                </button>
-                            ) : (
-                                <form
-                                    onSubmit={passwordForm.handleSubmit(onChangePassword)}
-                                    className="mt-2 p-4 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] space-y-4"
-                                >
-                                    <p className="text-sm font-bold text-primary dark:text-white">Set a new password</p>
+                                    <div className="space-y-3">
+                                        <PreferenceRow
+                                            icon={isDark ? Moon : Sun}
+                                            title="Dark mode"
+                                            description={
+                                                isDark
+                                                    ? 'Dark theme is on — easier on the eyes at night'
+                                                    : 'Light theme is on — crisp and bright'
+                                            }
+                                            control={
+                                                <Switch
+                                                    checked={isDark}
+                                                    onChange={() => toggleTheme()}
+                                                    ariaLabel="Toggle dark mode"
+                                                />
+                                            }
+                                        />
+                                        <PreferenceRow
+                                            icon={Globe}
+                                            title="Language"
+                                            description="UI language (more locales coming soon)"
+                                            control={
+                                                <AppSelect
+                                                    className="min-w-[9rem]"
+                                                    size="sm"
+                                                    value="en-US"
+                                                    onChange={() => {}}
+                                                    options={LANGUAGE_OPTIONS}
+                                                    aria-label="Default language"
+                                                />
+                                            }
+                                        />
+                                    </div>
+                                </SettingsSection>
+                            </>
+                        )}
 
-                                    {passwordError && (
-                                        <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
-                                            <AlertCircle size={18} className="shrink-0" />
-                                            {passwordError}
+                        {activeTab === 'SECURITY' && (
+                            <>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <InterviewStatCard
+                                        label="Account"
+                                        value={1}
+                                        icon={BadgeCheck}
+                                        accent="green"
+                                    />
+                                    <InterviewStatCard
+                                        label="2FA"
+                                        value={1}
+                                        icon={Shield}
+                                        accent="blue"
+                                    />
+                                    <InterviewStatCard
+                                        label="Credentials"
+                                        value={1}
+                                        icon={KeyRound}
+                                        accent="amber"
+                                    />
+                                </div>
+
+                                <SettingsSection
+                                    icon={Shield}
+                                    title="Account protection"
+                                    description="Extra layers that keep your workspace secure."
+                                >
+                                    <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-emerald-500/25 bg-emerald-500/5 dark:bg-emerald-500/10">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <CheckCircle
+                                                size={22}
+                                                className="text-emerald-600 dark:text-emerald-400 shrink-0"
+                                            />
+                                            <div>
+                                                <p className="text-sm font-bold text-primary dark:text-white">
+                                                    Two-factor authentication
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    SMS or authenticator app
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                                            Enabled
+                                        </span>
+                                    </div>
+                                </SettingsSection>
+
+                                <SettingsSection
+                                    icon={KeyRound}
+                                    title="Password"
+                                    description="Use a strong password you do not reuse elsewhere."
+                                >
+                                    {passwordSuccess && (
+                                        <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-sm font-medium flex items-center gap-2">
+                                            <CheckCircle size={18} className="shrink-0" />
+                                            Password updated successfully.
                                         </div>
                                     )}
 
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
-                                            Current password
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type={showCurrentPassword ? 'text' : 'password'}
-                                                className="w-full pl-4 pr-11 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/[0.02] font-medium text-primary dark:text-white text-sm"
-                                                {...passwordForm.register('currentPassword')}
-                                            />
-                                            <button
+                                    {!showPasswordForm ? (
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-xl border border-dashed border-outline-variant/70 bg-surface-container-low/40">
+                                            <div className="flex items-center gap-3">
+                                                <div className="size-10 rounded-xl bg-surface-container-high flex items-center justify-center text-primary/60 dark:text-white/60">
+                                                    <Lock size={20} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        Password is set
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        Last changed date is not tracked in this demo
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Button
                                                 type="button"
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40"
-                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                                variant="outline"
+                                                className="!rounded-xl shrink-0"
+                                                onClick={() => {
+                                                    setShowPasswordForm(true)
+                                                    setPasswordError(null)
+                                                    setPasswordSuccess(false)
+                                                }}
                                             >
-                                                <span className="material-symbols-outlined text-lg">
-                                                    {showCurrentPassword ? 'visibility_off' : 'visibility'}
-                                                </span>
-                                            </button>
+                                                Change password
+                                            </Button>
                                         </div>
-                                        {passwordForm.formState.errors.currentPassword && (
-                                            <p className="text-xs text-red-600">{passwordForm.formState.errors.currentPassword.message}</p>
-                                        )}
-                                    </div>
+                                    ) : (
+                                        <form
+                                            onSubmit={passwordForm.handleSubmit(onChangePassword)}
+                                            className="space-y-4 p-4 md:p-5 rounded-xl border border-outline-variant/50 bg-surface-container-low/30"
+                                        >
+                                            <p className="text-sm font-bold text-primary dark:text-white">
+                                                Set a new password
+                                            </p>
 
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
-                                            New password
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type={showNewPassword ? 'text' : 'password'}
-                                                className="w-full pl-4 pr-11 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/[0.02] font-medium text-primary dark:text-white text-sm"
-                                                {...passwordForm.register('newPassword')}
+                                            {passwordError && (
+                                                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 text-sm flex items-center gap-2">
+                                                    <AlertCircle size={18} className="shrink-0" />
+                                                    {passwordError}
+                                                </div>
+                                            )}
+
+                                            <PasswordField
+                                                id="current-password"
+                                                label="Current password"
+                                                show={showCurrentPassword}
+                                                onToggleShow={() => setShowCurrentPassword((v) => !v)}
+                                                error={passwordForm.formState.errors.currentPassword?.message}
+                                                registration={passwordForm.register('currentPassword')}
                                             />
-                                            <button
-                                                type="button"
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40"
-                                                onClick={() => setShowNewPassword(!showNewPassword)}
-                                            >
-                                                <span className="material-symbols-outlined text-lg">
-                                                    {showNewPassword ? 'visibility_off' : 'visibility'}
-                                                </span>
-                                            </button>
-                                        </div>
-                                        {passwordForm.formState.errors.newPassword && (
-                                            <p className="text-xs text-red-600">{passwordForm.formState.errors.newPassword.message}</p>
-                                        )}
-                                    </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <PasswordField
+                                                    id="new-password"
+                                                    label="New password"
+                                                    show={showNewPassword}
+                                                    onToggleShow={() => setShowNewPassword((v) => !v)}
+                                                    error={passwordForm.formState.errors.newPassword?.message}
+                                                    registration={passwordForm.register('newPassword')}
+                                                />
+                                                <div className="space-y-1.5">
+                                                    <FieldLabel htmlFor="confirm-password">
+                                                        Confirm password
+                                                    </FieldLabel>
+                                                    <input
+                                                        id="confirm-password"
+                                                        type={showNewPassword ? 'text' : 'password'}
+                                                        className="app-input w-full !min-h-12"
+                                                        autoComplete="new-password"
+                                                        {...passwordForm.register('confirmPassword')}
+                                                    />
+                                                    {passwordForm.formState.errors.confirmPassword && (
+                                                        <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+                                                            {
+                                                                passwordForm.formState.errors.confirmPassword
+                                                                    .message
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
 
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-primary/60 dark:text-white/60 uppercase tracking-wider">
-                                            Confirm new password
-                                        </label>
-                                        <input
-                                            type={showNewPassword ? 'text' : 'password'}
-                                            className="w-full px-4 py-3 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/[0.02] font-medium text-primary dark:text-white text-sm"
-                                            {...passwordForm.register('confirmPassword')}
-                                        />
-                                        {passwordForm.formState.errors.confirmPassword && (
-                                            <p className="text-xs text-red-600">{passwordForm.formState.errors.confirmPassword.message}</p>
-                                        )}
-                                    </div>
-
-                                    <div className="flex gap-3 pt-1">
-                                        <button
-                                            type="submit"
-                                            disabled={passwordLoading}
-                                            className="flex-1 py-3 bg-primary dark:bg-white text-white dark:text-primary rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-60"
-                                        >
-                                            {passwordLoading ? 'Updating…' : 'Update password'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setShowPasswordForm(false)
-                                                passwordForm.reset()
-                                                setPasswordError(null)
-                                            }}
-                                            className="px-4 py-3 border border-primary/10 dark:border-white/10 rounded-xl text-sm font-bold text-primary/70 dark:text-white/70 hover:bg-primary/5 dark:hover:bg-white/5"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </form>
-                            )}
-                        </div>
-                    </section>
-                )}
-                {activeTab === 'NOTIFICATIONS' && (
-                    <div className="p-12 text-center bg-primary/[0.02] dark:bg-white/[0.02] rounded-2xl border border-dashed border-primary/10 dark:border-white/10">
-                        <Bell size={48} className="mx-auto text-primary/20 dark:text-white/20 mb-4" />
-                        <h3 className="text-lg font-bold text-primary dark:text-white">Notification Settings</h3>
-                        <p className="text-primary/60 dark:text-white/60">Configure how you receive updates.</p>
-                    </div>
-                )}
-                {activeTab === 'TEAM' && user?.role === 'ADMIN' && (
-                    <div className="p-8 bg-primary/[0.02] dark:bg-white/[0.02] rounded-2xl border border-primary/10 dark:border-white/10 space-y-4">
-                        <h3 className="text-lg font-bold text-primary dark:text-white">Administration</h3>
-                        <p className="text-sm text-primary/60 dark:text-white/60">
-                            Manage users, departments, skills, and role access from the admin section.
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                            <Button onClick={() => navigate('/admin')}>Admin home</Button>
-                            <Button variant="secondary" onClick={() => navigate('/admin/users')}>Users</Button>
-                            <Button variant="secondary" onClick={() => navigate('/admin/departments')}>Departments</Button>
-                            <Button variant="secondary" onClick={() => navigate('/admin/skills')}>Skills</Button>
-                            <Button variant="secondary" onClick={() => navigate('/admin/role-access')}>Role access</Button>
-                        </div>
-                    </div>
-                )}
+                                            <div className="flex flex-wrap gap-3 pt-2">
+                                                <Button
+                                                    type="submit"
+                                                    variant="primary"
+                                                    className="!rounded-xl flex-1 sm:flex-none min-w-[10rem]"
+                                                    disabled={passwordLoading}
+                                                    isLoading={passwordLoading}
+                                                >
+                                                    Update password
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="!rounded-xl"
+                                                    onClick={() => {
+                                                        setShowPasswordForm(false)
+                                                        passwordForm.reset()
+                                                        setPasswordError(null)
+                                                    }}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        </form>
+                                    )}
+                                </SettingsSection>
+                            </>
+                        )}
+                    </TabContent>
+                </div>
             </div>
         </div>
     )

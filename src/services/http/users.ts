@@ -1,5 +1,5 @@
 import { apiRequest } from '../../lib/apiClient'
-import { User, UserRole } from '../../types'
+import { FeatureTagKey, LoginHistoryEntry, User, UserRole } from '../../types'
 
 export const userService = {
   getById: async (uid: string): Promise<User | undefined> => {
@@ -61,6 +61,9 @@ export const userService = {
 
   list: async (): Promise<User[]> => apiRequest<User[]>('/users'),
 
+  getLoginHistory: (uid: string) =>
+    apiRequest<LoginHistoryEntry[]>(`/users/${uid}/login-history`),
+
   updateRole: async (uid: string, role: UserRole): Promise<void> => {
     await apiRequest(`/users/${uid}/role`, {
       method: 'PATCH',
@@ -74,6 +77,12 @@ export const userService = {
       body: JSON.stringify({ status }),
     })
   },
+
+  updateTags: (uid: string, tags: FeatureTagKey[]) =>
+    apiRequest<User>(`/users/${uid}/tags`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tags }),
+    }),
 
   invite: async (data: {
     email: string

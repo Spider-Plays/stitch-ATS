@@ -28,6 +28,19 @@ model User {
   passwordResetToken   String?
   passwordResetExpires DateTime?
   vendorId             String?
+  referralCode         String?  @unique
+  loginHistory         LoginHistory[]
+}
+
+model LoginHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loggedInAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([userId, loggedInAt])
 }
 
 model Vendor {
@@ -63,10 +76,23 @@ model Requirement {
   department      String
   hiringManager   String
   status          String
+  hiringStage     String   @default("SOURCING")
+  liveAt          DateTime?
+  onHoldAt        DateTime?
   openings        Int
   filled          Int      @default(0)
   priority        String?
   location        String?
+  locationCity      String?
+  isRemote          Boolean  @default(false)
+  workMode          String?
+  employmentType    String?
+  seniorityLevel    String?
+  experienceMinYears Int?
+  experienceMaxYears Int?
+  salaryBand        String?
+  targetStartDate   DateTime?
+  hiringDeadline    DateTime?
   description     String?
   jobDescription  String?
   primarySkills   String   @default("[]")
@@ -80,6 +106,10 @@ model Requirement {
   currentVersion        Int      @default(1)
   visibleToCandidates   Boolean  @default(true)
   visibleToVendors      Boolean  @default(false)
+  visibleToReferrals    Boolean  @default(true)
+  referralBonusAmount   Int?
+  closureReason         String?
+  closedAt              DateTime?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -113,16 +143,49 @@ model Candidate {
   primarySkills    String   @default("[]")
   secondarySkills  String   @default("[]")
   resumeText       String?
-  vendorId         String?
-  submittedByUserId String?
+  vendorId              String?
+  submittedByUserId     String?
+  referredByUserId      String?
+  referralRelationship  String?
+  referralNotes         String?
+  offerDate              DateTime?
+  offerMonth             String?
+  offerQuarter           String?
+  expectedJoiningDate    DateTime?
+  joiningDate            DateTime?
+  joiningMonth           String?
+  joiningQuarter         String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model InterviewPlan {
+  id            String   @id @default(cuid())
+  requirementId String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  stages        InterviewPlanStage[]
+}
+
+model InterviewPlanStage {
+  id                    String   @id @default(cuid())
+  planId                String
+  order                 Int
+  name                  String
+  interviewType         String   @default("TECHNICAL")
+  defaultDuration       Int      @default(60)
+  defaultInterviewerIds String   @default("[]")
+  plan                  InterviewPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  interviews            Interview[]
+
+  @@unique([planId, order])
 }
 
 model Interview {
   id             String   @id @default(cuid())
   candidateId    String
   requirementId  String
+  planStageId    String?
   scheduledAt    DateTime
   interviewerIds String   @default("[]")
   type           String
@@ -132,6 +195,7 @@ model Interview {
   location       String?
   description    String?
   createdAt      DateTime @default(now())
+  planStage      InterviewPlanStage? @relation(fields: [planStageId], references: [id], onDelete: SetNull)
 }
 
 model Feedback {
@@ -174,6 +238,21 @@ model DepartmentCatalog {
   id        String   @id @default(cuid())
   name      String   @unique
   createdAt DateTime @default(now())
+}
+
+model ClientCatalog {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model InterviewPanelLevel {
+  id               String   @id @default(cuid())
+  order            Int      @unique
+  name             String
+  interviewerIds   String   @default("[]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model ActivityLog {

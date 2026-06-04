@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Home, AlertTriangle } from 'lucide-react'
+import { StitchLogo } from '../components/branding/StitchLogo'
 
 const NotFound = () => {
     const navigate = useNavigate()
@@ -8,6 +9,9 @@ const NotFound = () => {
     return (
         <div className="min-h-screen bg-white dark:bg-[#15191d] flex items-center justify-center p-4">
             <div className="text-center max-w-lg">
+                <div className="mb-8 flex justify-center">
+                    <StitchLogo tone="primary" size="lg" className="justify-center" />
+                </div>
                 <div className="mb-6 flex justify-center">
                     <div className="size-24 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
                         <AlertTriangle className="text-red-600 dark:text-red-500" size={48} />
@@ -22,7 +26,7 @@ const NotFound = () => {
 
                 <button
                     onClick={() => navigate('/')}
-                    className="bg-primary dark:bg-white text-white dark:text-primary px-8 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 dark:shadow-none"
+                    className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 dark:shadow-none"
                 >
                     <Home size={18} />
                     Go Home

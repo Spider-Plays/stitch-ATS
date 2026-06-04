@@ -4,15 +4,10 @@ import { withDbRetry } from './lib/dbRetry.js'
 import { DEV_PASSWORD } from './config/devUsers.js'
 import { SEED_USERS } from './config/users.js'
 
-/** Portal demo accounts (also on dev quick-login panel). */
-const PORTAL_DEV_USERS = [
-  { email: 'demo.portal1@local.test', password: DEV_PASSWORD, name: 'Aisha Mehta', role: 'CANDIDATE' },
-  { email: 'demo.portal-browse@local.test', password: DEV_PASSWORD, name: 'Karan Joshi', role: 'CANDIDATE' },
-] as const
-
-const DEV_VENDOR_CODE = 'DEV-VENDOR'
-
-async function upsertDevUser(u: (typeof SEED_USERS)[number], vendorId?: string) {
+async function upsertDevUser(
+  u: (typeof SEED_USERS)[number],
+  vendorId?: string
+) {
   const passwordHash = await bcrypt.hash(u.password, 10)
   await prisma.user.upsert({
     where: { email: u.email.toLowerCase() },
@@ -44,46 +39,39 @@ async function main() {
     console.log('No seed users configured. Run npm run db:bootstrap to create an admin.')
     return
   }
-  console.log('Seeding database (will retry if Neon is waking up)...')
+
+  console.log('Seeding one user per role...')
 
   await withDbRetry(() => prisma.$queryRaw`SELECT 1`, { label: 'Neon' })
 
-  const devVendor = await prisma.vendor.upsert({
-    where: { code: DEV_VENDOR_CODE },
-    update: { name: 'Dev Staffing Co', status: 'ACTIVE', email: 'dev-vendor-org@local.test' },
-    create: {
-      name: 'Dev Staffing Co',
-      code: DEV_VENDOR_CODE,
-      email: 'dev-vendor-org@local.test',
-      status: 'ACTIVE',
-      contactName: 'Dev Vendor Contact',
-    },
-  })
+  const hasVendor = SEED_USERS.some((u) => u.role === 'VENDOR')
+  let vendorId: string | undefined
 
-  const sampleVendors = [
-    { name: 'Apex Talent Partners', code: 'APEX', email: 'contact@apextalent.test', contactName: 'Priya Sharma', status: 'ACTIVE' },
-    { name: 'Nexus Recruit Solutions', code: 'NEXUS', email: 'hello@nexusrecruit.test', contactName: 'Rahul Mehta', status: 'ACTIVE' },
-    { name: 'Horizon Staffing Co', code: 'HORIZON', email: 'ops@horizonstaff.test', contactName: 'Anita Desai', status: 'ACTIVE' },
-    { name: 'Summit HR Agency', code: 'SUMMIT', email: 'recruit@summitagency.test', contactName: 'Vikram Singh', status: 'INACTIVE' },
-  ] as const
-
-  for (const v of sampleVendors) {
-    await prisma.vendor.upsert({
-      where: { code: v.code },
-      update: { name: v.name, email: v.email, contactName: v.contactName, status: v.status },
-      create: { ...v, phone: null, website: null, address: null, notes: null },
+  if (hasVendor) {
+    const vendor = await prisma.vendor.upsert({
+      where: { code: 'DEV-VENDOR' },
+      update: { name: 'Dev Staffing Co', status: 'ACTIVE', email: 'dev-vendor-org@local.test' },
+      create: {
+        name: 'Dev Staffing Co',
+        code: 'DEV-VENDOR',
+        email: 'dev-vendor-org@local.test',
+        status: 'ACTIVE',
+        contactName: 'Dev Vendor Contact',
+      },
     })
+    vendorId = vendor.id
   }
 
   for (const u of SEED_USERS) {
-    await upsertDevUser(u, u.role === 'VENDOR' ? devVendor.id : undefined)
+    await upsertDevUser(u, u.role === 'VENDOR' ? vendorId : undefined)
   }
-  for (const u of PORTAL_DEV_USERS) {
-    await upsertDevUser(u)
+
+  const userCount = await prisma.user.count()
+  console.log(`Seeded ${userCount} user(s) — one per role. Password for all: ${DEV_PASSWORD}`)
+  console.log('Accounts:')
+  for (const u of SEED_USERS) {
+    console.log(`  ${u.role.padEnd(16)} ${u.email}`)
   }
-  console.log(
-    `Seeded ${SEED_USERS.length + PORTAL_DEV_USERS.length} users and ${sampleVendors.length + 1} vendors.`
-  )
 }
 
 main()

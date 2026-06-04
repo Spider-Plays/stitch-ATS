@@ -1,22 +1,30 @@
 import type { Interview } from '../types'
+import { canEditInterview } from './interviewDisplayStatus'
+import { hasOrgWideAccess } from './orgAccess'
 
-/** Full platform administrator */
+/** Administration section (user management, catalogs, role access). */
 export function isAdminRole(role?: string | null): boolean {
   return role === 'ADMIN'
 }
 
-/** Admin can edit any record regardless of ownership */
+/** Org-wide operational access (all candidates, requirements, etc.). */
+export { hasOrgWideAccess } from './orgAccess'
+
+/** HR leadership / admin can edit any record regardless of ownership */
 export function canEditOwnedOrAdmin(
   role: string | undefined,
   ownerId: string | undefined,
   currentUserId: string | undefined
 ): boolean {
-  if (isAdminRole(role)) return true
+  if (hasOrgWideAccess(role)) return true
   if (!ownerId || !currentUserId) return false
   return ownerId === currentUserId
 }
 
 export function canEditInterviewAsRole(interview: Interview, role?: string | null): boolean {
-  if (isAdminRole(role)) return interview.status !== 'CANCELLED'
-  return interview.status !== 'CANCELLED' && !interview.hasFeedback
+  return canEditInterview(interview, role)
+}
+
+export function canDeleteFeedback(role?: string | null): boolean {
+  return hasOrgWideAccess(role)
 }

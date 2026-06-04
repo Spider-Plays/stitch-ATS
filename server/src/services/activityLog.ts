@@ -36,3 +36,22 @@ export async function logActivity(data: {
     console.error('Activity log failed:', e)
   }
 }
+
+/** Logs interview events on the candidate profile activity tab. */
+export async function logCandidateInterviewActivity(data: {
+  candidateId: string
+  interviewId: string
+  action: string
+  performedBy: string
+  performerRole?: string
+  details?: Record<string, unknown>
+}) {
+  await logActivity({
+    entityType: 'CANDIDATE',
+    entityId: data.candidateId,
+    action: data.action,
+    performedBy: data.performedBy,
+    performerRole: data.performerRole,
+    details: { interviewId: data.interviewId, ...data.details },
+  })
+}

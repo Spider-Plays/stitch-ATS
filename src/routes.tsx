@@ -12,6 +12,7 @@ import CandidateDetail from './pages/candidates/CandidateProfile'
 import CandidatesList from './pages/candidates/CandidatesList'
 import Pipeline from './pages/pipeline/Pipeline'
 import RequirementDetail from './pages/requirements/RequirementDetail'
+import EditRequirement from './pages/requirements/EditRequirement'
 import RequirementMatchingProfiles from './pages/requirements/RequirementMatchingProfiles'
 import RequirementLinkedCandidates from './pages/requirements/RequirementLinkedCandidates'
 import NewRequirement from './pages/requirements/NewRequirement'
@@ -21,13 +22,23 @@ import UserDetail from './pages/admin/UserDetail'
 import RoleAccessEditor from './pages/admin/RoleAccessEditor'
 import AdminOverview from './pages/admin/AdminOverview'
 import AdminDepartments from './pages/admin/AdminDepartments'
+import AdminClients from './pages/admin/AdminClients'
 import AdminSkills from './pages/admin/AdminSkills'
+import AdminInterviewPanels from './pages/admin/AdminInterviewPanels'
 import CandidateDashboard from './pages/candidate-portal/CandidateDashboard'
 import PortalJobDetail from './pages/candidate-portal/PortalJobDetail'
-import PortalProfileSetup from './pages/candidate-portal/PortalProfileSetup'
+import PortalOnboarding from './pages/candidate-portal/PortalOnboarding'
+import PortalJobs from './pages/candidate-portal/PortalJobs'
+import PortalAppliedJobs from './pages/candidate-portal/PortalAppliedJobs'
+import PortalApplicationUpdates from './pages/candidate-portal/PortalApplicationUpdates'
+import CandidateLogin from './pages/candidate-portal/CandidateLogin'
+import CandidateSignup from './pages/candidate-portal/CandidateSignup'
+import { PortalIndexRedirect } from './pages/candidate-portal/PortalIndexRedirect'
 import { PortalProfileGate } from './components/portal/PortalProfileGate'
+import CandidatePortalLayout from './layouts/CandidatePortalLayout'
 import Interviews from './pages/interviews/Interviews'
 import ScheduleInterview from './pages/interviews/ScheduleInterview'
+import InterviewCandidateResume from './pages/interviews/InterviewCandidateResume'
 import FeedbackForm from './pages/feedback/FeedbackForm'
 import Offers from './pages/offers/Offers'
 import NewOffer from './pages/offers/NewOffer'
@@ -44,12 +55,43 @@ import VendorSubmissions from './pages/vendor-portal/VendorSubmissions'
 import VendorsList from './pages/vendors/VendorsList'
 import VendorDetail from './pages/vendors/VendorDetail'
 import NewVendor from './pages/vendors/NewVendor'
+import CareersCandidates from './pages/features/CareersCandidates'
+import EmployeeReferralCandidates from './pages/features/EmployeeReferralCandidates'
+import MisDashboard from './pages/features/MisDashboard'
+import ReferralPortalLayout from './layouts/ReferralPortalLayout'
+import ReferralLogin from './pages/referral-portal/ReferralLogin'
+import ReferralDashboard from './pages/referral-portal/ReferralDashboard'
+import ReferralJobs from './pages/referral-portal/ReferralJobs'
+import ReferralJobDetail from './pages/referral-portal/ReferralJobDetail'
+import ReferralList from './pages/referral-portal/ReferralList'
+import ReferralDetail from './pages/referral-portal/ReferralDetail'
+import ReferralProgram from './pages/referral-portal/ReferralProgram'
+import { REFERRAL_PORTAL_ROLES } from './lib/referralPortalRoles'
 
 const AppRoutes = () => {
     return (
         <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+
+            {/* Employee Referral Portal */}
+            <Route path="/referral-portal/login" element={<ReferralLogin />} />
+            <Route
+                path="/referral-portal"
+                element={
+                    <RequireAuth allowedRoles={[...REFERRAL_PORTAL_ROLES]} skipPageCheck>
+                        <ReferralPortalLayout />
+                    </RequireAuth>
+                }
+            >
+                <Route path="dashboard" element={<ReferralDashboard />} />
+                <Route path="jobs" element={<ReferralJobs />} />
+                <Route path="jobs/:id" element={<ReferralJobDetail />} />
+                <Route path="referrals" element={<ReferralList />} />
+                <Route path="referrals/:id" element={<ReferralDetail />} />
+                <Route path="program" element={<ReferralProgram />} />
+                <Route index element={<Navigate to="dashboard" replace />} />
+            </Route>
 
             {/* Vendor Portal */}
             <Route path="/vendor-portal" element={<RequireAuth allowedRoles={['VENDOR']}><VendorPortalLayout /></RequireAuth>}>
@@ -60,14 +102,29 @@ const AppRoutes = () => {
                 <Route index element={<Navigate to="dashboard" replace />} />
             </Route>
 
-            {/* Candidate Portal */}
-            <Route path="/portal" element={<RequireAuth allowedRoles={['CANDIDATE']}><MainLayout /></RequireAuth>}>
-                <Route path="profile" element={<PortalProfileSetup />} />
+            {/* Candidate Portal — public auth */}
+            <Route path="/portal/login" element={<CandidateLogin />} />
+            <Route path="/portal/signup" element={<CandidateSignup />} />
+
+            <Route
+                path="/portal"
+                element={
+                    <RequireAuth allowedRoles={['CANDIDATE']}>
+                        <CandidatePortalLayout />
+                    </RequireAuth>
+                }
+            >
+                <Route index element={<PortalIndexRedirect />} />
+                <Route path="onboarding" element={<PortalOnboarding />} />
+                <Route path="profile" element={<Navigate to="/portal/onboarding" replace />} />
                 <Route element={<PortalProfileGate />}>
                     <Route path="dashboard" element={<CandidateDashboard />} />
+                    <Route path="jobs" element={<PortalJobs />} />
+                    <Route path="jobs/applied/:requirementId" element={<PortalApplicationUpdates />} />
                     <Route path="jobs/:id" element={<PortalJobDetail />} />
+                    <Route path="applied/:requirementId" element={<PortalAppliedJobs />} />
+                    <Route path="applied" element={<PortalAppliedJobs />} />
                 </Route>
-                <Route index element={<Navigate to="profile" replace />} />
             </Route>
 
             {/* Admin Only */}
@@ -76,8 +133,10 @@ const AppRoutes = () => {
                 <Route path="users" element={<UserManagement />} />
                 <Route path="users/:id" element={<UserDetail />} />
                 <Route path="departments" element={<AdminDepartments />} />
+                <Route path="clients" element={<AdminClients />} />
                 <Route path="skills" element={<AdminSkills />} />
                 <Route path="role-access" element={<RoleAccessEditor />} />
+                <Route path="interview-panels" element={<AdminInterviewPanels />} />
             </Route>
 
             {/* Vendor management (staff) */}
@@ -105,6 +164,7 @@ const AppRoutes = () => {
                 <Route path="requirements/new" element={<NewRequirement />} />
                 <Route path="requirements/:id/matching-profiles" element={<RequirementMatchingProfiles />} />
                 <Route path="requirements/:id/linked-candidates" element={<RequirementLinkedCandidates />} />
+                <Route path="requirements/:id/edit" element={<EditRequirement />} />
                 <Route path="requirements/:id" element={<RequirementDetail />} />
 
 
@@ -118,11 +178,17 @@ const AppRoutes = () => {
                 {/* Interviews & Offers */}
                 <Route path="interviews" element={<Interviews />} />
                 <Route path="interviews/new" element={<ScheduleInterview />} />
+                <Route path="interviews/:id/resume" element={<InterviewCandidateResume />} />
                 <Route path="interviews/:id/edit" element={<ScheduleInterview />} />
                 <Route path="interviews/:id/feedback" element={<FeedbackForm />} />
                 <Route path="offers" element={<Offers />} />
                 <Route path="offers/new" element={<NewOffer />} />
                 <Route path="offers/:id" element={<OfferDetail />} />
+
+                {/* Feature modules (gated by user tags) */}
+                <Route path="features/careers" element={<CareersCandidates />} />
+                <Route path="features/employee-referral" element={<EmployeeReferralCandidates />} />
+                <Route path="features/mis" element={<MisDashboard />} />
             </Route>
 
             {/* Settings & Notifications (Shared) */}

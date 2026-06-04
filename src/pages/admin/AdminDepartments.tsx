@@ -25,7 +25,7 @@ const AdminDepartments = () => {
       description="Names in this catalog appear when posting jobs and assigning user departments."
     >
       {isLoading && (
-        <p className="text-primary/60 dark:text-white/60 font-medium">Loading departments…</p>
+        <p className="text-page-desc">Loading departments…</p>
       )}
 
       {isError && !isLoading && (

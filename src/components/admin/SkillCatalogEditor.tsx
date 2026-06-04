@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { useToastStore } from '../../store/toastStore'
+import { useConfirm } from '../../hooks/useConfirm'
 import { ApiError } from '../../lib/apiClient'
 import type { SkillCatalogItem } from '../../services/http/skills'
 import clsx from 'clsx'
@@ -14,6 +15,7 @@ type SkillCatalogEditorProps = {
 export function SkillCatalogEditor({ skills, variant = 'page' }: SkillCatalogEditorProps) {
   const queryClient = useQueryClient()
   const { addToast } = useToastStore()
+  const confirm = useConfirm()
   const [newName, setNewName] = useState('')
   const [newCategory, setNewCategory] = useState('General')
 
@@ -50,7 +52,7 @@ export function SkillCatalogEditor({ skills, variant = 'page' }: SkillCatalogEdi
     <div className={variant === 'page' ? 'space-y-6' : ''}>
       <div className={clsx(
         variant === 'page'
-          ? 'bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6'
+          ? 'app-card p-6'
           : 'px-6 py-4 border-b border-primary/10 dark:border-white/10 space-y-3'
       )}>
         <p className="text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">
@@ -73,7 +75,7 @@ export function SkillCatalogEditor({ skills, variant = 'page' }: SkillCatalogEdi
             type="button"
             disabled={newName.trim().length < 2 || createMutation.isPending}
             onClick={() => createMutation.mutate()}
-            className="px-4 py-2 rounded-xl bg-primary dark:bg-white text-white dark:text-primary text-sm font-bold disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
           >
             Add
           </button>
@@ -82,14 +84,14 @@ export function SkillCatalogEditor({ skills, variant = 'page' }: SkillCatalogEdi
 
       <div className={clsx(
         variant === 'page'
-          ? 'bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6'
+          ? 'app-card p-6'
           : 'flex-1 overflow-y-auto px-6 py-4 custom-scrollbar space-y-4'
       )}>
         {Object.keys(byCategory)
           .sort()
           .map((cat) => (
             <div key={cat} className={variant === 'page' ? 'mb-6 last:mb-0' : ''}>
-              <p className="text-xs font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider mb-2">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                 {cat}
               </p>
               <ul className="flex flex-wrap gap-2">
@@ -101,10 +103,14 @@ export function SkillCatalogEditor({ skills, variant = 'page' }: SkillCatalogEdi
                     {s.name}
                     <button
                       type="button"
-                      onClick={() => {
-                        if (confirm(`Remove "${s.name}" from the catalog?`)) {
-                          deleteMutation.mutate(s.id)
-                        }
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Remove skill',
+                          message: `Remove "${s.name}" from the catalog?`,
+                          confirmLabel: 'Remove',
+                          variant: 'danger',
+                        })
+                        if (ok) deleteMutation.mutate(s.id)
                       }}
                       className={clsx(
                         'p-0.5 rounded-full text-primary/40 hover:text-red-500',

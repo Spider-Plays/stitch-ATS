@@ -19,7 +19,7 @@ export function PortalProfileGate() {
   const complete = data?.profileComplete === true
   if (!complete) {
     const returnTo = encodeURIComponent(location.pathname + location.search)
-    return <Navigate to={`/portal/profile?returnTo=${returnTo}`} replace />
+    return <Navigate to={`/portal/onboarding?returnTo=${returnTo}`} replace />
   }
 
   return <Outlet />

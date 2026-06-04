@@ -6,6 +6,7 @@ import { mapUser } from '../utils/mappers.js'
 import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
 import { generateTempPassword } from '../lib/password.js'
 import { sendInviteEmail, sendAdminPasswordEmail } from '../services/email.js'
+import { sanitizeFeatureTags } from '../lib/userTags.js'
 
 const router = Router()
 router.use(requireAuth, requireActiveUser)
@@ -20,6 +21,7 @@ const inviteRoles = [
   'INTERVIEWER',
   'CANDIDATE',
   'VENDOR',
+  'EMPLOYEE',
 ] as const
 
 router.get(
@@ -105,6 +107,27 @@ router.patch('/me', async (req, res) => {
     },
   })
   res.json(mapUser(user))
+})
+
+router.get('/:id/login-history', requireRoles('ADMIN'), async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } })
+  if (!user) return res.status(404).json({ error: 'Not found' })
+
+  const entries = await prisma.loginHistory.findMany({
+    where: { userId: req.params.id },
+    orderBy: { loggedInAt: 'desc' },
+    take: 200,
+  })
+
+  res.json(
+    entries.map((e) => ({
+      id: e.id,
+      userId: e.userId,
+      loggedInAt: e.loggedInAt.toISOString(),
+      ipAddress: e.ipAddress ?? undefined,
+      userAgent: e.userAgent ?? undefined,
+    }))
+  )
 })
 
 router.get('/:id', requireRoles('ADMIN'), async (req, res) => {
@@ -193,6 +216,16 @@ router.post('/:id/reset-password', requireRoles('ADMIN'), async (req, res) => {
     ...(emailWarning ? { emailWarning } : {}),
     ...(!emailSent && body.generateTemporary ? { temporaryPassword: plainPassword } : {}),
   })
+})
+
+router.patch('/:id/tags', requireRoles('ADMIN'), async (req, res) => {
+  const { tags } = z.object({ tags: z.array(z.string()) }).parse(req.body)
+  const sanitized = sanitizeFeatureTags(tags)
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { permissions: JSON.stringify(sanitized) },
+  })
+  res.json(mapUser(user))
 })
 
 router.patch('/:id/role', requireRoles('ADMIN'), async (req, res) => {

@@ -16,9 +16,12 @@ import searchRoutes from './routes/search.js'
 import portalRoutes from './routes/portal.js'
 import vendorRoutes from './routes/vendors.js'
 import vendorPortalRoutes from './routes/vendorPortal.js'
+import referralPortalRoutes from './routes/referralPortal.js'
 import skillRoutes from './routes/skills.js'
 import departmentRoutes from './routes/departments.js'
+import clientRoutes from './routes/clients.js'
 import roleAccessRoutes from './routes/roleAccess.js'
+import interviewPanelRoutes from './routes/interviewPanels.js'
 
 export const app = express()
 
@@ -54,9 +57,12 @@ app.use('/api/search', searchRoutes)
 app.use('/api/portal', portalRoutes)
 app.use('/api/vendors', vendorRoutes)
 app.use('/api/vendor-portal', vendorPortalRoutes)
+app.use('/api/referral-portal', referralPortalRoutes)
 app.use('/api/skills', skillRoutes)
 app.use('/api/departments', departmentRoutes)
+app.use('/api/clients', clientRoutes)
 app.use('/api/role-access', roleAccessRoutes)
+app.use('/api/interview-panels', interviewPanelRoutes)
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err)
@@ -76,6 +82,38 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   }
   if (err instanceof Error && err.message.includes('Only PDF')) {
     return res.status(400).json({ error: err.message })
+  }
+  if (err instanceof Error && err.name === 'RequirementFieldError') {
+    return res.status(400).json({ error: err.message })
+  }
+  if (err instanceof Prisma.PrismaClientValidationError) {
+    const msg = err.message
+    if (msg.includes('hiringStage') || msg.includes('onHoldAt') || msg.includes('liveAt')) {
+      return res.status(503).json({
+        error:
+          'Server Prisma client is out of date. Stop the API, run `npm run db:generate --prefix server`, then restart `npm run dev`.',
+      })
+    }
+  }
+  if (
+    err instanceof TypeError &&
+    (err.message.includes('findUnique') ||
+      err.message.includes("'count'") ||
+      err.message.includes("'create'"))
+  ) {
+    const stack = err.stack ?? ''
+    if (
+      stack.includes('ensureInterviewPlan') ||
+      stack.includes('clientCatalog') ||
+      stack.includes('ensureDefaultClientCatalog') ||
+      stack.includes('interviewPanelCatalog') ||
+      stack.includes('interviewPanelLevel')
+    ) {
+      return res.status(503).json({
+        error:
+          'Server Prisma client is out of date. Stop the API, run `npm run db:generate --prefix server`, then restart `npm run dev`.',
+      })
+    }
   }
   if (err && typeof err === 'object' && 'issues' in err) {
     return res.status(400).json({ error: 'Validation failed' })

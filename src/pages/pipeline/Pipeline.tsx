@@ -1,308 +1,343 @@
-import React, { useState, useMemo } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import React, { useMemo, useState } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import {
+  GitBranch,
+  UserPlus,
+  Users,
+  Briefcase,
+  Sparkles,
+  CheckCircle2,
+  Ban,
+  ListFilter,
+  Building2,
+  ExternalLink,
+} from 'lucide-react'
 import { api } from '../../services/api'
-import { Candidate } from '../../types'
-import { MoreHorizontal, Calendar, Phone, Search, Filter, Plus, UserPlus, CheckCircle2, XCircle, Clock } from 'lucide-react'
-import clsx from 'clsx'
-import { useToastStore } from '../../store/toastStore'
-
-// Columns to display in the Kanban board
-const COLUMNS = ['SOURCED', 'SCREENING', 'SHORTLISTED', 'INTERVIEW', 'OFFER', 'HIRED', 'REJECTED'] as const
-
-// Helper to map status to display color/label
-const getMatchScoreColor = (score: number) => {
-    if (score >= 90) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-    if (score >= 80) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-}
-
-const CandidateCard = ({ candidate }: { candidate: Candidate }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: candidate.id, data: { candidate } })
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.3 : 1,
-    }
-
-    return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            {...attributes}
-            {...listeners}
-            className={clsx(
-                "group relative flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm hover:border-primary/30 hover:shadow-md dark:border-white/10 dark:bg-white/5 transition-all cursor-grab active:cursor-grabbing",
-                isDragging ? "ring-2 ring-primary rotate-2 scale-105" : "border-primary/10"
-            )}
-        >
-            <div className="flex items-start justify-between">
-                <div className="flex gap-3">
-                    <div className="h-10 w-10 overflow-hidden rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-lg dark:text-white">
-                        {candidate.avatar ? (
-                            <img src={candidate.avatar} alt={candidate.name} className="h-full w-full object-cover" />
-                        ) : (
-                            candidate.name.charAt(0)
-                        )}
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold text-primary dark:text-white group-hover:text-primary transition-colors">{candidate.name}</h4>
-                        <div className="flex items-center gap-1 text-[11px] font-medium text-primary/50 dark:text-white/40">
-                            {candidate.source}
-                        </div>
-                    </div>
-                </div>
-                <div className={clsx("rounded px-1.5 py-0.5 text-[10px] font-bold", getMatchScoreColor(candidate.matchScore))}>
-                    {candidate.matchScore}% Match
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <div className="text-[12px] text-primary/70 dark:text-white/60 font-medium">
-                    {candidate.role}
-                </div>
-                {candidate.status === 'INTERVIEW' && (
-                    <div className="flex items-center gap-2 rounded bg-primary/5 p-2 dark:bg-white/5">
-                        <Phone size={14} className="text-primary dark:text-white" />
-                        <p className="text-[11px] font-medium text-primary dark:text-white">Interview Scheduled</p>
-                    </div>
-                )}
-                {candidate.status === 'OFFER' && (
-                    <div className="flex items-center gap-2 rounded bg-green-50 p-2 dark:bg-green-900/10">
-                        <CheckCircle2 size={14} className="text-green-600 dark:text-green-400" />
-                        <p className="text-[11px] font-medium text-green-700 dark:text-green-400">Offer Sent</p>
-                    </div>
-                )}
-            </div>
-
-            <Link
-                to={`/candidates/${candidate.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="mt-1 w-full rounded border border-primary/10 bg-white py-1.5 text-center text-[12px] font-bold text-primary hover:bg-primary/5 dark:bg-white/5 dark:text-white dark:border-white/10 transition-colors"
-            >
-                Review Profile
-            </Link>
-        </div>
-    )
-}
-
-const PipelineColumn = ({ id, candidates }: { id: string, candidates: Candidate[] }) => {
-    const { setNodeRef } = useSortable({ id })
-
-    return (
-        <div ref={setNodeRef} className="flex-shrink-0 w-80 flex flex-col h-full">
-            <div className="flex items-center justify-between px-1 mb-4">
-                <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-primary/60 dark:text-white/60">{id}</h3>
-                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary dark:bg-white/10 dark:text-white">{candidates.length}</span>
-                </div>
-                <button className="text-primary/30 hover:text-primary dark:text-white/30 dark:hover:text-white transition-colors">
-                    <MoreHorizontal size={18} />
-                </button>
-            </div>
-
-            <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2 pb-20">
-                <SortableContext items={candidates.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                    {candidates.map(c => (
-                        <CandidateCard key={c.id} candidate={c} />
-                    ))}
-                </SortableContext>
-
-                {candidates.length === 0 && (
-                    <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-primary/5 dark:border-white/5 rounded-xl bg-primary/[0.02] dark:bg-white/[0.02] text-primary/30 dark:text-white/30">
-                        <span className="text-xs font-bold uppercase tracking-wider">No Candidates</span>
-                    </div>
-                )}
-            </div>
-        </div>
-    )
-}
+import { ApiError } from '../../lib/apiClient'
+import { useAuth } from '../../hooks/useAuth'
+import { useCandidateStageChange } from '../../hooks/useCandidateStageChange'
+import { CandidateStageDetailsModal } from '../../components/candidates/CandidateStageDetailsModal'
+import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { PageHero, heroBtnPrimary } from '../../components/layout/PageHero'
+import { AppSelect } from '../../components/ui/AppSelect'
+import { InterviewStatCard } from '../../components/interviews/InterviewStatCard'
+import { PipelineKanbanColumn } from '../../components/pipeline/PipelineKanbanColumn'
+import { matchesAnySearch } from '../../lib/textSearch'
+import { canCreateCandidate } from '../../lib/candidatePermissions'
+import type { CandidateStatus } from '../../types'
+import {
+  canManageCandidateStage,
+  groupCandidatesByKanbanStage,
+  pipelineSearchFields,
+  pipelineStats,
+  sortKanbanCards,
+  type PipelineStageFilter,
+} from '../../lib/pipelinePage'
 
 const Pipeline = () => {
-    const { requirementId } = useParams<{ requirementId: string }>()
-    const queryClient = useQueryClient()
-    const [activeId, setActiveId] = useState<string | null>(null)
-    const [searchTerm, setSearchTerm] = useState('')
-    const { addToast } = useToastStore()
+  const { requirementId } = useParams<{ requirementId: string }>()
+  const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [stageFilter, setStageFilter] = useState<PipelineStageFilter>('ALL')
+  const { user } = useAuth()
+  const canManage = canManageCandidateStage(user?.role)
+  const canCreate = canCreateCandidate(user?.role)
 
-    const { data: candidates = [] } = useQuery({
-        queryKey: ['candidates', requirementId],
-        queryFn: () => requirementId
-            ? api.candidates.getByRequirementId(requirementId)
-            : api.candidates.list()
-    })
+  const {
+    pendingModal,
+    isSubmitting,
+    requestStageChange,
+    confirmModal,
+    closeModal,
+  } = useCandidateStageChange({ requirementId })
 
-    const { data: requirement } = useQuery({
-        queryKey: ['requirement', requirementId],
-        queryFn: () => requirementId ? api.requirements.getById(requirementId) : undefined,
-        enabled: !!requirementId
-    })
+  const {
+    data: candidates = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['candidates', requirementId],
+    queryFn: () =>
+      requirementId ? api.candidates.getByRequirementId(requirementId) : api.candidates.list(),
+  })
 
-    const updateStatusMutation = useMutation({
-        mutationFn: ({ id, status }: { id: string, status: Candidate['status'] }) =>
-            api.candidates.updateStatus(id, status),
-        onMutate: async ({ id, status }) => {
-            await queryClient.cancelQueries({ queryKey: ['candidates'] })
-            const previousCandidates = queryClient.getQueryData<Candidate[]>(['candidates', requirementId]) || []
+  const { data: requirement } = useQuery({
+    queryKey: ['requirement', requirementId],
+    queryFn: () => (requirementId ? api.requirements.getById(requirementId) : undefined),
+    enabled: !!requirementId,
+  })
 
-            queryClient.setQueryData<Candidate[]>(['candidates', requirementId], (old) => {
-                if (!old) return []
-                return old.map(c => c.id === id ? { ...c, status } : c)
-            })
+  const { data: requirements = [] } = useQuery({
+    queryKey: ['requirements'],
+    queryFn: api.requirements.list,
+    enabled: !requirementId,
+  })
 
-            return { previousCandidates }
-        },
-        onError: (err, newTodo, context) => {
-            if (context?.previousCandidates) {
-                queryClient.setQueryData(['candidates', requirementId], context.previousCandidates)
+  const jobTitleById = useMemo(
+    () => new Map(requirements.map((r) => [r.id, r.title])),
+    [requirements]
+  )
+
+  const scopedCandidates = useMemo(() => {
+    if (!requirementId) return candidates
+    return candidates.filter((c) => c.requirementId === requirementId)
+  }, [candidates, requirementId])
+
+  const searched = useMemo(
+    () =>
+      scopedCandidates.filter((c) =>
+        matchesAnySearch(
+          pipelineSearchFields(c, c.requirementId ? jobTitleById.get(c.requirementId) : undefined),
+          searchTerm
+        )
+      ),
+    [scopedCandidates, searchTerm, jobTitleById]
+  )
+
+  const stats = useMemo(() => pipelineStats(searched), [searched])
+
+  const columns = useMemo(() => {
+    const groups = groupCandidatesByKanbanStage(searched).map((g) => ({
+      ...g,
+      items: sortKanbanCards(g.items),
+    }))
+    if (stageFilter === 'ALL') return groups
+    return groups.filter((g) => g.stage === stageFilter)
+  }, [searched, stageFilter])
+
+  const scrollToStage = (stage: CandidateStatus) => {
+    const next = stageFilter === stage ? 'ALL' : stage
+    setStageFilter(next)
+    if (next !== 'ALL') {
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-stage="${stage}"]`)?.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'center',
+          block: 'nearest',
+        })
+      })
+    }
+  }
+
+  const liveRequirements = useMemo(
+    () => requirements.filter((r) => r.status === 'LIVE' || r.status === 'ON_HOLD'),
+    [requirements]
+  )
+
+  const pageTitle = requirement ? requirement.title : 'Hiring pipeline'
+  const showJobOnCards = !requirementId
+
+  return (
+    <div className="max-w-[100rem] mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+      {pendingModal && (
+        <CandidateStageDetailsModal
+          open
+          targetStatus={pendingModal.status}
+          candidateName={pendingModal.candidateName}
+          onClose={closeModal}
+          onConfirm={confirmModal}
+          isSubmitting={isSubmitting}
+        />
+      )}
+
+      <div className="flex flex-col gap-6">
+        <div className="space-y-3 min-w-0">
+          <PageHero
+            icon={GitBranch}
+            eyebrow={requirementId ? 'Job pipeline' : 'Pipeline view'}
+            title={pageTitle}
+            description={
+              requirementId
+                ? 'Pipeline by stage — update status on a card or from the candidate profile.'
+                : 'All applicants by hiring stage. Open a job pipeline to focus on one requirement.'
             }
-            addToast('Failed to update stage', 'error')
-        },
-        onSuccess: () => {
-            // success is silent for drag and drop usually, or maybe a small toast?
-            // addToast('Stage updated', 'success') // Too noisy? 
-            // Let's keep it silent on success but ensure data is fresh
-            queryClient.invalidateQueries({ queryKey: ['candidates'] })
-        }
-    })
-
-    const filteredCandidates = useMemo(() => {
-        let filtered = candidates
-
-        if (requirementId) {
-            filtered = filtered.filter(c => c.requirementId === requirementId)
-        }
-
-        if (searchTerm) {
-            const q = searchTerm.toLowerCase()
-            filtered = filtered.filter(
-                (c) =>
-                    c.name.toLowerCase().includes(q) ||
-                    c.role.toLowerCase().includes(q) ||
-                    c.email?.toLowerCase().includes(q) ||
-                    c.jobTitle?.toLowerCase().includes(q) ||
-                    c.source?.toLowerCase().includes(q)
-            )
-        }
-
-        return filtered
-    }, [candidates, requirementId, searchTerm])
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-    )
-
-    const handleDragStart = (event: DragStartEvent) => {
-        setActiveId(event.active.id as string)
-    }
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event
-
-        if (!over) return
-
-        const activeId = active.id as string
-        const activeContainer = active.data.current?.sortable?.containerId
-        const overContainer = over.data.current?.sortable?.containerId || over.id
-
-        let newStatus = ''
-
-        if (COLUMNS.includes(overContainer as any)) {
-            newStatus = overContainer as string
-        } else {
-            const overCandidate = candidates.find(c => c.id === over.id)
-            if (overCandidate) newStatus = overCandidate.status
-        }
-
-        if (newStatus && newStatus !== active.data.current?.candidate?.status) {
-            // Optimistic update could be handled here, but for now we rely on mutation
-            updateStatusMutation.mutate({ id: activeId, status: newStatus as any })
-        }
-
-        setActiveId(null)
-    }
-
-    const activeCandidate = activeId ? candidates.find(c => c.id === activeId) : null
-
-    return (
-        <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500">
-            {/* Header Section */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-4 items-center">
-                    <div className="size-10 bg-primary dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-primary shadow-lg shadow-primary/20 dark:shadow-none">
-                        <span className="material-symbols-outlined !text-xl">conversion_path</span>
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-black text-primary dark:text-white tracking-tight">
-                            {requirement ? requirement.title : 'Details'}
-                        </h1>
-                        <p className="text-sm font-medium text-primary/60 dark:text-white/60">Manage candidate pipeline</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search candidates..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2.5 rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary w-64"
-                        />
-                    </div>
-                    <Link to="/candidates/new">
-                        <button className="flex items-center gap-2 px-4 py-2.5 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 dark:shadow-none">
-                            <UserPlus size={18} />
-                            <span>Add Candidate</span>
-                        </button>
-                    </Link>
-                </div>
+            actions={
+              canCreate ? (
+                <Link to="/candidates/new" className={heroBtnPrimary}>
+                  <UserPlus size={18} />
+                  Add candidate
+                </Link>
+              ) : undefined
+            }
+          />
+          {requirement && (
+            <div className="flex flex-wrap items-center gap-3 px-1 text-sm font-semibold text-muted-foreground">
+              {requirement.jobCode && (
+                <span className="font-mono text-xs font-bold text-primary/60 dark:text-white/50">
+                  {requirement.jobCode}
+                </span>
+              )}
+              {requirement.client && (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 size={14} />
+                  {requirement.client}
+                </span>
+              )}
+              <Link
+                to={`/requirements/${requirementId}`}
+                className="inline-flex items-center gap-1 text-xs font-bold text-primary dark:text-blue-400 hover:underline"
+              >
+                Job details
+                <ExternalLink size={12} />
+              </Link>
             </div>
-
-            {/* Filter Bar */}
-            <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-2">
-                <button
-                    onClick={() => setSearchTerm('')}
-                    className={clsx("flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors", !searchTerm ? "bg-primary/10 border-primary text-primary dark:bg-white/10 dark:border-white dark:text-white" : "border-primary/10 bg-white hover:bg-primary/5 dark:border-white/10 dark:bg-white/5 dark:text-white")}
-                >
-                    <Filter size={14} />
-                    All Candidates
-                </button>
-            </div>
-
-            {/* Kanban Board */}
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCorners}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-            >
-                <div className="flex-1 flex gap-6 overflow-x-auto pb-6">
-                    {COLUMNS.map(columnId => (
-                        <PipelineColumn
-                            key={columnId}
-                            id={columnId}
-                            candidates={filteredCandidates.filter(c => c.status === columnId)}
-                        />
-                    ))}
-                </div>
-
-                <DragOverlay>
-                    {activeCandidate ? <CandidateCard candidate={activeCandidate} /> : null}
-                </DragOverlay>
-            </DndContext>
+          )}
         </div>
-    )
+      </div>
+
+      {!requirementId && liveRequirements.length > 0 && (
+        <div className="app-card p-4 shadow-sm">
+          <label className="block text-xs font-bold uppercase tracking-wider text-primary/50 dark:text-white/50 mb-2">
+            Focus on a job
+          </label>
+          <AppSelect
+            className="w-full max-w-md"
+            value=""
+            onChange={(id) => {
+              if (id) navigate(`/pipeline/${id}`)
+            }}
+            placeholder={`All jobs — ${scopedCandidates.length} candidates`}
+            options={liveRequirements.map((r) => ({
+              value: r.id,
+              label: r.jobCode ? `${r.title} (${r.jobCode})` : r.title,
+            }))}
+            aria-label="Focus on a job"
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+        <InterviewStatCard
+          label="In pipeline"
+          value={stats.active}
+          icon={Briefcase}
+          accent="blue"
+          active={stageFilter === 'ALL'}
+          onClick={() => setStageFilter('ALL')}
+        />
+        <InterviewStatCard
+          label="Interview"
+          value={stats.interview}
+          icon={Users}
+          accent="slate"
+          active={stageFilter === 'INTERVIEW'}
+          onClick={() => scrollToStage('INTERVIEW')}
+        />
+        <InterviewStatCard
+          label="Offer"
+          value={stats.offer}
+          icon={Sparkles}
+          accent="amber"
+          active={stageFilter === 'OFFER'}
+          onClick={() => scrollToStage('OFFER')}
+        />
+        <InterviewStatCard
+          label="Hired"
+          value={stats.hired}
+          icon={CheckCircle2}
+          accent="green"
+          active={stageFilter === 'HIRED'}
+          onClick={() => scrollToStage('HIRED')}
+        />
+        <InterviewStatCard
+          label="Rejected"
+          value={stats.rejected}
+          icon={Ban}
+          accent="slate"
+          active={stageFilter === 'REJECTED'}
+          onClick={() => scrollToStage('REJECTED')}
+        />
+      </div>
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="panel-toolbar flex-1">
+          <ListSearchBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search name, email, job, client, recruiter..."
+            className="max-w-none"
+          />
+        </div>
+        {stageFilter !== 'ALL' && (
+          <button
+            type="button"
+            onClick={() => setStageFilter('ALL')}
+            className="filter-chip-active inline-flex items-center gap-2"
+          >
+            <ListFilter size={14} />
+            Show all stages
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="py-24 text-center text-muted-foreground font-medium">
+          Loading pipeline...
+        </div>
+      ) : isError ? (
+        <div className="bg-white dark:bg-white/5 rounded-2xl border border-red-200/60 dark:border-red-500/30 p-8 text-center space-y-4">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">
+            {error instanceof ApiError ? error.message : 'Could not load pipeline.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+          >
+            Try again
+          </button>
+        </div>
+      ) : searched.length === 0 ? (
+        <div className="bg-white dark:bg-white/5 rounded-2xl border border-dashed border-primary/15 dark:border-white/15">
+          <EmptyState
+            icon="view_kanban"
+            title={searchTerm.trim() ? 'No matches' : 'Pipeline is empty'}
+            description={
+              searchTerm.trim()
+                ? 'Try a different search or clear filters.'
+                : requirementId
+                  ? 'Add candidates to this job or link applicants from matching profiles.'
+                  : 'Add candidates or open a job pipeline from Requirements.'
+            }
+          />
+          {canCreate && !searchTerm.trim() && (
+            <div className="pb-10 flex justify-center">
+              <Link
+                to="/candidates/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+              >
+                <UserPlus size={16} /> Add candidate
+              </Link>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="relative -mx-1">
+          <div className="flex gap-4 overflow-x-auto pb-6 px-1 snap-x snap-mandatory custom-scrollbar">
+            {columns.map((col) => (
+              <div key={col.stage} className="snap-center">
+                <PipelineKanbanColumn
+                  stage={col.stage}
+                  title={col.title}
+                  candidates={col.items}
+                  canManage={canManage}
+                  userRole={user?.role}
+                  showJob={showJobOnCards}
+                  highlighted={stageFilter === col.stage}
+                  dimmed={stageFilter !== 'ALL' && stageFilter !== col.stage}
+                  onMoveStage={requestStageChange}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default Pipeline

@@ -1,5 +1,12 @@
 import { apiRequest } from '../../lib/apiClient'
-import { MatchingProfile, Requirement, RequirementStatus } from '../../types'
+import {
+  CandidateInterviewProgress,
+  InterviewPlan,
+  MatchingProfile,
+  Requirement,
+  RequirementHiringStage,
+  RequirementStatus,
+} from '../../types'
 
 export const requirementService = {
   getAll: () => apiRequest<Requirement[]>('/requirements'),
@@ -29,22 +36,55 @@ export const requirementService = {
       body: JSON.stringify({ status }),
     }),
 
-  approve: (id: string, user: { uid: string; role: string }) =>
-    apiRequest<Requirement>(`/requirements/${id}/approve`, { method: 'POST', body: JSON.stringify(user) }),
+  updateHiringStage: (id: string, hiringStage: RequirementHiringStage) =>
+    apiRequest<Requirement>(`/requirements/${id}/hiring-stage`, {
+      method: 'PATCH',
+      body: JSON.stringify({ hiringStage }),
+    }),
 
-  reject: (id: string, user: { uid: string; role: string }) =>
-    apiRequest<Requirement>(`/requirements/${id}/reject`, { method: 'POST', body: JSON.stringify(user) }),
+  cancel: (id: string, payload: { closureReason: string; closedAt: string }) =>
+    apiRequest<Requirement>(`/requirements/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  assignRecruiter: (id: string, recruiterId: string, _currentRecruiters: string[]) =>
+  approve: (id: string, options?: { onBehalfOfHrHead?: boolean }) =>
+    apiRequest<Requirement>(`/requirements/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(options ?? {}),
+    }),
+
+  reject: (id: string, options?: { onBehalfOfHrHead?: boolean }) =>
+    apiRequest<Requirement>(`/requirements/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(options ?? {}),
+    }),
+
+  assignRecruiter: (id: string, recruiterId: string) =>
     apiRequest<Requirement>(`/requirements/${id}/assign-recruiter`, {
       method: 'POST',
       body: JSON.stringify({ recruiterId }),
+    }),
+
+  unassignRecruiter: (id: string, recruiterId: string) =>
+    apiRequest<Requirement>(`/requirements/${id}/assign-recruiter/${recruiterId}`, {
+      method: 'DELETE',
     }),
 
   setVisibility: (id: string, visibleToCandidates: boolean) =>
     apiRequest<Requirement>(`/requirements/${id}/visibility`, {
       method: 'PATCH',
       body: JSON.stringify({ visibleToCandidates }),
+    }),
+
+  setReferralVisibility: (
+    id: string,
+    visibleToReferrals: boolean,
+    referralBonusAmount?: number | null
+  ) =>
+    apiRequest<Requirement>(`/requirements/${id}/referral-visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ visibleToReferrals, referralBonusAmount }),
     }),
 
   delete: (id: string) =>
@@ -59,5 +99,28 @@ export const requirementService = {
     apiRequest<import('../../types').Candidate>(
       `/requirements/${requirementId}/link-candidate`,
       { method: 'POST', body: JSON.stringify({ candidateId }) }
+    ),
+
+  getInterviewPlan: (requirementId: string) =>
+    apiRequest<InterviewPlan>(`/requirements/${requirementId}/interview-plan`),
+
+  updateInterviewPlan: (
+    requirementId: string,
+    stages: Array<{
+      id?: string
+      name: string
+      interviewType?: InterviewPlan['stages'][0]['interviewType']
+      defaultDuration?: number
+      defaultInterviewerIds?: string[]
+    }>
+  ) =>
+    apiRequest<InterviewPlan>(`/requirements/${requirementId}/interview-plan`, {
+      method: 'PUT',
+      body: JSON.stringify({ stages }),
+    }),
+
+  getCandidateInterviewProgress: (requirementId: string, candidateId: string) =>
+    apiRequest<CandidateInterviewProgress>(
+      `/requirements/${requirementId}/interview-plan/candidate/${candidateId}/progress`
     ),
 }

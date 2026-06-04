@@ -1,114 +1,311 @@
 import React, { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Store } from 'lucide-react'
+import { Plus, Store, Briefcase, Upload, Ban, CheckCircle2 } from 'lucide-react'
 import { api } from '../../services/api'
 import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { PageHeader } from '../../components/layout/PageHeader'
+import { heroBtnPrimary } from '../../components/layout/PageHero'
+import { EmptyState } from '../../components/ui/EmptyState'
 import { matchesAnySearch } from '../../lib/textSearch'
-import clsx from 'clsx'
-import type { Vendor } from '../../types'
 import { ApiError } from '../../lib/apiClient'
-
-const statusClass: Record<Vendor['status'], string> = {
-  ACTIVE: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  INACTIVE: 'bg-slate-100 text-slate-600 border-slate-200',
-  SUSPENDED: 'bg-red-100 text-red-700 border-red-200',
-}
+import { InterviewStatCard } from '../../components/interviews/InterviewStatCard'
+import { VendorListItem } from '../../components/vendors/VendorListItem'
+import { AnimatedTabNav } from '../../components/motion/AnimatedTabNav'
+import {
+  VENDOR_FILTERS,
+  filterVendors,
+  groupVendorsByStatus,
+  sortVendors,
+  topSubmittingVendors,
+  vendorSearchFields,
+  vendorStats,
+  type VendorFilter,
+} from '../../lib/vendorPage'
+import type { Vendor } from '../../types'
 
 const VendorsList = () => {
-  const [search, setSearch] = useState('')
-    const { data: vendors = [], isLoading, isError, error } = useQuery({
-        queryKey: ['vendors'],
-        queryFn: api.vendors.list,
-    })
+  const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<VendorFilter>('ALL')
 
-  const filtered = useMemo(
-    () =>
-      vendors.filter((v) =>
-        matchesAnySearch([v.name, v.code, v.email, v.contactName, v.status], search)
-      ),
-    [vendors, search]
+  const { data: vendors = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: api.vendors.list,
+  })
+
+  const searched = useMemo(
+    () => vendors.filter((v) => matchesAnySearch(vendorSearchFields(v), searchTerm)),
+    [vendors, searchTerm]
   )
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">
-            Vendor management
-          </h1>
-          <p className="text-primary/60 dark:text-white/60 font-medium mt-1">
-            Manage staffing vendors, job assignments, and portal access.
-          </p>
-        </div>
-        <Link
-          to="/vendors/new"
-          className="flex items-center gap-2 px-6 py-3 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90"
-        >
-          <Plus size={18} /> Add vendor
-        </Link>
-      </div>
+  const stats = useMemo(() => vendorStats(searched), [searched])
+  const filtered = useMemo(
+    () => sortVendors(filterVendors(searched, statusFilter)),
+    [searched, statusFilter]
+  )
 
-      <ListSearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Search vendors..."
-        className="max-w-md"
+  const topSubmitters = useMemo(() => topSubmittingVendors(searched), [searched])
+  const showTopSpotlight =
+    statusFilter === 'ALL' && !searchTerm.trim() && topSubmitters.length > 0
+
+  const groupedWhenAll = useMemo(() => {
+    if (statusFilter !== 'ALL' || searchTerm.trim()) return null
+    const groups = groupVendorsByStatus(filtered)
+    if (showTopSpotlight) {
+      const spotlightIds = new Set(topSubmitters.map((v) => v.id))
+      return groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((v) => !spotlightIds.has(v.id)),
+        }))
+        .filter((g) => g.items.length > 0)
+    }
+    return groups
+  }, [statusFilter, searchTerm, filtered, showTopSpotlight, topSubmitters])
+
+  const setFilter = (id: VendorFilter) => setStatusFilter(id)
+
+  const vendorMenuItems = (vendor: Vendor) => [
+    {
+      id: 'view',
+      label: 'View profile',
+      onClick: () => navigate(`/vendors/${vendor.id}`),
+    },
+    {
+      id: 'jobs',
+      label: 'Manage jobs',
+      onClick: () => navigate(`/vendors/${vendor.id}?tab=jobs`),
+    },
+    {
+      id: 'invite',
+      label: 'Invite portal user',
+      hidden: vendor.status !== 'ACTIVE',
+      onClick: () => navigate(`/vendors/${vendor.id}?tab=users`),
+    },
+    {
+      id: 'submissions',
+      label: 'View submissions',
+      hidden: (vendor.submissionCount ?? 0) === 0,
+      onClick: () => navigate(`/vendors/${vendor.id}?tab=submissions`),
+    },
+  ]
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+      <PageHeader
+        highlighted
+        icon={Store}
+        eyebrow="Staffing partners"
+        title="Vendors"
+        description="Manage staffing vendors, assign open roles, and control portal access for external submissions."
+        actions={
+          <Link to="/vendors/new" className={heroBtnPrimary}>
+            <Plus size={18} />
+            Add vendor
+          </Link>
+        }
       />
 
-      {isError ? (
-        <div className="p-8 rounded-2xl border border-red-200 bg-red-50 text-center">
-          <p className="font-bold text-red-800">Could not load vendors</p>
-          <p className="text-sm text-red-600 mt-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <InterviewStatCard
+          label="All vendors"
+          value={stats.total}
+          icon={Store}
+          accent="slate"
+          active={statusFilter === 'ALL'}
+          onClick={() => setFilter('ALL')}
+        />
+        <InterviewStatCard
+          label="Active"
+          value={stats.active}
+          icon={CheckCircle2}
+          accent="green"
+          active={statusFilter === 'ACTIVE'}
+          onClick={() => setFilter(statusFilter === 'ACTIVE' ? 'ALL' : 'ACTIVE')}
+        />
+        <InterviewStatCard
+          label="Inactive"
+          value={stats.inactive}
+          icon={Briefcase}
+          accent="slate"
+          active={statusFilter === 'INACTIVE'}
+          onClick={() => setFilter(statusFilter === 'INACTIVE' ? 'ALL' : 'INACTIVE')}
+        />
+        <InterviewStatCard
+          label="Suspended"
+          value={stats.suspended}
+          icon={Ban}
+          accent="amber"
+          active={statusFilter === 'SUSPENDED'}
+          onClick={() => setFilter(statusFilter === 'SUSPENDED' ? 'ALL' : 'SUSPENDED')}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-center gap-4 p-4 app-card">
+          <div className="p-2.5 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white">
+            <Briefcase size={20} />
+          </div>
+          <div>
+            <p className="text-2xl font-black tabular-nums text-primary dark:text-white">
+              {stats.withAssignments}
+            </p>
+            <p className="text-xs font-bold uppercase tracking-wider text-primary/50 dark:text-white/50">
+              With assigned jobs
+            </p>
+          </div>
+        </div>
+        <div className="stat-spotlight border-emerald-200/60 dark:border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10">
+          <div className="p-2.5 rounded-xl bg-card shadow-sm text-emerald-700 dark:text-emerald-300">
+            <Upload size={20} />
+          </div>
+          <div>
+            <p className="text-2xl font-black tabular-nums text-primary dark:text-white">
+              {stats.totalSubmissions}
+            </p>
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-800/70 dark:text-emerald-300/80">
+              Total submissions ({stats.withSubmissions} vendors)
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="panel-toolbar flex-1">
+          <ListSearchBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search name, code, email, contact..."
+            className="max-w-none"
+          />
+        </div>
+        <AnimatedTabNav
+          layoutId="vendors-list-filters"
+          variant="pill"
+          uppercase
+          aria-label="Filter vendors"
+          tabs={VENDOR_FILTERS.map((tab) => ({ id: tab.id, label: tab.label }))}
+          activeId={statusFilter}
+          onChange={(id) => setStatusFilter(id as VendorFilter)}
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="py-24 text-center text-muted-foreground font-medium">
+          Loading vendors...
+        </div>
+      ) : isError ? (
+        <div className="bg-white dark:bg-white/5 rounded-2xl border border-red-200/60 dark:border-red-500/30 p-8 text-center space-y-4">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">
             {error instanceof ApiError
               ? error.status === 404
                 ? 'Vendor API is unavailable. Restart the API server (npm run dev:server).'
-                : error.message.includes('prisma') || error.message.includes('generate')
-                  ? 'Restart the API server after: cd server && npx prisma generate'
-                  : error.message
-              : 'Unknown error'}
+                : error.message
+              : 'Could not load vendors.'}
           </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+          >
+            Try again
+          </button>
         </div>
-      ) : isLoading ? (
-        <p className="text-center py-12 text-primary/40">Loading vendors...</p>
+      ) : searched.length === 0 ? (
+        <div className="bg-white dark:bg-white/5 rounded-2xl border border-dashed border-primary/15 dark:border-white/15">
+          <EmptyState
+            icon="storefront"
+            title={searchTerm.trim() ? 'No matches' : 'No vendors yet'}
+            description={
+              searchTerm.trim()
+                ? 'Try a different search or clear filters.'
+                : 'Add your first staffing vendor to assign jobs and enable portal submissions.'
+            }
+          />
+          {!searchTerm.trim() && (
+            <div className="pb-10 flex justify-center">
+              <Link
+                to="/vendors/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+              >
+                <Plus size={16} /> Add vendor
+              </Link>
+            </div>
+          )}
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="p-12 text-center border border-dashed border-primary/20 rounded-2xl">
-          <Store className="mx-auto text-primary/30 mb-3" size={40} />
-          <p className="font-medium text-primary/50">No vendors found</p>
+        <div className="bg-white dark:bg-white/5 rounded-2xl border border-dashed border-primary/10 dark:border-white/10">
+          <EmptyState
+            icon="filter_list"
+            title="Nothing in this view"
+            description="Try another filter or search term."
+          />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((v) => (
-            <Link
-              key={v.id}
-              to={`/vendors/${v.id}`}
-              className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-primary/10 dark:border-white/10 hover:shadow-md transition-all"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                  <Store className="text-emerald-700" size={20} />
+        <div className="space-y-10">
+          {showTopSpotlight && (
+            <section className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                  <Upload size={20} />
                 </div>
-                <span
-                  className={clsx(
-                    'px-2 py-0.5 rounded text-[10px] font-bold uppercase border',
-                    statusClass[v.status]
-                  )}
-                >
-                  {v.status}
-                </span>
+                <div>
+                  <h2 className="text-lg font-bold text-primary dark:text-white">
+                    Active submitters
+                  </h2>
+                  <p className="text-xs font-medium text-primary/50 dark:text-white/50">
+                    Vendors with the most candidate submissions
+                  </p>
+                </div>
               </div>
-              <h3 className="font-bold text-primary dark:text-white">{v.name}</h3>
-              {v.code && (
-                <p className="text-xs font-mono text-primary/50 mt-0.5">{v.code}</p>
-              )}
-              <p className="text-sm text-primary/60 mt-2 truncate">{v.email}</p>
-              <div className="flex gap-4 mt-4 text-xs font-bold text-primary/50">
-                <span>{v.assignmentCount ?? 0} jobs</span>
-                <span>{v.submissionCount ?? 0} submissions</span>
-                <span>{v.userCount ?? 0} users</span>
+              <div className="space-y-3">
+                {topSubmitters.map((vendor) => (
+                  <VendorListItem
+                    key={vendor.id}
+                    vendor={vendor}
+                    menuItems={vendorMenuItems(vendor)}
+                    variant="highlight"
+                  />
+                ))}
               </div>
-            </Link>
-          ))}
+            </section>
+          )}
+
+          {groupedWhenAll && groupedWhenAll.length > 0 ? (
+            groupedWhenAll.map((group) => (
+              <section key={group.key} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-primary dark:text-white">{group.title}</h2>
+                  <span className="text-xs font-bold text-muted-foreground tabular-nums">
+                    {group.items.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {group.items.map((vendor) => (
+                    <VendorListItem
+                      key={vendor.id}
+                      vendor={vendor}
+                      menuItems={vendorMenuItems(vendor)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))
+          ) : (
+            <section className="space-y-3">
+              {filtered.map((vendor) => (
+                <VendorListItem
+                  key={vendor.id}
+                  vendor={vendor}
+                  menuItems={vendorMenuItems(vendor)}
+                  variant={
+                    topSubmitters.some((t) => t.id === vendor.id) ? 'highlight' : 'default'
+                  }
+                />
+              ))}
+            </section>
+          )}
         </div>
       )}
     </div>

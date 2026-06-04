@@ -16,8 +16,9 @@ export const GlassCard = ({ children, className, hoverEffect = false, ...props }
             transition={{ duration: 0.4, ease: "easeOut" }}
             whileHover={hoverEffect ? { y: -5, transition: { duration: 0.2 } } : undefined}
             className={cn(
-                "bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 shadow-xl rounded-2xl overflow-hidden",
-                hoverEffect && "hover:shadow-2xl hover:border-primary/20 dark:hover:border-primary/20",
+                "app-card backdrop-blur-xl border-white/40 dark:border-border/80 shadow-xl overflow-hidden",
+                "bg-white/80 dark:bg-card/90",
+                hoverEffect && "hover:shadow-card-hover hover:border-primary/25 dark:hover:border-ring/30",
                 className
             )}
             {...props}

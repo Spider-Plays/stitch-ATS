@@ -1,26 +1,43 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useThemeStore } from '../store/themeStore'
+import { useSidebarStore } from '../store/sidebarStore'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
+import { canApproveRequirement } from '../lib/requirementPermissions'
+import { isAssignedInterviewer } from '../lib/interviewPermissions'
+import { needsFeedback } from '../lib/interviewPage'
+import clsx from 'clsx'
+
+const iconBtnClass =
+    'm3-state-layer p-2.5 rounded-full text-on-surface-variant hover:text-on-surface size-10 flex items-center justify-center'
 
 const Header = () => {
     const { user } = useAuth()
     const { theme, toggleTheme } = useThemeStore()
+    const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarStore()
     const navigate = useNavigate()
     const [query, setQuery] = useState('')
     const [open, setOpen] = useState(false)
     const wrapRef = useRef<HTMLDivElement>(null)
 
-    const isHr = ['ADMIN', 'HR_MANAGER', 'HR_HEAD'].includes(user?.role || '')
     const canSearch = user && user.role !== 'CANDIDATE'
+    const canReviewPendingApprovals = canApproveRequirement(user?.role)
+    const isInterviewer = user?.role === 'INTERVIEWER'
 
     const { data: pendingRequirements = [] } = useQuery({
         queryKey: ['pendingRequirements'],
         queryFn: api.requirements.getPending,
-        enabled: isHr,
+        enabled: canReviewPendingApprovals,
         refetchInterval: 30000,
+    })
+
+    const { data: interviews = [] } = useQuery({
+        queryKey: ['interviews', 'header-notifications'],
+        queryFn: api.interviews.list,
+        enabled: isInterviewer,
+        refetchInterval: 60000,
     })
 
     const { data: results } = useQuery({
@@ -31,13 +48,17 @@ const Header = () => {
 
     useEffect(() => {
         const onClick = (e: MouseEvent) => {
-            if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+            const target = e.target as Node
+            if (wrapRef.current && !wrapRef.current.contains(target)) setOpen(false)
         }
         document.addEventListener('mousedown', onClick)
         return () => document.removeEventListener('mousedown', onClick)
     }, [])
 
-    const showNotificationDot = pendingRequirements.length > 0
+    const interviewerFeedbackCount = isInterviewer
+        ? interviews.filter((i) => isAssignedInterviewer(i, user?.uid) && needsFeedback(i)).length
+        : 0
+    const showNotificationDot = pendingRequirements.length > 0 || interviewerFeedbackCount > 0
     const isAdmin = user?.role === 'ADMIN'
     const hasResults =
         (results?.candidates?.length ?? 0) > 0 ||
@@ -45,12 +66,31 @@ const Header = () => {
         (results?.interviews?.length ?? 0) > 0 ||
         (results?.users?.length ?? 0) > 0
 
+    const searchResultBtn =
+        'w-full text-left px-4 py-3 hover:bg-muted/60 transition-colors border-b border-border/50 last:border-0'
+
     return (
-        <header className="h-16 border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-8 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-40 ml-64 transition-all duration-300">
-            <div className="flex items-center gap-4 w-1/3" ref={wrapRef}>
+        <header
+            className={clsx(
+                'm3-top-app-bar h-16 shrink-0 flex items-center justify-between gap-6 px-4 lg:px-6'
+            )}
+        >
+            <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 max-w-2xl" ref={wrapRef}>
+                <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    className={clsx(iconBtnClass, 'lg:hidden')}
+                    aria-label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                    aria-expanded={!sidebarCollapsed}
+                    title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                >
+                    <span className="material-symbols-outlined text-[22px]">
+                        {sidebarCollapsed ? 'menu' : 'menu_open'}
+                    </span>
+                </button>
                 {canSearch ? (
                     <div className="relative w-full">
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
+                        <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-lg pointer-events-none z-[1]">
                             search
                         </span>
                         <input
@@ -61,68 +101,58 @@ const Header = () => {
                                 setOpen(true)
                             }}
                             onFocus={() => setOpen(true)}
-                            placeholder="Search candidates, jobs, interviews, users..."
-                            className="w-full bg-slate-100 dark:bg-white/5 border-none rounded-xl pl-10 text-sm focus:ring-2 focus:ring-primary/50 transition-all dark:text-white"
+                            placeholder="Search candidates, jobs, interviews..."
+                            className="app-search-input"
                         />
                         {open && query.trim().length >= 2 && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-xl max-h-80 overflow-y-auto z-50">
+                            <div className="absolute top-full left-0 right-0 mt-2 app-modal rounded-xl max-h-80 overflow-y-auto z-50 custom-scrollbar">
                                 {!hasResults ? (
-                                    <p className="p-4 text-sm text-slate-500">No results</p>
+                                    <p className="p-4 text-sm text-muted-foreground">No results</p>
                                 ) : (
                                     <>
                                         {results?.candidates?.map((c) => (
                                             <button
                                                 key={c.id}
                                                 type="button"
-                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 border-b border-slate-100 dark:border-white/5"
+                                                className={searchResultBtn}
                                                 onClick={() => {
                                                     navigate(`/candidates/${c.id}`)
                                                     setOpen(false)
                                                     setQuery('')
                                                 }}
                                             >
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                                                    {c.name}
-                                                </p>
-                                                <p className="text-xs text-slate-500">{c.role} · Candidate</p>
+                                                <p className="text-sm font-semibold text-foreground">{c.name}</p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">{c.role} · Candidate</p>
                                             </button>
                                         ))}
                                         {results?.requirements?.map((r) => (
                                             <button
                                                 key={r.id}
                                                 type="button"
-                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 border-b border-slate-100 dark:border-white/5"
+                                                className={searchResultBtn}
                                                 onClick={() => {
                                                     navigate(`/requirements/${r.id}`)
                                                     setOpen(false)
                                                     setQuery('')
                                                 }}
                                             >
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                                                    {r.title}
-                                                </p>
-                                                <p className="text-xs text-slate-500">
-                                                    {r.department} · Requirement
-                                                </p>
+                                                <p className="text-sm font-semibold text-foreground">{r.title}</p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">{r.department} · Requirement</p>
                                             </button>
                                         ))}
                                         {results?.interviews?.map((i) => (
                                             <button
                                                 key={i.id}
                                                 type="button"
-                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 border-b border-slate-100 dark:border-white/5"
+                                                className={searchResultBtn}
                                                 onClick={() => {
                                                     navigate(i.candidateId ? `/candidates/${i.candidateId}` : '/interviews')
                                                     setOpen(false)
                                                     setQuery('')
                                                 }}
                                             >
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                                                    {i.candidateName || 'Interview'}
-                                                </p>
-                                                <p className="text-xs text-slate-500">
-                                                    {i.type.replace('_', ' ')} · Interview
-                                                </p>
+                                                <p className="text-sm font-semibold text-foreground">{i.candidateName || 'Interview'}</p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">{i.type.replace('_', ' ')} · Interview</p>
                                             </button>
                                         ))}
                                         {isAdmin &&
@@ -130,17 +160,15 @@ const Header = () => {
                                                 <button
                                                     key={u.uid}
                                                     type="button"
-                                                    className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 border-b border-slate-100 dark:border-white/5 last:border-0"
+                                                    className={searchResultBtn}
                                                     onClick={() => {
                                                         navigate('/admin/users')
                                                         setOpen(false)
                                                         setQuery('')
                                                     }}
                                                 >
-                                                    <p className="text-sm font-bold text-slate-900 dark:text-white">
-                                                        {u.name}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500">
+                                                    <p className="text-sm font-semibold text-foreground">{u.name}</p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
                                                         {u.email} · {u.role.replace('_', ' ')}
                                                     </p>
                                                 </button>
@@ -155,25 +183,17 @@ const Header = () => {
                 )}
             </div>
 
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={toggleTheme}
-                    className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors"
-                    type="button"
-                    aria-label="Toggle theme"
-                >
-                    <span className="material-symbols-outlined">
+            <div className="flex items-center gap-0.5 shrink-0">
+                <button onClick={toggleTheme} className={iconBtnClass} type="button" aria-label="Toggle theme">
+                    <span className="material-symbols-outlined text-[22px]">
                         {theme === 'light' ? 'dark_mode' : 'light_mode'}
                     </span>
                 </button>
 
-                <Link
-                    to="/notifications"
-                    className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors relative"
-                >
-                    <span className="material-symbols-outlined">notifications</span>
+                <Link to="/notifications" className={clsx(iconBtnClass, 'relative')}>
+                    <span className="material-symbols-outlined text-[22px]">notifications</span>
                     {showNotificationDot && (
-                        <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-background-dark animate-pulse" />
+                        <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full ring-2 ring-card" />
                     )}
                 </Link>
             </div>

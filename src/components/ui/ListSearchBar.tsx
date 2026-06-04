@@ -1,5 +1,4 @@
 import React from 'react'
-import { Search } from 'lucide-react'
 import clsx from 'clsx'
 
 type ListSearchBarProps = {
@@ -19,23 +18,18 @@ export function ListSearchBar({
 }: ListSearchBarProps) {
   return (
     <div className={clsx('relative flex-1 min-w-[200px] max-w-md', className)}>
-      <Search
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40"
-        size={18}
+      <span
+        className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-lg pointer-events-none z-[1]"
         aria-hidden
-      />
+      >
+        search
+      </span>
       <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={clsx(
-          'w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary/10 dark:border-white/10',
-          'bg-white dark:bg-white/5 text-sm font-medium text-primary dark:text-white',
-          'placeholder:text-primary/30 dark:placeholder:text-white/30',
-          'focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none',
-          inputClassName
-        )}
+        className={clsx('app-search-input', inputClassName)}
       />
     </div>
   )

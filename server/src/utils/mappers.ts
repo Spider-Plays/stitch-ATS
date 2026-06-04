@@ -1,4 +1,6 @@
 import type { User as DbUser, Requirement as DbReq, Candidate as DbCand, Interview as DbInt, Feedback as DbFb, Offer as DbOffer, ActivityLog as DbLog } from '@prisma/client'
+import { defaultUserAvatarUrl } from '../lib/userAvatar.js'
+import { parseFeatureTags } from '../lib/userTags.js'
 
 export function mapUser(u: DbUser) {
   return {
@@ -6,10 +8,10 @@ export function mapUser(u: DbUser) {
     name: u.name,
     email: u.email,
     role: u.role,
-    permissions: JSON.parse(u.permissions || '[]') as string[],
+    tags: parseFeatureTags(u.permissions),
     themePreference: u.themePreference as 'light' | 'dark' | 'system',
     createdAt: u.createdAt.toISOString(),
-    avatar: u.avatar ?? undefined,
+    avatar: u.avatar ?? defaultUserAvatarUrl(u.name),
     phoneNumber: u.phoneNumber ?? undefined,
     address: u.address ?? undefined,
     resumeUrl: u.resumeUrl ?? undefined,
@@ -30,6 +32,9 @@ export function mapRequirement(r: DbReq) {
     department: r.department,
     hiringManager: r.hiringManager,
     status: r.status,
+    hiringStage: r.hiringStage,
+    liveAt: r.liveAt?.toISOString(),
+    onHoldAt: r.onHoldAt?.toISOString(),
     openings: r.openings,
     filled: r.filled,
     createdAt: r.createdAt.toISOString(),
@@ -37,6 +42,16 @@ export function mapRequirement(r: DbReq) {
     recruiters: JSON.parse(r.recruiters || '[]') as string[],
     priority: r.priority as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | undefined,
     location: r.location ?? undefined,
+    locationCity: r.locationCity ?? undefined,
+    isRemote: r.isRemote ?? false,
+    workMode: r.workMode ?? undefined,
+    employmentType: r.employmentType ?? undefined,
+    seniorityLevel: r.seniorityLevel ?? undefined,
+    experienceMinYears: r.experienceMinYears ?? undefined,
+    experienceMaxYears: r.experienceMaxYears ?? undefined,
+    salaryBand: r.salaryBand ?? undefined,
+    targetStartDate: r.targetStartDate?.toISOString(),
+    hiringDeadline: r.hiringDeadline?.toISOString(),
     description: r.description ?? undefined,
     jobDescription: r.jobDescription ?? r.description ?? undefined,
     primarySkills: JSON.parse(r.primarySkills || '[]') as string[],
@@ -49,6 +64,10 @@ export function mapRequirement(r: DbReq) {
     currentVersion: r.currentVersion,
     visibleToCandidates: r.visibleToCandidates ?? true,
     visibleToVendors: r.visibleToVendors ?? false,
+    visibleToReferrals: r.visibleToReferrals ?? true,
+    referralBonusAmount: r.referralBonusAmount ?? undefined,
+    closureReason: r.closureReason ?? undefined,
+    closedAt: r.closedAt?.toISOString(),
   }
 }
 
@@ -92,8 +111,18 @@ export function mapCandidate(
     pan: c.pan ?? undefined,
     vendorId: c.vendorId ?? undefined,
     submittedByUserId: c.submittedByUserId ?? undefined,
+    referredByUserId: c.referredByUserId ?? undefined,
+    referralRelationship: c.referralRelationship ?? undefined,
+    referralNotes: c.referralNotes ?? undefined,
     primarySkills: JSON.parse(c.primarySkills || '[]') as string[],
     secondarySkills: JSON.parse(c.secondarySkills || '[]') as string[],
+    offerDate: c.offerDate?.toISOString(),
+    offerMonth: c.offerMonth ?? undefined,
+    offerQuarter: c.offerQuarter ?? undefined,
+    expectedJoiningDate: c.expectedJoiningDate?.toISOString(),
+    joiningDate: c.joiningDate?.toISOString(),
+    joiningMonth: c.joiningMonth ?? undefined,
+    joiningQuarter: c.joiningQuarter ?? undefined,
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   }
@@ -104,6 +133,7 @@ export function mapInterview(i: DbInt) {
     id: i.id,
     candidateId: i.candidateId,
     requirementId: i.requirementId,
+    planStageId: i.planStageId ?? undefined,
     scheduledAt: i.scheduledAt.toISOString(),
     interviewerIds: JSON.parse(i.interviewerIds || '[]') as string[],
     type: i.type,

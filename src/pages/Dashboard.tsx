@@ -1,344 +1,1093 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from '../components/ui/Button' // Keep Button as it's used in sub-dashboards
-import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '../services/api'
-import { EmptyState } from '../components/ui/EmptyState'
+import {
+  Activity,
+  ArrowRight,
+  Briefcase,
+  CalendarClock,
+  ChevronRight,
+  LayoutDashboard,
+  MessageSquare,
+  MessageSquareWarning,
+  Plus,
+  UserPlus,
+  Users,
+  Video,
+  Zap,
+  CheckCircle2,
+  type LucideIcon,
+} from 'lucide-react'
 import clsx from 'clsx'
-// Removed Lucide icons as StatCard now uses material-symbols-outlined
+import { UserAvatar } from '../components/ui/UserAvatar'
+import { api } from '../services/api'
+import { useAuth } from '../hooks/useAuth'
+import {
+  canApproveRequirement,
+  requiresHrHeadDelegationForApproval,
+} from '../lib/requirementPermissions'
+import { PageHero, heroBtnPrimary, heroBtnSecondary } from '../components/layout/PageHero'
+import { EmptyState } from '../components/ui/EmptyState'
+import { InterviewStatCard } from '../components/interviews/InterviewStatCard'
+import {
+  activityLogLink,
+  adminMetrics,
+  candidatePipelineCounts,
+  formatActivityTitle,
+  interviewerMetrics,
+  isScheduledToday,
+  recruiterMetrics,
+  relativeTime,
+  sortInterviewsChronologically,
+} from '../lib/dashboardPage'
+import {
+  fillProgress,
+  priorityMeta,
+  requirementStatusClass,
+  requirementStatusLabel,
+} from '../lib/requirementPage'
+import {
+  formatInterviewDay,
+  formatInterviewTime,
+  isUpcoming,
+  needsFeedback,
+  stageLabel,
+} from '../lib/interviewPage'
+import { scopeInterviewsForUser } from '../lib/interviewPermissions'
+import { InterviewListItem } from '../components/interviews/InterviewListItem'
+import type {
+  ActivityLog,
+  Candidate,
+  Interview,
+  Offer,
+  Requirement,
+  User,
+} from '../types'
 
-const StatCard = ({ title, value, change, icon, color, isPositive }: any) => (
-    <div className="bg-white dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all">
-        <div className="flex justify-between items-start mb-4">
-            <span className={clsx("material-symbols-outlined p-2 rounded-lg", color)}>{icon}</span>
-            {change && (
-                <span className={clsx(
-                    "text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1",
-                    isPositive ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
-                )}>
-                    {change}
-                    <span className="material-symbols-outlined text-xs">{isPositive ? 'trending_up' : 'trending_down'}</span>
-                </span>
-            )}
-        </div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{title}</p>
-        <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-1">{value}</h3>
-    </div>
-)
-
-const AdminDashboard = ({ requirements, candidates, activityLogs, users, user }: any) => {
-    const activeJobs = requirements?.filter((r: any) => r.status !== 'CLOSED' && r.status !== 'DRAFT').length || 0
-    const totalCandidates = candidates?.length || 0
-    const teamMembers = (users || []).filter((u: any) => u.role !== 'CANDIDATE').slice(0, 5)
-
-    return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex flex-col gap-1">
-                <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">System Overview</h1>
-                <p className="text-primary/60 dark:text-slate-400 text-sm">Real-time performance metrics and security oversight for the enterprise ATS platform.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Active Job Postings" value={activeJobs} icon="work" color="bg-primary/10 text-primary dark:text-blue-400" />
-                <StatCard title="Total Candidates" value={totalCandidates} icon="group" color="bg-primary/10 text-primary dark:text-purple-400" />
-                <StatCard title="Team Members" value={(users || []).length} icon="groups" color="bg-primary/10 text-primary dark:text-red-400" />
-                <StatCard title="Activity (7d)" value={activityLogs?.length || 0} icon="history" color="bg-primary/10 text-primary dark:text-green-400" />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-primary/5 dark:border-white/10 flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-primary dark:text-white">System Performance (Last 24h)</h3>
-                        <select className="text-xs font-semibold bg-primary/5 dark:bg-white/5 border-none rounded py-1 px-3 text-primary dark:text-white focus:ring-0">
-                            <option>Uptime Score</option>
-                            <option>Request Volume</option>
-                        </select>
-                    </div>
-                    <EmptyState
-                        icon="monitoring"
-                        title="No performance metrics yet"
-                        description="Charts will appear once hiring activity is recorded."
-                    />
-                </div>
-
-                <div className="bg-white dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm flex flex-col">
-                    <div className="p-6 border-b border-primary/5 dark:border-white/10">
-                        <h3 className="text-lg font-bold text-primary dark:text-white">Recent Admin Activity</h3>
-                    </div>
-                    <div className="p-4 flex-1 space-y-4">
-                        {teamMembers.length === 0 ? (
-                            <EmptyState icon="group" title="No team members" description="Invite users from User Administration." />
-                        ) : (
-                            teamMembers.map((member: any) => (
-                                <div key={member.uid} className="flex items-center gap-3 p-2 hover:bg-primary/5 dark:hover:bg-white/5 rounded-lg transition-colors">
-                                    <div className="size-8 rounded bg-primary/10 dark:bg-primary/20 flex items-center justify-center font-bold text-primary dark:text-primary-light text-xs">
-                                        {member.name?.charAt(0) || '?'}
-                                    </div>
-                                    <div className="flex-1 overflow-hidden">
-                                        <p className="text-sm font-semibold text-primary dark:text-white truncate">{member.name}</p>
-                                        <p className="text-xs text-primary/60 dark:text-slate-400">{member.role}</p>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                    <div className="p-4 bg-primary/5 dark:bg-white/5">
-                        <Link to="/admin" className="w-full bg-primary dark:bg-white dark:text-primary text-white text-sm font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
-                            <span className="material-symbols-outlined text-sm">person_add</span>
-                            Invite New Team Member
-                        </Link>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-primary/5 dark:border-white/10 flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-primary dark:text-white">Recent Security Audit Logs</h3>
-                    <Link to="/notifications" className="text-sm font-bold text-primary dark:text-blue-400 hover:underline">View activity & notifications</Link>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-primary/[0.02] dark:bg-white/5 border-b border-primary/5 dark:border-white/10">
-                            <tr className="text-xs font-bold text-primary/40 dark:text-slate-500 uppercase tracking-wider">
-                                <th className="px-6 py-4">Administrator</th>
-                                <th className="px-6 py-4">Action</th>
-                                <th className="px-6 py-4">Entity</th>
-                                <th className="px-6 py-4">Timestamp</th>
-                                <th className="px-6 py-4 text-right">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-primary/5 dark:divide-white/10">
-                            {(activityLogs || []).length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-primary/50 dark:text-slate-400">
-                                        No activity recorded yet.
-                                    </td>
-                                </tr>
-                            ) : (
-                                (activityLogs || []).slice(0, 8).map((log: any) => (
-                                    <tr key={log.id} className="hover:bg-primary/[0.01] dark:hover:bg-white/5 transition-colors">
-                                        <td className="px-6 py-4 text-sm font-semibold text-primary dark:text-white">{log.performerName || 'System'}</td>
-                                        <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400">{log.action}</td>
-                                        <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400 font-mono italic">{log.entityType}: {log.entityId}</td>
-                                        <td className="px-6 py-4 text-sm text-primary/60 dark:text-slate-400">
-                                            {new Date(log.timestamp).toLocaleString()}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400">
-                                                Logged
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    )
+function QuickLink({
+  to,
+  icon: Icon,
+  label,
+}: {
+  to: string
+  icon: LucideIcon
+  label: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="app-card-interactive inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-foreground hover:border-primary/25 transition-all"
+    >
+      <Icon size={16} className="text-muted-foreground" />
+      {label}
+      <ChevronRight size={14} className="opacity-40" />
+    </Link>
+  )
 }
 
-const PIPELINE_STAGES = ['SOURCED', 'SCREENING', 'SHORTLISTED', 'OFFER', 'HIRED'] as const
+function SectionCard({
+  title,
+  action,
+  children,
+  className,
+  id,
+}: {
+  title: string
+  action?: React.ReactNode
+  children: React.ReactNode
+  className?: string
+  id?: string
+}) {
+  return (
+    <section
+      id={id}
+      className={clsx(
+        'app-card overflow-hidden',
+        className
+      )}
+    >
+      <div className="px-6 py-4 border-b border-border/60 flex items-center justify-between gap-4">
+        <h2 className="text-base font-bold text-foreground">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
 
-const RecruiterDashboard = ({ requirements, candidates, interviews, offers, user }: any) => {
-    const activeJobs = requirements?.filter((r: any) => r.status !== 'CLOSED' && r.status !== 'DRAFT').length || 0
-    const totalCandidates = candidates?.length || 0
-    const interviewsToday = interviews?.filter((i: any) => i.status === 'SCHEDULED').length || 0
-    const pipelineCounts = PIPELINE_STAGES.map((stage) => ({
-        label: stage.charAt(0) + stage.slice(1).toLowerCase(),
-        count: candidates?.filter((c: any) => c.status === stage).length || 0,
-    }))
-    const pipelineTotal = pipelineCounts.reduce((sum, s) => sum + s.count, 0) || 1
+function PipelineOverview({ candidates }: { candidates: Candidate[] }) {
+  const stages = useMemo(() => candidatePipelineCounts(candidates), [candidates])
+  const total = stages.reduce((s, x) => s + x.count, 0) || 1
+  const barColors = [
+    'bg-slate-400',
+    'bg-sky-500',
+    'bg-blue-500',
+    'bg-violet-500',
+    'bg-amber-500',
+    'bg-emerald-500',
+  ]
 
+  if (total <= 1 && candidates.length === 0) {
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            <div>
-                <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Welcome back, {user?.name?.split(' ')[0]}</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">Here's your hiring pipeline overview for today.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Assigned Requirements" value={activeJobs} icon="assignment" color="bg-primary/10 text-primary" />
-                <StatCard title="Active Candidates" value={totalCandidates} icon="plumbing" color="bg-blue-500/10 text-blue-500" />
-                <StatCard title="Scheduled Interviews" value={interviewsToday} icon="video_chat" color="bg-purple-500/10 text-purple-500" />
-                <StatCard title="Offers" value={offers?.length || 0} icon="redeem" color="bg-emerald-500/10 text-emerald-500" />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
-                        <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center">
-                            <h3 className="text-lg font-bold">SLA & Urgency Tracking</h3>
-                            <Link to="/requirements" className="text-sm text-primary font-semibold hover:underline">View All</Link>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50 dark:bg-white/5">
-                                    <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                        <th className="px-6 py-3">Role</th>
-                                        <th className="px-6 py-3">Priority</th>
-                                        <th className="px-6 py-3">SLA Status</th>
-                                        <th className="px-6 py-4">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-200 dark:divide-white/10 text-sm">
-                                    {(requirements || []).length === 0 ? (
-                                        <tr>
-                                            <td colSpan={4} className="px-6 py-8 text-center text-slate-500">No requirements yet.</td>
-                                        </tr>
-                                    ) : requirements.slice(0, 3).map((req: any, i: number) => (
-                                        <tr key={i} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <p className="font-semibold">{req.title}</p>
-                                                <p className="text-xs text-slate-500 italic">{req.department} • {req.location}</p>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={clsx(
-                                                    "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tight",
-                                                    req.priority === 'CRITICAL' ? "bg-red-500/10 text-red-500" : "bg-primary/10 text-primary"
-                                                )}>{req.priority || 'NORMAL'}</span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={clsx("size-2 rounded-full", req.status === 'OPEN' ? 'bg-green-500' : 'bg-primary')}></span>
-                                                    <span className="text-xs font-medium">{req.status === 'OPEN' ? 'On Track' : '3 days rem'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <Link to={`/requirements/${req.id}`} className="text-primary hover:text-primary/70 transition-colors">
-                                                    <span className="material-symbols-outlined">chevron_right</span>
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
-                        <h3 className="text-lg font-bold mb-6">Candidate Pipeline Summary</h3>
-                        {totalCandidates === 0 ? (
-                            <EmptyState icon="group" title="No candidates in pipeline" description="Add candidates to see stage breakdown." />
-                        ) : (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {pipelineCounts.map((stat, i) => {
-                                    const pct = Math.round((stat.count / pipelineTotal) * 100)
-                                    const colors = ['bg-slate-400 border-slate-300', 'bg-primary border-primary', 'bg-blue-500 border-blue-500', 'bg-green-500 border-green-500', 'bg-emerald-600 border-emerald-600']
-                                    const [color, border] = colors[i].split(' ')
-                                    return (
-                                        <div key={stat.label} className={clsx('bg-slate-50 dark:bg-white/5 p-4 rounded-xl border-l-4 shadow-sm', border)}>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                                            <div className="flex items-end justify-between mt-1">
-                                                <span className="text-2xl font-black">{stat.count}</span>
-                                                <span className="text-[9px] text-slate-500 font-bold uppercase">{pct}%</span>
-                                            </div>
-                                            <div className="w-full bg-slate-200 dark:bg-white/10 h-1 mt-3 rounded-full overflow-hidden">
-                                                <div className={clsx('h-full transition-all duration-1000', color)} style={{ width: `${pct}%` }} />
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="space-y-8">
-                    <div className="bg-white dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
-                        <h3 className="text-lg font-bold mb-6">Today's Agenda</h3>
-                        <div className="space-y-4">
-                            {(interviews || []).length === 0 ? (
-                                <EmptyState icon="event" title="No interviews scheduled" />
-                            ) : interviews.slice(0, 3).map((interview: any, i: number) => (
-                                <div key={i} className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all group border border-transparent hover:border-primary/20">
-                                    <div className="flex flex-col items-center justify-center bg-slate-100 dark:bg-white/10 rounded-lg min-w-[50px] h-[50px] shadow-sm">
-                                        <span className="text-xs font-bold text-primary">09:30</span>
-                                        <span className="text-[9px] font-black text-slate-500 uppercase">AM</span>
-                                    </div>
-                                    <div className="flex-1 overflow-hidden">
-                                        <p className="text-sm font-bold truncate">{candidates?.find((c: any) => c.id === interview.candidateId)?.name || 'Candidate'}</p>
-                                        <p className="text-[10px] text-slate-500 truncate">{interview.type} • Round 1</p>
-                                        <div className="flex gap-2 mt-2">
-                                            <button className="text-[10px] font-bold text-white bg-primary px-3 py-1 rounded-lg hover:opacity-90 transition-opacity">Join</button>
-                                            <button className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-white/10 px-3 py-1 rounded-lg hover:bg-slate-300 transition-colors">Profile</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <button className="w-full mt-6 py-3 border border-dashed border-slate-300 dark:border-white/20 rounded-xl text-[10px] font-bold text-slate-500 hover:border-primary hover:text-primary transition-all uppercase tracking-widest">
-                            View Full Calendar
-                        </button>
-                    </div>
-
-                    <div className="bg-white dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
-                        <h3 className="text-lg font-bold mb-6">Recent Activity</h3>
-                        <div className="space-y-6 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-slate-200 dark:before:bg-white/10">
-                            {(candidates || []).length === 0 ? (
-                                <EmptyState icon="history" title="No recent candidate activity" />
-                            ) : candidates.slice(0, 4).map((c: any, i: number) => (
-                                <div key={i} className="relative pl-6">
-                                    <span className="absolute left-0 top-1 size-4 rounded-full bg-primary border-4 border-white dark:border-background-dark shadow-sm"></span>
-                                    <p className="text-xs leading-relaxed">
-                                        <span className="font-bold">{c.name}</span> was moved to <span className="text-primary font-bold">{c.status}</span>
-                                    </p>
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight mt-1">
-                                        {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : 'Recently'}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      <EmptyState
+        icon="account_tree"
+        title="No candidates yet"
+        description="Add candidates or open a job pipeline to see stage breakdown."
+      />
     )
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex h-3 rounded-full overflow-hidden bg-primary/5 dark:bg-white/10">
+        {stages.map((s, i) =>
+          s.count > 0 ? (
+            <div
+              key={s.stage}
+              className={clsx('h-full transition-all duration-700', barColors[i])}
+              style={{ width: `${(s.count / total) * 100}%` }}
+              title={`${s.label}: ${s.count}`}
+            />
+          ) : null
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {stages.map((s, i) => (
+          <div
+            key={s.stage}
+            className="app-card-inset p-3"
+          >
+            <div className={clsx('size-2 rounded-full mb-2', barColors[i])} />
+            <p className="text-[10px] font-bold uppercase tracking-wider text-primary/50 dark:text-white/50">
+              {s.label}
+            </p>
+            <p className="text-xl font-black text-primary dark:text-white tabular-nums mt-0.5">{s.count}</p>
+            <p className="text-[10px] font-bold text-muted-foreground mt-1">
+              {Math.round((s.count / total) * 100)}%
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ActivityFeed({ logs }: { logs: ActivityLog[] }) {
+  if (logs.length === 0) {
+    return <EmptyState icon="history" title="No activity yet" description="Actions across the ATS will appear here." />
+  }
+
+  return (
+    <ul className="divide-y section-divider">
+      {logs.slice(0, 10).map((log) => {
+        const href = activityLogLink(log)
+        const content = (
+          <div className="flex items-start gap-4 px-6 py-4 hover:bg-primary/[0.02] dark:hover:bg-white/[0.03] transition-colors">
+            <div className="size-9 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center shrink-0">
+              <Activity size={16} className="text-primary dark:text-white/80" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-primary dark:text-white truncate">
+                {formatActivityTitle(log)}
+              </p>
+              <p className="text-xs text-primary/50 dark:text-white/50 mt-0.5">
+                {log.performerName || 'System'}
+                {log.performerRole ? ` · ${log.performerRole.replace(/_/g, ' ')}` : ''}
+              </p>
+            </div>
+            <span className="text-[11px] font-bold text-muted-foreground shrink-0 tabular-nums">
+              {relativeTime(log.timestamp)}
+            </span>
+          </div>
+        )
+        return (
+          <li key={log.id}>
+            {href ? (
+              <Link to={href} className="block">
+                {content}
+              </Link>
+            ) : (
+              content
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function RequirementCompactRow({ req }: { req: Requirement }) {
+  const { pct, label } = fillProgress(req.filled, req.openings)
+  const priority = priorityMeta(req.priority)
+
+  return (
+    <Link
+      to={`/requirements/${req.id}`}
+      className="flex items-center gap-4 px-6 py-4 hover:bg-primary/[0.02] dark:hover:bg-white/[0.03] transition-colors group"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <p className="text-sm font-bold text-primary dark:text-white truncate">{req.title}</p>
+          <span
+            className={clsx(
+              'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border',
+              requirementStatusClass(req.status)
+            )}
+          >
+            {requirementStatusLabel(req.status)}
+          </span>
+          {req.priority && req.priority !== 'MEDIUM' && (
+            <span className={clsx('text-[10px] font-bold uppercase', priority.className)}>
+              {priority.label}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-primary/50 dark:text-white/50 truncate">
+          {req.department}
+          {req.location ? ` · ${req.location}` : ''}
+          {req.jobCode ? ` · ${req.jobCode}` : ''}
+        </p>
+        <div className="mt-2 flex items-center gap-3">
+          <div className="flex-1 h-1.5 rounded-full bg-primary/10 dark:bg-white/10 overflow-hidden max-w-[140px]">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-bold text-primary/50 dark:text-white/50">{label} filled</span>
+        </div>
+      </div>
+      <ChevronRight
+        size={18}
+        className="text-primary/30 group-hover:text-primary dark:group-hover:text-white shrink-0 transition-colors"
+      />
+    </Link>
+  )
+}
+
+function InterviewAgendaItem({
+  interview,
+  jobTitle,
+}: {
+  interview: Interview
+  jobTitle?: string
+}) {
+  const when = new Date(interview.scheduledAt)
+  const dayLabel = formatInterviewDay(when)
+  const timeLabel = formatInterviewTime(when)
+
+  return (
+    <div className="flex gap-4 px-6 py-4 border-b border-primary/5 dark:border-white/10 last:border-0">
+      <div className="flex flex-col items-center justify-center rounded-xl min-w-[56px] h-14 bg-primary/5 dark:bg-white/10 border border-primary/10 dark:border-white/10">
+        <span className="text-xs font-black text-primary dark:text-white tabular-nums">{timeLabel}</span>
+        <span className="text-[9px] font-bold text-primary/50 dark:text-white/50 uppercase mt-0.5 truncate max-w-[52px]">
+          {dayLabel}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-primary dark:text-white truncate">
+          {interview.candidateName ?? 'Candidate'}
+        </p>
+        <p className="text-xs text-primary/50 dark:text-white/50 truncate mt-0.5">
+          {stageLabel(interview)}
+          {jobTitle ? ` · ${jobTitle}` : ''}
+        </p>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {interview.meetingLink && (
+            <a
+              href={interview.meetingLink}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] font-bold bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Join meeting
+            </a>
+          )}
+          <Link
+            to={`/candidates/${interview.candidateId}`}
+            className="text-[11px] font-bold text-primary/70 dark:text-white/70 bg-primary/5 dark:bg-white/10 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+          >
+            Profile
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AdminDashboard({
+  requirements,
+  candidates,
+  activityLogs,
+  users,
+  user,
+}: {
+  requirements: Requirement[]
+  candidates: Candidate[]
+  activityLogs: ActivityLog[]
+  users: User[]
+  user: User | null
+}) {
+  const metrics = useMemo(
+    () => adminMetrics(requirements, candidates, users, activityLogs),
+    [requirements, candidates, users, activityLogs]
+  )
+
+  const pending = useMemo(
+    () =>
+      [...requirements]
+        .filter((r) => r.status === 'PENDING_APPROVAL')
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [requirements]
+  )
+
+  const liveJobs = useMemo(
+    () =>
+      [...requirements]
+        .filter((r) => r.status === 'LIVE')
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 5),
+    [requirements]
+  )
+
+  const team = useMemo(
+    () =>
+      users
+        .filter((u) => u.role !== 'CANDIDATE' && u.role !== 'VENDOR')
+        .slice(0, 6),
+    [users]
+  )
+
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+      <PageHero
+        icon={LayoutDashboard}
+        eyebrow="Administration"
+        title={`Good to see you, ${firstName}`}
+        description="Organization-wide hiring health, approvals, and team activity at a glance."
+        actions={
+          <>
+            <Link to="/admin/users" className={heroBtnSecondary}>
+              <UserPlus size={16} className="mr-2" />
+              Manage team
+            </Link>
+            <Link to="/notifications" className={heroBtnPrimary}>
+              View activity
+              <ArrowRight size={16} className="ml-2" />
+            </Link>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <InterviewStatCard label="Live jobs" value={metrics.live} icon={Briefcase} accent="green" />
+        <InterviewStatCard label="Pending approval" value={metrics.pending} icon={Zap} accent="amber" />
+        <InterviewStatCard label="On hold" value={metrics.onHold} icon={CalendarClock} accent="slate" />
+        <InterviewStatCard label="Candidates" value={metrics.candidates} icon={Users} accent="blue" />
+        <InterviewStatCard label="Hired" value={metrics.hires} icon={Activity} accent="green" />
+        <InterviewStatCard label="Team" value={metrics.team} icon={Users} accent="slate" />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <QuickLink to="/requirements" icon={Briefcase} label="Requirements" />
+        <QuickLink to="/candidates" icon={Users} label="Candidates" />
+        <QuickLink to="/admin" icon={UserPlus} label="Administration" />
+        <QuickLink to="/notifications" icon={Activity} label="Notifications" />
+      </div>
+
+      {pending.length > 0 && (
+        <div className="rounded-2xl border border-amber-200/80 dark:border-amber-500/30 bg-amber-50/80 dark:bg-amber-500/10 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                <MessageSquareWarning size={20} />
+              </div>
+              <div>
+                <h2 className="font-bold text-amber-900 dark:text-amber-100">
+                  {pending.length} requirement{pending.length === 1 ? '' : 's'} awaiting approval
+                </h2>
+                <p className="text-sm text-amber-800/80 dark:text-amber-200/70">
+                  {canApproveRequirement(user?.role)
+                    ? requiresHrHeadDelegationForApproval(user?.role)
+                      ? 'Approve on behalf of HR Head to publish roles.'
+                      : 'Review and approve to publish roles.'
+                    : 'These roles are waiting for HR Head approval.'}
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/requirements"
+              className="text-sm font-bold text-amber-800 dark:text-amber-200 hover:underline inline-flex items-center gap-1"
+            >
+              Review queue <ArrowRight size={14} />
+            </Link>
+          </div>
+          <ul className="rounded-xl border border-amber-200/60 dark:border-amber-500/20 bg-white/60 dark:bg-black/20 divide-y divide-amber-100 dark:divide-amber-500/20 overflow-hidden">
+            {pending.slice(0, 3).map((req) => (
+              <li key={req.id}>
+                <RequirementCompactRow req={req} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 space-y-8">
+          <SectionCard
+            title="Candidate pipeline"
+            action={
+              <Link to="/pipeline" className="text-xs font-bold text-primary dark:text-blue-400 hover:underline">
+                Open pipeline
+              </Link>
+            }
+          >
+            <PipelineOverview candidates={candidates} />
+          </SectionCard>
+
+          <SectionCard
+            title="Live roles"
+            action={
+              <Link to="/requirements" className="text-xs font-bold text-primary dark:text-blue-400 hover:underline">
+                All jobs
+              </Link>
+            }
+          >
+            {liveJobs.length === 0 ? (
+              <EmptyState icon="work" title="No live roles" description="Approve requirements to go live." />
+            ) : (
+              <ul className="divide-y section-divider">
+                {liveJobs.map((req) => (
+                  <li key={req.id}>
+                    <RequirementCompactRow req={req} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="space-y-8">
+          <SectionCard title="Team snapshot">
+            {team.length === 0 ? (
+              <EmptyState icon="groups" title="No team members" description="Invite users from Administration." />
+            ) : (
+              <ul className="p-4 space-y-2">
+                {team.map((member) => (
+                  <li key={member.uid}>
+                    <Link
+                      to={`/admin/users/${member.uid}`}
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <UserAvatar
+                        name={member.name}
+                        avatar={member.avatar}
+                        size="sm"
+                        className="rounded-xl"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-primary dark:text-white truncate">{member.name}</p>
+                        <p className="text-xs text-primary/50 dark:text-white/50">
+                          {member.role.replace(/_/g, ' ')}
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-primary/30 shrink-0" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="px-4 pb-4">
+              <Link
+                to="/admin/users"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-primary dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              >
+                <UserPlus size={16} />
+                Invite team member
+              </Link>
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+
+      <SectionCard
+        title="Recent activity"
+        action={
+          <Link to="/notifications" className="text-xs font-bold text-primary dark:text-blue-400 hover:underline">
+            View all
+          </Link>
+        }
+      >
+        <ActivityFeed logs={activityLogs} />
+      </SectionCard>
+    </div>
+  )
+}
+
+function RecruiterDashboard({
+  requirements,
+  candidates,
+  interviews,
+  offers,
+  user,
+}: {
+  requirements: Requirement[]
+  candidates: Candidate[]
+  interviews: Interview[]
+  offers: Offer[]
+  user: User | null
+}) {
+  const metrics = useMemo(
+    () => recruiterMetrics(requirements, candidates, interviews, offers),
+    [requirements, candidates, interviews, offers]
+  )
+
+  const jobTitleById = useMemo(
+    () => new Map(requirements.map((r) => [r.id, r.title])),
+    [requirements]
+  )
+
+  const priorityJobs = useMemo(
+    () =>
+      [...requirements]
+        .filter((r) => ['LIVE', 'PENDING_APPROVAL', 'ON_HOLD'].includes(r.status))
+        .sort((a, b) => {
+          const order: Record<string, number> = { PENDING_APPROVAL: 0, LIVE: 1, ON_HOLD: 2 }
+          return (order[a.status] ?? 9) - (order[b.status] ?? 9)
+        })
+        .slice(0, 6),
+    [requirements]
+  )
+
+  const upcomingInterviews = useMemo(
+    () =>
+      [...interviews]
+        .filter(isUpcoming)
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+        .slice(0, 5),
+    [interviews]
+  )
+
+  const recentCandidates = useMemo(
+    () =>
+      [...candidates]
+        .sort((a, b) => {
+          const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+          const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+          return tb - ta
+        })
+        .slice(0, 5),
+    [candidates]
+  )
+
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+      <PageHero
+        icon={LayoutDashboard}
+        eyebrow="Your workspace"
+        title={`Welcome back, ${firstName}`}
+        description="Track open roles, upcoming interviews, and pipeline momentum for today."
+        actions={
+          <>
+            <Link to="/candidates/new" className={heroBtnSecondary}>
+              <Plus size={16} className="mr-2" />
+              Add candidate
+            </Link>
+            <Link to="/interviews/new" className={heroBtnPrimary}>
+              <Video size={16} className="mr-2" />
+              Schedule interview
+            </Link>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <InterviewStatCard label="Live roles" value={metrics.live} icon={Briefcase} accent="green" />
+        <InterviewStatCard label="Candidates" value={metrics.candidates} icon={Users} accent="blue" />
+        <InterviewStatCard label="Upcoming" value={metrics.upcoming} icon={CalendarClock} accent="blue" />
+        <InterviewStatCard label="Needs feedback" value={metrics.feedback} icon={MessageSquareWarning} accent="amber" />
+        <InterviewStatCard label="Offers" value={metrics.offers} icon={Zap} accent="slate" />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <QuickLink to="/requirements" icon={Briefcase} label="Requirements" />
+        <QuickLink to="/candidates" icon={Users} label="Candidates" />
+        <QuickLink to="/interviews" icon={Video} label="Interviews" />
+        <QuickLink to="/offers" icon={Zap} label="Offers" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 space-y-8">
+          <SectionCard
+            title="Active & priority roles"
+            action={
+              <Link to="/requirements" className="text-xs font-bold text-primary dark:text-blue-400 hover:underline">
+                View all
+              </Link>
+            }
+          >
+            {priorityJobs.length === 0 ? (
+              <EmptyState icon="work" title="No active roles" description="Create or get assigned to job requirements." />
+            ) : (
+              <ul className="divide-y section-divider">
+                {priorityJobs.map((req) => (
+                  <li key={req.id}>
+                    <RequirementCompactRow req={req} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Pipeline summary"
+            action={
+              <Link to="/pipeline" className="text-xs font-bold text-primary dark:text-blue-400 hover:underline">
+                Pipeline view
+              </Link>
+            }
+          >
+            <PipelineOverview candidates={candidates} />
+          </SectionCard>
+        </div>
+
+        <div className="space-y-8">
+          <SectionCard
+            title="Upcoming interviews"
+            action={
+              <Link to="/interviews" className="text-xs font-bold text-primary dark:text-blue-400 hover:underline">
+                Calendar
+              </Link>
+            }
+          >
+            {upcomingInterviews.length === 0 ? (
+              <EmptyState icon="event" title="Nothing scheduled" description="Schedule interviews from a candidate profile." />
+            ) : (
+              <div>
+                {upcomingInterviews.map((iv) => (
+                  <InterviewAgendaItem
+                    key={iv.id}
+                    interview={iv}
+                    jobTitle={jobTitleById.get(iv.requirementId)}
+                  />
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Recent candidate updates">
+            {recentCandidates.length === 0 ? (
+              <EmptyState icon="person" title="No candidates yet" />
+            ) : (
+              <ul className="p-4 space-y-1">
+                {recentCandidates.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      to={`/candidates/${c.id}`}
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-primary dark:text-white text-sm">
+                        {c.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-primary dark:text-white truncate">{c.name}</p>
+                        <p className="text-xs text-primary/50 dark:text-white/50">
+                          Moved to{' '}
+                          <span className="font-bold text-primary dark:text-white">{c.status}</span>
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground shrink-0">
+                        {c.updatedAt ? relativeTime(c.updatedAt) : '—'}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InterviewerDashboard({
+  interviews,
+  candidates,
+  user,
+}: {
+  interviews: Interview[]
+  candidates: Candidate[]
+  user: User | null
+}) {
+  const metrics = useMemo(() => interviewerMetrics(interviews), [interviews])
+
+  const feedbackQueue = useMemo(
+    () => sortInterviewsChronologically(interviews.filter(needsFeedback)),
+    [interviews]
+  )
+
+  const todayInterviews = useMemo(
+    () =>
+      sortInterviewsChronologically(
+        interviews.filter((i) => isUpcoming(i) && isScheduledToday(i))
+      ),
+    [interviews]
+  )
+
+  const upcomingInterviews = useMemo(
+    () =>
+      sortInterviewsChronologically(
+        interviews.filter((i) => isUpcoming(i) && !isScheduledToday(i))
+      ).slice(0, 5),
+    [interviews]
+  )
+
+  const myCandidates = useMemo(() => {
+    const nextByCandidate = new Map<string, number>()
+    for (const iv of interviews.filter(isUpcoming)) {
+      const t = new Date(iv.scheduledAt).getTime()
+      const prev = nextByCandidate.get(iv.candidateId)
+      if (prev == null || t < prev) nextByCandidate.set(iv.candidateId, t)
+    }
+    return [...candidates].sort((a, b) => {
+      const ta = nextByCandidate.get(a.id) ?? Number.POSITIVE_INFINITY
+      const tb = nextByCandidate.get(b.id) ?? Number.POSITIVE_INFINITY
+      if (ta !== tb) return ta - tb
+      return a.name.localeCompare(b.name)
+    })
+  }, [candidates, interviews])
+
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+      <PageHero
+        icon={Video}
+        eyebrow="Interviewer workspace"
+        title={`Hello, ${firstName}`}
+        description="Your assigned interviews, feedback tasks, and candidate profiles in one place."
+        actions={
+          <Link to="/interviews" className={heroBtnPrimary}>
+            <Video size={16} className="mr-2" />
+            My interviews
+            <ArrowRight size={16} className="ml-2" />
+          </Link>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <InterviewStatCard
+          label="Today"
+          value={metrics.today}
+          icon={CalendarClock}
+          accent="blue"
+        />
+        <InterviewStatCard
+          label="Upcoming"
+          value={metrics.upcoming}
+          icon={Video}
+          accent="slate"
+        />
+        <InterviewStatCard
+          label="Needs feedback"
+          value={metrics.feedback}
+          icon={MessageSquareWarning}
+          accent="amber"
+        />
+        <InterviewStatCard
+          label="Decided"
+          value={metrics.decided}
+          icon={CheckCircle2}
+          accent="green"
+        />
+        <InterviewStatCard
+          label="Candidates"
+          value={metrics.candidates}
+          icon={Users}
+          accent="slate"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <QuickLink to="/interviews" icon={Video} label="My interviews" />
+        <QuickLink to="/candidates" icon={Users} label="My candidates" />
+        <QuickLink to="/notifications" icon={Activity} label="Notifications" />
+      </div>
+
+      {feedbackQueue.length > 0 && (
+        <div className="rounded-2xl border border-amber-200/80 dark:border-amber-500/30 bg-amber-50/80 dark:bg-amber-500/10 p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                <MessageSquare size={20} />
+              </div>
+              <div>
+                <h2 className="font-bold text-amber-900 dark:text-amber-100">
+                  {feedbackQueue.length} interview{feedbackQueue.length === 1 ? '' : 's'} need your
+                  feedback
+                </h2>
+                <p className="text-sm text-amber-800/80 dark:text-amber-200/70">
+                  Submit feedback after each session so recruiting can move candidates forward.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/interviews"
+              className="text-sm font-bold text-amber-800 dark:text-amber-200 hover:underline inline-flex items-center gap-1"
+            >
+              View all <ArrowRight size={14} />
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {feedbackQueue.slice(0, 3).map((interview) => (
+              <InterviewListItem
+                key={interview.id}
+                interview={interview}
+                jobTitle={interview.candidateRole}
+                variant="alert"
+                canManage={false}
+                userRole={user?.role}
+                currentUserId={user?.uid}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 space-y-8">
+          <SectionCard
+            id="today"
+            title="Today's sessions"
+            action={
+              <Link
+                to="/interviews"
+                className="text-xs font-bold text-primary dark:text-blue-400 hover:underline"
+              >
+                Full calendar
+              </Link>
+            }
+          >
+            {todayInterviews.length === 0 ? (
+              <EmptyState
+                icon="event"
+                title="Nothing scheduled today"
+                description="Upcoming interviews assigned to you will appear here."
+              />
+            ) : (
+              <div className="p-4 space-y-3">
+                {todayInterviews.map((interview) => (
+                  <InterviewListItem
+                    key={interview.id}
+                    interview={interview}
+                    jobTitle={interview.candidateRole}
+                    variant="timeline"
+                    canManage={false}
+                    userRole={user?.role}
+                    currentUserId={user?.uid}
+                  />
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Coming up"
+            action={
+              <Link
+                to="/interviews"
+                className="text-xs font-bold text-primary dark:text-blue-400 hover:underline"
+              >
+                View all
+              </Link>
+            }
+          >
+            {upcomingInterviews.length === 0 ? (
+              <EmptyState
+                icon="calendar_month"
+                title="No upcoming sessions"
+                description="When you are assigned to future interviews, they will show here."
+              />
+            ) : (
+              <div className="p-4 space-y-3">
+                {upcomingInterviews.map((interview) => (
+                  <InterviewListItem
+                    key={interview.id}
+                    interview={interview}
+                    jobTitle={interview.candidateRole}
+                    variant="timeline"
+                    canManage={false}
+                    userRole={user?.role}
+                    currentUserId={user?.uid}
+                  />
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="space-y-8">
+          <SectionCard
+            title="My candidates"
+            action={
+              <Link
+                to="/candidates"
+                className="text-xs font-bold text-primary dark:text-blue-400 hover:underline"
+              >
+                View all
+              </Link>
+            }
+          >
+            {myCandidates.length === 0 ? (
+              <EmptyState
+                icon="person"
+                title="No candidates yet"
+                description="Candidates appear here once you are assigned to their interviews."
+              />
+            ) : (
+              <ul className="p-4 space-y-1">
+                {myCandidates.slice(0, 8).map((c) => {
+                  const nextIv = interviews
+                    .filter((i) => i.candidateId === c.id && isUpcoming(i))
+                    .sort(
+                      (a, b) =>
+                        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+                    )[0]
+                  return (
+                    <li key={c.id}>
+                      <Link
+                        to={`/candidates/${c.id}`}
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-primary dark:text-white text-sm">
+                          {c.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-primary dark:text-white truncate">
+                            {c.name}
+                          </p>
+                          <p className="text-xs text-primary/50 dark:text-white/50 truncate">
+                            {c.jobTitle || c.role || '—'}
+                            {nextIv
+                              ? ` · ${formatInterviewDay(new Date(nextIv.scheduledAt))} ${formatInterviewTime(new Date(nextIv.scheduledAt))}`
+                              : ''}
+                          </p>
+                        </div>
+                        <ChevronRight size={16} className="text-primary/30 shrink-0" />
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </SectionCard>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse pb-12">
+      <div className="h-44 rounded-3xl bg-primary/10 dark:bg-white/10" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-20 rounded-2xl bg-primary/5 dark:bg-white/5" />
+        ))}
+      </div>
+      <div className="h-64 rounded-2xl bg-primary/5 dark:bg-white/5" />
+    </div>
+  )
 }
 
 const Dashboard = () => {
-    const { user } = useAuth()
-    const role = user?.role || 'RECRUITER'
-    const isAdminOrHR = ['ADMIN', 'HR_MANAGER', 'HR_HEAD'].includes(role)
+  const { user } = useAuth()
+  const role = user?.role || 'RECRUITER'
+  const isInterviewer = role === 'INTERVIEWER'
+  const isAdminOrHR = ['ADMIN', 'HR_MANAGER', 'HR_HEAD', 'TEAM_LEAD'].includes(role)
 
-    const { data: requirements } = useQuery({ queryKey: ['requirements'], queryFn: api.requirements.list })
-    const { data: candidates } = useQuery({ queryKey: ['candidates'], queryFn: api.candidates.list })
-    const { data: interviews } = useQuery({ queryKey: ['interviews'], queryFn: api.interviews.list })
-    const { data: offers } = useQuery({ queryKey: ['offers'], queryFn: api.offers.list })
-    const { data: activityLogs } = useQuery({
-        queryKey: ['activityLogs', 'dashboard'],
-        queryFn: () => api.activityLogs.list(20),
-        enabled: isAdminOrHR,
-    })
-    const { data: users } = useQuery({
-        queryKey: ['users', 'dashboard'],
-        queryFn: api.users.list,
-        enabled: isAdminOrHR,
-    })
+  const { data: requirements = [], isLoading: loadingReqs } = useQuery({
+    queryKey: ['requirements'],
+    queryFn: api.requirements.list,
+    enabled: !isInterviewer,
+  })
+  const { data: candidates = [], isLoading: loadingCands } = useQuery({
+    queryKey: ['candidates'],
+    queryFn: api.candidates.list,
+  })
+  const { data: interviews = [], isLoading: loadingInts } = useQuery({
+    queryKey: ['interviews'],
+    queryFn: api.interviews.list,
+    enabled: isInterviewer || !isAdminOrHR,
+  })
+  const { data: offers = [], isLoading: loadingOffers } = useQuery({
+    queryKey: ['offers'],
+    queryFn: api.offers.list,
+    enabled: !isAdminOrHR && !isInterviewer,
+  })
+  const { data: activityLogs = [], isLoading: loadingLogs } = useQuery({
+    queryKey: ['activityLogs', 'dashboard'],
+    queryFn: () => api.activityLogs.list(20),
+    enabled: isAdminOrHR,
+  })
+  const { data: users = [], isLoading: loadingUsers } = useQuery({
+    queryKey: ['users', 'dashboard'],
+    queryFn: api.users.list,
+    enabled: isAdminOrHR,
+  })
 
+  const scopedInterviews = useMemo(
+    () => scopeInterviewsForUser(interviews, role, user?.uid),
+    [interviews, role, user?.uid]
+  )
+
+  const isLoading = isInterviewer
+    ? loadingCands || loadingInts
+    : isAdminOrHR
+      ? loadingReqs || loadingCands || loadingLogs || loadingUsers
+      : loadingReqs || loadingCands || loadingInts || loadingOffers
+
+  if (isLoading) {
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-            {isAdminOrHR ? (
-                <AdminDashboard
-                    requirements={requirements}
-                    candidates={candidates}
-                    activityLogs={activityLogs}
-                    users={users}
-                    user={user}
-                />
-            ) : (
-                <RecruiterDashboard
-                    requirements={requirements}
-                    candidates={candidates}
-                    interviews={interviews}
-                    offers={offers}
-                    user={user}
-                />
-            )}
-        </div>
+      <div className="max-w-7xl mx-auto">
+        <DashboardSkeleton />
+      </div>
     )
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      {isInterviewer ? (
+        <InterviewerDashboard
+          interviews={scopedInterviews}
+          candidates={candidates}
+          user={user}
+        />
+      ) : isAdminOrHR ? (
+        <AdminDashboard
+          requirements={requirements}
+          candidates={candidates}
+          activityLogs={activityLogs}
+          users={users}
+          user={user}
+        />
+      ) : (
+        <RecruiterDashboard
+          requirements={requirements}
+          candidates={candidates}
+          interviews={scopedInterviews}
+          offers={offers}
+          user={user}
+        />
+      )}
+    </div>
+  )
 }
 
 export default Dashboard

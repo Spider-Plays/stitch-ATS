@@ -5,14 +5,41 @@ export type RequirementStatus =
     | 'LIVE'
     | 'ON_HOLD'
     | 'CLOSED'
+    | 'CANCELLED'
     | 'REJECTED'
 
+export type RequirementHiringStage =
+    | 'SOURCING'
+    | 'L1_INTERVIEW'
+    | 'L2_INTERVIEW'
+    | 'HR_INTERVIEW'
+    | 'TO_BE_OFFERED'
+    | 'OFFERED'
+    | 'JOINED'
+
 export interface ApprovalHistory {
-    action: 'REQUESTED' | 'APPROVED' | 'REJECTED'
+    action:
+        | 'REQUESTED'
+        | 'APPROVED'
+        | 'REJECTED'
+        | 'CLOSED'
+        | 'CANCELLED'
+        | 'ON_HOLD'
+        | 'RESUMED'
+        | 'HIRING_STAGE_CHANGED'
+        | 'RECRUITER_ASSIGNED'
+        | 'RECRUITER_UNASSIGNED'
+        | 'PORTAL_SHOWN'
+        | 'PORTAL_HIDDEN'
+        | 'REFERRAL_PORTAL_SHOWN'
+        | 'REFERRAL_PORTAL_HIDDEN'
     by: string // User ID
     at: string // ISO Date
     role: string // User Role
     comments?: string
+    /** Set when Admin approves/rejects on behalf of HR Head */
+    onBehalfOf?: 'HR_HEAD'
+    recruiterId?: string
 }
 
 export type RequirementVersionKind = 'UPDATE' | 'CANDIDATE_LINKED'
@@ -51,6 +78,9 @@ export interface Requirement {
     department: string
     hiringManager: string
     status: RequirementStatus
+    hiringStage?: RequirementHiringStage
+    liveAt?: string
+    onHoldAt?: string
     openings: number
     filled: number
     createdAt: string
@@ -58,6 +88,16 @@ export interface Requirement {
     recruiters: string[] // User IDs
     priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
     location?: string
+    locationCity?: string
+    isRemote?: boolean
+    workMode?: 'REMOTE' | 'HYBRID' | 'ONSITE'
+    employmentType?: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERN'
+    seniorityLevel?: 'JUNIOR' | 'MID' | 'SENIOR' | 'LEAD' | 'PRINCIPAL'
+    experienceMinYears?: number
+    experienceMaxYears?: number
+    salaryBand?: string
+    targetStartDate?: string
+    hiringDeadline?: string
     description?: string
     jobDescription?: string
     primarySkills?: string[]
@@ -70,6 +110,8 @@ export interface Requirement {
         decision: 'APPROVED' | 'REJECTED' | 'PENDING'
         decidedBy?: string
         decidedAt?: string
+        onBehalfOf?: 'HR_HEAD'
+        performedByRole?: string
     }
     approvalHistory?: ApprovalHistory[]
 
@@ -78,6 +120,10 @@ export interface Requirement {
     currentVersion?: number
     visibleToCandidates?: boolean
     visibleToVendors?: boolean
+    visibleToReferrals?: boolean
+    referralBonusAmount?: number
+    closureReason?: string
+    closedAt?: string
 }
 
 export type VendorStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
@@ -124,7 +170,16 @@ export interface VendorDetail extends Vendor {
     }[]
 }
 
-export type CandidateStatus = 'SOURCED' | 'APPLIED' | 'SCREENING' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'REJECTED'
+export type CandidateStatus =
+  | 'SOURCED'
+  | 'APPLIED'
+  | 'SCREENING'
+  | 'SHORTLISTED'
+  | 'INTERVIEW'
+  | 'OFFER'
+  | 'HIRED'
+  | 'JOINED'
+  | 'REJECTED'
 
 export interface Candidate {
     id: string
@@ -157,8 +212,18 @@ export interface Candidate {
     pan?: string
     vendorId?: string
     submittedByUserId?: string
+    referredByUserId?: string
+    referralRelationship?: string
+    referralNotes?: string
     primarySkills?: string[]
     secondarySkills?: string[]
+    offerDate?: string
+    offerMonth?: string
+    offerQuarter?: string
+    expectedJoiningDate?: string
+    joiningDate?: string
+    joiningMonth?: string
+    joiningQuarter?: string
     createdAt?: string
     updatedAt?: string
 }
@@ -180,10 +245,67 @@ export interface MatchingProfile {
     candidate: Candidate
 }
 
+export interface InterviewPlanStage {
+    id: string
+    order: number
+    name: string
+    interviewType: Interview['type']
+    defaultDuration: number
+    defaultInterviewerIds: string[]
+}
+
+export interface InterviewPlan {
+    id: string
+    requirementId: string
+    stages: InterviewPlanStage[]
+}
+
+export interface InterviewPanelLevel {
+    id: string
+    order: number
+    name: string
+    interviewerIds: string[]
+}
+
+export type InterviewStageProgressStatus =
+    | 'locked'
+    | 'available'
+    | 'scheduled'
+    | 'awaiting_feedback'
+    | 'completed'
+    | 'failed'
+
+export interface InterviewStageProgress {
+    id: string
+    order: number
+    name: string
+    interviewType: Interview['type']
+    defaultDuration: number
+    defaultInterviewerIds: string[]
+    allowedInterviewerIds: string[]
+    usesCombinedPanel: boolean
+    panelRestrictionLabel: string
+    status: InterviewStageProgressStatus
+    canSchedule: boolean
+    interviewId?: string
+}
+
+export interface CandidateInterviewProgress {
+    planId: string
+    requirementId: string
+    candidateId: string
+    candidateInInterviewStage: boolean
+    stages: InterviewStageProgress[]
+    nextSchedulableStageId: string | null
+}
+
 export interface Interview {
     id: string
     candidateId: string
     requirementId: string
+    planStageId?: string
+    stageName?: string
+    stageOrder?: number
     scheduledAt: string
     interviewerIds: string[] // Array of user IDs
     type: 'SCREENING' | 'TECHNICAL' | 'CULTURAL' | 'SYSTEM_DESIGN' | 'BEHAVIORAL'
@@ -195,6 +317,7 @@ export interface Interview {
     candidateName?: string
     candidateRole?: string
     candidateEmail?: string
+    candidateHasResume?: boolean
     hasFeedback?: boolean
     feedbackRecommendation?: Feedback['recommendation']
 }
@@ -234,14 +357,27 @@ export interface Offer {
     createdBy: string
 }
 
-export type UserRole = 'ADMIN' | 'HR_HEAD' | 'HR_MANAGER' | 'RECRUITER' | 'TEAM_LEAD' | 'HIRING_MANAGER' | 'INTERVIEWER' | 'CANDIDATE' | 'VENDOR';
+export type UserRole =
+  | 'ADMIN'
+  | 'HR_HEAD'
+  | 'HR_MANAGER'
+  | 'RECRUITER'
+  | 'TEAM_LEAD'
+  | 'HIRING_MANAGER'
+  | 'INTERVIEWER'
+  | 'CANDIDATE'
+  | 'VENDOR'
+  | 'EMPLOYEE'
+
+export type FeatureTagKey = 'careers' | 'employee_referral' | 'mis';
 
 export interface User {
     uid: string;
     name: string;
     email: string;
     role: UserRole;
-    permissions: string[];
+    /** Feature module access (Careers, MIS, etc.) — assigned by admins */
+    tags: FeatureTagKey[];
     themePreference: 'light' | 'dark' | 'system';
     createdAt: string;
     avatar?: string;
@@ -253,6 +389,14 @@ export interface User {
     department?: string;
     lastLogin?: string;
     vendorId?: string;
+}
+
+export interface LoginHistoryEntry {
+    id: string;
+    userId: string;
+    loggedInAt: string;
+    ipAddress?: string;
+    userAgent?: string;
 }
 
 export interface ActivityLog {

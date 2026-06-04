@@ -1,16 +1,38 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { DEV_LOGIN_ACCOUNTS } from './devLoginAccounts'
-import { firstAllowedPath } from '../lib/pageAccess'
+import { resolveDevLoginRedirect } from './resolveDevLoginRedirect'
 import { ApiError } from '../lib/apiClient'
+import type { PageKey } from '../lib/pageAccess'
+import type { User } from '../types'
 import clsx from 'clsx'
+
+export type DevQuickLoginSession = {
+  user: User
+  allowedPages: PageKey[]
+}
 
 type DevQuickLoginProps = {
   onError: (message: string) => void
+  /** Prefer this: SPA navigation after login (avoids reload races). */
+  onLoggedIn?: (session: DevQuickLoginSession) => void
+  /** @deprecated Use onLoggedIn */
   onSuccess?: () => void
+  /** Show only accounts for this role (e.g. candidate portal login). */
+  filterRole?: string
 }
 
-export function DevQuickLogin({ onError, onSuccess }: DevQuickLoginProps) {
+export function DevQuickLogin({
+  onError,
+  onLoggedIn,
+  onSuccess,
+  filterRole,
+}: DevQuickLoginProps) {
+  const navigate = useNavigate()
+  const accounts = filterRole
+    ? DEV_LOGIN_ACCOUNTS.filter((a) => a.role === filterRole)
+    : DEV_LOGIN_ACCOUNTS
   const { login } = useAuth()
   const [loadingEmail, setLoadingEmail] = useState<string | null>(null)
 
@@ -19,17 +41,14 @@ export function DevQuickLogin({ onError, onSuccess }: DevQuickLoginProps) {
     onError('')
     try {
       const session = await login(email, password)
-      onSuccess?.()
-      if (session.user.role === 'CANDIDATE') {
-        window.location.href = '/portal/profile'
-      } else if (session.user.role === 'VENDOR') {
-        window.location.href = '/vendor-portal/dashboard'
-      } else if (session.allowedPages.length > 0) {
-        window.location.href = firstAllowedPath(session.allowedPages)
-      } else if (role === 'ADMIN') {
-        window.location.href = '/admin'
+      const path = resolveDevLoginRedirect(session, role)
+
+      if (onLoggedIn) {
+        onLoggedIn(session)
+      } else if (onSuccess) {
+        onSuccess()
       } else {
-        window.location.href = '/dashboard'
+        navigate(path, { replace: true })
       }
     } catch (err: unknown) {
       if (err instanceof ApiError) {
@@ -39,7 +58,7 @@ export function DevQuickLogin({ onError, onSuccess }: DevQuickLoginProps) {
           )
         } else if (err.status === 401) {
           onError(
-            'Invalid credentials — from project root run: npm run db:seed --prefix server'
+            'Invalid credentials — run: npm run db:seed --prefix server (creates dev-employee@local.test)'
           )
         } else if (err.status === 0 || err.message.includes('fetch')) {
           onError(
@@ -62,6 +81,10 @@ export function DevQuickLogin({ onError, onSuccess }: DevQuickLoginProps) {
     }
   }
 
+  if (accounts.length === 0) {
+    return null
+  }
+
   return (
     <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/80 dark:bg-amber-950/30 p-4 space-y-3">
       <div className="flex items-start gap-2">
@@ -74,12 +97,12 @@ export function DevQuickLogin({ onError, onSuccess }: DevQuickLoginProps) {
           </p>
           <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
             Password for all: <span className="font-mono font-bold">DevTest123!</span> — seed with{' '}
-            <span className="font-mono">npm run db:seed</span>
+            <span className="font-mono">npm run db:seed --prefix server</span>
           </p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {DEV_LOGIN_ACCOUNTS.map((account) => (
+        {accounts.map((account) => (
           <button
             key={account.email}
             type="button"

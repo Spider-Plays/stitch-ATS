@@ -1,312 +1,421 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Filter, Plus, UserPlus, Briefcase, Mail, Calendar, LayoutDashboard } from 'lucide-react'
+import {
+  Users,
+  Plus,
+  Sparkles,
+  GitBranch,
+  UserPlus,
+  Briefcase,
+  CheckCircle2,
+} from 'lucide-react'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
 import { Candidate } from '../../types'
 import clsx from 'clsx'
-import { motion } from 'framer-motion'
-import { ActionsMenu } from '../../components/ui/ActionsMenu'
 import { useToastStore } from '../../store/toastStore'
+import { useConfirm } from '../../hooks/useConfirm'
 import { ApiError } from '../../lib/apiClient'
-
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.05
-        }
-    }
-}
-
-const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-}
-
-const statusColors: Record<string, string> = {
-    APPLIED: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
-    SCREENING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-    INTERVIEW: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    OFFER: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    HIRED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    REJECTED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-}
-
-
+import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { PageHeader } from '../../components/layout/PageHeader'
+import { heroBtnPrimary, heroBtnSecondary } from '../../components/layout/PageHero'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { matchesAnySearch } from '../../lib/textSearch'
+import { InterviewStatCard } from '../../components/interviews/InterviewStatCard'
+import { CandidateListItem } from '../../components/candidates/CandidateListItem'
+import { AnimatedTabNav } from '../../components/motion/AnimatedTabNav'
+import {
+  CANDIDATE_FILTERS,
+  candidateSearchFields,
+  candidateStats,
+  filterCandidates,
+  groupCandidatesByStatus,
+  isActiveCandidate,
+  isHighMatch,
+  sortCandidates,
+  type CandidateFilter,
+} from '../../lib/candidatePage'
+import { canCreateCandidate } from '../../lib/candidatePermissions'
+import { isInterviewerCandidateView } from '../../lib/candidateProfilePermissions'
 
 const CandidatesList = () => {
-    const { user } = useAuth()
-    const navigate = useNavigate()
-    const queryClient = useQueryClient()
-    const { addToast } = useToastStore()
-    const [searchTerm, setSearchTerm] = useState('')
-    const [statusFilter, setStatusFilter] = useState<string>('ALL')
-    const isAdmin = user?.role === 'ADMIN'
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { addToast } = useToastStore()
+  const confirm = useConfirm()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<CandidateFilter>('ALL')
+  const isAdmin = user?.role === 'ADMIN'
+  const canCreate = canCreateCandidate(user?.role)
+  const isInterviewerView = isInterviewerCandidateView(user?.role)
 
-    const { data: candidates = [], isLoading } = useQuery({
-        queryKey: ['candidates'],
-        queryFn: api.candidates.list
-    })
+  const {
+    data: candidates = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['candidates'],
+    queryFn: api.candidates.list,
+  })
 
-    const filteredCandidates = candidates.filter(candidate => {
-        const q = searchTerm.toLowerCase()
-        const matchesSearch =
-            candidate.name.toLowerCase().includes(q) ||
-            candidate.email.toLowerCase().includes(q) ||
-            candidate.role.toLowerCase().includes(q) ||
-            (candidate.jobTitle?.toLowerCase().includes(q) ?? false) ||
-            (candidate.reqId?.toLowerCase().includes(q) ?? false) ||
-            (candidate.client?.toLowerCase().includes(q) ?? false) ||
-            (candidate.recruiterName?.toLowerCase().includes(q) ?? false) ||
-            (candidate.source?.toLowerCase().includes(q) ?? false)
-        const matchesStatus = statusFilter === 'ALL' || candidate.status === statusFilter
-        return matchesSearch && matchesStatus
-    })
+  const searched = useMemo(
+    () => candidates.filter((c) => matchesAnySearch(candidateSearchFields(c), searchTerm)),
+    [candidates, searchTerm]
+  )
 
-    const canCreate = ['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER'].includes(user?.role || '')
+  const stats = useMemo(() => candidateStats(searched), [searched])
+  const filtered = useMemo(
+    () => sortCandidates(filterCandidates(searched, statusFilter)),
+    [searched, statusFilter]
+  )
 
-    const handleDeleteCandidate = async (candidate: Candidate) => {
-        if (
-            !confirm(
-                `Permanently delete ${candidate.name}? All interviews, offers, and feedback will be removed.`
-            )
-        ) {
-            return
-        }
-        try {
-            await api.candidates.delete(candidate.id)
-            addToast('Candidate deleted', 'success')
-            queryClient.invalidateQueries({ queryKey: ['candidates'] })
-        } catch (e) {
-            const msg = e instanceof ApiError ? e.message : 'Failed to delete candidate'
-            addToast(msg, 'error')
-        }
+  const highMatchQueue = useMemo(
+    () =>
+      searched
+        .filter((c) => isHighMatch(c) && isActiveCandidate(c))
+        .sort((a, b) => b.matchScore - a.matchScore),
+    [searched]
+  )
+
+  const showHighMatchSpotlight =
+    !isInterviewerView &&
+    statusFilter === 'ALL' &&
+    !searchTerm.trim() &&
+    highMatchQueue.length > 0
+
+  const groupedWhenAll = useMemo(() => {
+    if (isInterviewerView || statusFilter !== 'ALL' || searchTerm.trim()) return null
+    const groups = groupCandidatesByStatus(filtered)
+    if (showHighMatchSpotlight) {
+      const spotlightIds = new Set(highMatchQueue.slice(0, 3).map((c) => c.id))
+      return groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((c) => !spotlightIds.has(c.id)),
+        }))
+        .filter((g) => g.items.length > 0)
     }
+    return groups
+  }, [isInterviewerView, statusFilter, searchTerm, filtered, showHighMatchSpotlight, highMatchQueue])
 
-    const candidateMenuItems = (candidate: Candidate) => [
-        {
-            id: 'view',
-            label: 'View profile',
-            onClick: () => navigate(`/candidates/${candidate.id}`),
-        },
-        {
-            id: 'pipeline',
-            label: 'Open pipeline',
-            onClick: () =>
-                navigate(
-                    candidate.requirementId
-                        ? `/pipeline/${candidate.requirementId}`
-                        : '/pipeline'
-                ),
-        },
-        {
-            id: 'interview',
-            label: 'Schedule interview',
-            onClick: () => navigate('/interviews/new'),
-        },
-        {
-            id: 'delete',
-            label: 'Delete profile',
-            variant: 'danger' as const,
-            hidden: !isAdmin,
-            onClick: () => handleDeleteCandidate(candidate),
-        },
-    ]
+  const handleDeleteCandidate = async (candidate: Candidate) => {
+    const ok = await confirm({
+      title: 'Delete candidate',
+      message: `Permanently delete ${candidate.name}? All interviews, offers, and feedback will be removed.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    })
+    if (!ok) return
+    try {
+      await api.candidates.delete(candidate.id)
+      addToast('Candidate deleted', 'success')
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Failed to delete candidate'
+      addToast(msg, 'error')
+    }
+  }
 
-    return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">Candidates</h1>
-                    <p className="text-primary/60 dark:text-white/60 font-medium mt-1">Manage your talent pool and applications</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Link to="/pipeline">
-                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white rounded-xl font-bold text-sm hover:bg-primary/5 dark:hover:bg-white/10 transition-all">
-                            <LayoutDashboard size={18} />
-                            <span>Pipeline View</span>
-                        </button>
-                    </Link>
-                    {canCreate && (
-                        <Link to="/candidates/new">
-                            <button className="flex items-center gap-2 px-4 py-2.5 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 dark:shadow-none">
-                                <UserPlus size={18} />
-                                <span>Add Candidate</span>
-                            </button>
-                        </Link>
-                    )}
-                </div>
+  const candidateMenuItems = (candidate: Candidate) => [
+    {
+      id: 'view',
+      label: 'View profile',
+      onClick: () => navigate(`/candidates/${candidate.id}`),
+    },
+    {
+      id: 'pipeline',
+      label: 'Open pipeline',
+      hidden: isInterviewerView,
+      onClick: () =>
+        navigate(
+          candidate.requirementId ? `/pipeline/${candidate.requirementId}` : '/pipeline'
+        ),
+    },
+    {
+      id: 'interview',
+      label: 'Schedule interview',
+      hidden: isInterviewerView,
+      onClick: () => navigate('/interviews/new'),
+    },
+    {
+      id: 'delete',
+      label: 'Delete profile',
+      variant: 'danger' as const,
+      hidden: !isAdmin,
+      onClick: () => handleDeleteCandidate(candidate),
+    },
+  ]
+
+  const setFilter = (id: CandidateFilter) => setStatusFilter(id)
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+      <PageHeader
+        highlighted
+        icon={Users}
+        eyebrow="Talent pool"
+        title="Candidates"
+        description={
+          isInterviewerView
+            ? 'Search and open profiles for candidates assigned to your interviews.'
+            : 'Search applicants, track pipeline stages, and jump to job pipelines or interview scheduling from one place.'
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {!isInterviewerView && (
+              <Link to="/pipeline" className={heroBtnSecondary}>
+                <GitBranch size={18} />
+                Pipeline view
+              </Link>
+            )}
+            {canCreate && (
+              <Link to="/candidates/new" className={heroBtnPrimary}>
+                <UserPlus size={18} />
+                Add candidate
+              </Link>
+            )}
+          </div>
+        }
+      />
+
+      {!isInterviewerView && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+            <InterviewStatCard
+              label="All candidates"
+              value={stats.total}
+              icon={Users}
+              accent="slate"
+              active={statusFilter === 'ALL'}
+              onClick={() => setFilter('ALL')}
+            />
+            <InterviewStatCard
+              label="In pipeline"
+              value={stats.active}
+              icon={Briefcase}
+              accent="blue"
+              active={statusFilter === 'ACTIVE'}
+              onClick={() => setFilter(statusFilter === 'ACTIVE' ? 'ALL' : 'ACTIVE')}
+            />
+            <InterviewStatCard
+              label="Interview"
+              value={stats.interview}
+              icon={Users}
+              accent="amber"
+              active={statusFilter === 'INTERVIEW'}
+              onClick={() => setFilter(statusFilter === 'INTERVIEW' ? 'ALL' : 'INTERVIEW')}
+            />
+            <InterviewStatCard
+              label="Offer"
+              value={stats.offer}
+              icon={Sparkles}
+              accent="slate"
+              active={statusFilter === 'OFFER'}
+              onClick={() => setFilter(statusFilter === 'OFFER' ? 'ALL' : 'OFFER')}
+            />
+            <InterviewStatCard
+              label="Hired"
+              value={stats.hired}
+              icon={CheckCircle2}
+              accent="green"
+              active={statusFilter === 'HIRED'}
+              onClick={() => setFilter(statusFilter === 'HIRED' ? 'ALL' : 'HIRED')}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="stat-spotlight border-emerald-200/60 dark:border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10">
+              <div className="p-2.5 rounded-xl bg-card shadow-sm text-emerald-700 dark:text-emerald-300">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <p className="text-2xl font-black tabular-nums text-primary dark:text-white">
+                  {stats.highMatch}
+                </p>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-800/70 dark:text-emerald-300/80">
+                  Strong matches (80%+)
+                </p>
+              </div>
             </div>
-
-            {/* Filters */}
-            <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search by name, email, req ID, client, job title..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-medium text-primary dark:text-white placeholder:text-primary/30"
-                    />
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="icon-container bg-primary/5 dark:bg-white/5 p-2 rounded-lg text-primary dark:text-white">
-                        <Filter size={18} />
-                    </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/[0.02] dark:bg-white/[0.02] focus:border-primary focus:ring-0 font-bold text-sm text-primary dark:text-white cursor-pointer"
-                    >
-                        <option value="ALL">All Status</option>
-                        <option value="APPLIED">Applied</option>
-                        <option value="SCREENING">Screening</option>
-                        <option value="INTERVIEW">Interview</option>
-                        <option value="OFFER">Offer</option>
-                        <option value="HIRED">Hired</option>
-                        <option value="REJECTED">Rejected</option>
-                    </select>
-                </div>
+            <div className="flex items-center gap-4 p-4 app-card">
+              <div className="p-2.5 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white">
+                <UserPlus size={20} />
+              </div>
+              <div>
+                <p className="text-2xl font-black tabular-nums text-primary dark:text-white">
+                  {stats.selfApplied}
+                </p>
+                <p className="text-xs font-bold uppercase tracking-wider text-primary/50 dark:text-white/50">
+                  Portal applications
+                </p>
+              </div>
             </div>
+          </div>
+        </>
+      )}
 
-            {/* List */}
-            <div className="bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm overflow-visible">
-                {isLoading ? (
-                    <div className="p-12 text-center text-primary/50 dark:text-white/50">
-                        Loading candidates...
-                    </div>
-                ) : filteredCandidates.length > 0 ? (
-                    <div className="overflow-x-auto overflow-y-visible">
-                        <table className="w-full">
-                            <thead className="bg-primary/[0.02] dark:bg-white/[0.02] border-b border-primary/10 dark:border-white/10">
-                                <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Candidate</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Req ID</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Client</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Job title</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Recruiter</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Match</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Date</th>
-                                    <th className="px-6 py-4 text-right text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <motion.tbody
-                                variants={containerVariants}
-                                initial="hidden"
-                                animate="visible"
-                                className="divide-y divide-primary/5 dark:divide-white/5"
-                            >
-                                {filteredCandidates.map(candidate => (
-                                    <motion.tr
-                                        variants={itemVariants}
-                                        key={candidate.id}
-                                        className="hover:bg-primary/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                                        onClick={() => navigate(`/candidates/${candidate.id}`)}
-                                    >
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="size-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center font-bold text-primary dark:text-white">
-                                                    {candidate.avatar ? (
-                                                        <img src={candidate.avatar} alt={candidate.name} className="size-full object-cover rounded-xl" />
-                                                    ) : (
-                                                        candidate.name.charAt(0)
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-primary dark:text-white">{candidate.name}</div>
-                                                    <div className="text-xs font-medium text-primary/50 dark:text-white/50 flex items-center gap-1">
-                                                        <Mail size={12} />
-                                                        {candidate.email}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-sm font-mono font-bold text-primary/80 dark:text-white/80">
-                                                {candidate.reqId ?? '—'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm font-medium text-primary/70 dark:text-white/70">
-                                            {candidate.client ?? '—'}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2 text-sm font-medium text-primary/80 dark:text-white/80 max-w-[200px]">
-                                                <Briefcase size={16} className="text-primary/40 dark:text-white/40 shrink-0" />
-                                                <span className="truncate">{candidate.jobTitle ?? candidate.role}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm font-medium text-primary/70 dark:text-white/70">
-                                            {candidate.recruiterName ?? (
-                                                candidate.source === 'Candidate Portal' ? (
-                                                    <span className="text-primary/40 italic">Self-applied</span>
-                                                ) : (
-                                                    '—'
-                                                )
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={clsx(
-                                                "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border",
-                                                statusColors[candidate.status]?.replace('bg-', 'bg-opacity-10 border-') || 'bg-slate-100 text-slate-700 border-slate-200'
-                                            )}>
-                                                {candidate.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-1.5">
-                                                <div className="relative size-8 rounded-full border-2 border-primary/10 dark:border-white/10 flex items-center justify-center">
-                                                    <span className="text-[10px] font-bold text-primary dark:text-white">{candidate.matchScore}%</span>
-                                                </div>
-                                                <div className="h-1.5 w-12 bg-primary/10 dark:bg-white/10 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={clsx("h-full rounded-full", candidate.matchScore >= 80 ? "bg-green-500" : "bg-primary")}
-                                                        style={{ width: `${candidate.matchScore}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2 text-sm text-primary/60 dark:text-white/60">
-                                                <Calendar size={14} />
-                                                {new Date(candidate.appliedDate).toLocaleDateString()}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <ActionsMenu
-                                                items={candidateMenuItems(candidate)}
-                                                aria-label={`Actions for ${candidate.name}`}
-                                            />
-                                        </td>
-                                    </motion.tr>
-                                ))}
-                            </motion.tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <div className="text-center py-24">
-                        <div className="size-20 bg-primary/[0.02] dark:bg-white/[0.02] rounded-full flex items-center justify-center mx-auto mb-6 text-primary/20 dark:text-white/20 border-2 border-dashed border-primary/10 dark:border-white/10">
-                            <LayoutDashboard size={32} />
-                        </div>
-                        <h3 className="text-lg font-bold text-primary dark:text-white">No candidates found</h3>
-                        <p className="text-primary/50 dark:text-white/50 mt-1 max-w-xs mx-auto">Try adjusting your filters or add a new candidate to your pipeline.</p>
-                        {canCreate && (
-                            <Link to="/candidates/new" className="mt-6 inline-block">
-                                <button className="px-6 py-2.5 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 transition-all">
-                                    Add First Candidate
-                                </button>
-                            </Link>
-                        )}
-                    </div>
-                )}
-            </div>
+      <div className={clsx('list-toolbar', isInterviewerView && 'sm:flex-col')}>
+        <ListSearchBar
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder={
+            isInterviewerView
+              ? 'Search name, email, job title...'
+              : 'Search name, email, req ID, client, job title, recruiter...'
+          }
+          className="w-full min-w-0 max-w-none flex-1"
+        />
+        {!isInterviewerView && (
+          <AnimatedTabNav
+            layoutId="candidates-list-filters"
+            variant="pill"
+            uppercase
+            className="list-toolbar-filters shrink-0"
+            aria-label="Filter candidates"
+            tabs={CANDIDATE_FILTERS.map((tab) => ({ id: tab.id, label: tab.label }))}
+            activeId={statusFilter}
+            onChange={(id) => setStatusFilter(id as typeof statusFilter)}
+          />
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="py-24 text-center text-muted-foreground font-medium">
+          Loading candidates...
         </div>
-    )
+      ) : isError ? (
+        <div className="app-card border-red-200/60 dark:border-red-500/35 p-8 text-center space-y-4">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">
+            {error instanceof ApiError ? error.message : 'Could not load candidates.'}
+          </p>
+          <p className="text-xs text-primary/50 dark:text-white/50">
+            If you recently updated the app, restart the API server so the database schema can sync.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+          >
+            Try again
+          </button>
+        </div>
+      ) : searched.length === 0 ? (
+        <div className="app-card border-dashed border-border shadow-inner">
+          <EmptyState
+            icon="person_off"
+            title={searchTerm.trim() ? 'No matches' : 'No candidates yet'}
+            description={
+              searchTerm.trim()
+                ? 'Try a different search or clear filters.'
+                : canCreate
+                  ? 'Add your first candidate or link applicants from a job requirement.'
+                  : 'Candidates assigned to your jobs will appear here.'
+            }
+          />
+          {canCreate && !searchTerm.trim() && (
+            <div className="pb-10 flex justify-center gap-3">
+              <Link
+                to="/candidates/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+              >
+                <Plus size={16} /> Add candidate
+              </Link>
+            </div>
+          )}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="app-card border-dashed border-primary/10 dark:border-border/70">
+          <EmptyState
+            icon="filter_list"
+            title="Nothing in this view"
+            description="Try another filter or search term."
+          />
+        </div>
+      ) : (
+        <div className="space-y-10">
+          {showHighMatchSpotlight && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-primary dark:text-white">
+                      Strong matches
+                    </h2>
+                    <p className="text-xs font-medium text-primary/50 dark:text-white/50">
+                      {highMatchQueue.length} candidate
+                      {highMatchQueue.length === 1 ? '' : 's'} at 80%+ job fit
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {highMatchQueue.slice(0, 3).map((candidate) => (
+                  <CandidateListItem
+                    key={candidate.id}
+                    candidate={candidate}
+                    menuItems={candidateMenuItems(candidate)}
+                    variant="highlight"
+                    isInterviewerView={isInterviewerView}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {groupedWhenAll && groupedWhenAll.length > 0 ? (
+            groupedWhenAll.map((group) => (
+              <section key={group.key} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-primary dark:text-white">{group.title}</h2>
+                  <span className="text-xs font-bold text-muted-foreground tabular-nums">
+                    {group.items.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {group.items.map((candidate) => (
+                    <CandidateListItem
+                      key={candidate.id}
+                      candidate={candidate}
+                      menuItems={candidateMenuItems(candidate)}
+                      isInterviewerView={isInterviewerView}
+                      variant={
+                        !isInterviewerView && isHighMatch(candidate) ? 'highlight' : 'default'
+                      }
+                    />
+                  ))}
+                </div>
+              </section>
+            ))
+          ) : (
+            <section className="space-y-3">
+              {filtered.map((candidate) => (
+                <CandidateListItem
+                  key={candidate.id}
+                  candidate={candidate}
+                  menuItems={candidateMenuItems(candidate)}
+                  isInterviewerView={isInterviewerView}
+                  variant={
+                    !isInterviewerView &&
+                    isHighMatch(candidate) &&
+                    isActiveCandidate(candidate)
+                      ? 'highlight'
+                      : 'default'
+                  }
+                />
+              ))}
+            </section>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default CandidatesList

@@ -2,27 +2,55 @@ import React, { useMemo, useState } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
-import { RequirementStatus, RequirementVersion, User } from '../../types'
+import { RequirementStatus, User } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
 import clsx from 'clsx'
 import { format } from 'date-fns'
 import {
-    Check, X, Edit, Clock, MapPin, Users, AlertCircle, Lock, Monitor, Briefcase, FileText,
-    ChevronRight, PauseCircle, PlayCircle, Eye, EyeOff, Trash2,
+    Check, X, Edit, Clock, MapPin, Users, AlertCircle, Monitor, Briefcase, FileText,
+    ChevronRight, Trash2, UserMinus,
 } from 'lucide-react'
 import { useToastStore } from '../../store/toastStore'
+import { useConfirm } from '../../hooks/useConfirm'
 import { ApiError } from '../../lib/apiClient'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatedTabNav } from '../../components/motion/AnimatedTabNav'
+import { TabContent } from '../../components/motion/TabContent'
 import { SearchableSelect } from '../../components/ui/SearchableSelect'
+import { AppSelect } from '../../components/ui/AppSelect'
+import { departmentSelectOptions } from '../../lib/selectOptions'
 import { AdminRequirementEdit } from '../../components/admin/AdminRequirementEdit'
+import { InterviewPlanEditor } from '../../components/interviews/InterviewPlanEditor'
+import { RequirementPortalControls } from '../../components/requirements/RequirementPortalControls'
 import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { UserAvatar } from '../../components/ui/UserAvatar'
 import { matchesAnySearch } from '../../lib/textSearch'
+import {
+  employmentTypeLabel,
+  workModeLabel,
+  seniorityLabel,
+  formatExperienceRange,
+  formatRequirementLocation,
+  formatDateLabel,
+} from '../../lib/requirementFields'
+import {
+    canApproveRequirement,
+    canEditRequirement,
+    canUseAdminRequirementEditor,
+    canUseHiringManagerEditPage,
+    requiresHrHeadDelegationForApproval,
+} from '../../lib/requirementPermissions'
+import { canEditInterviewPlan as canEditInterviewPlanByRole } from '../../lib/interviewPlanPermissions'
+import { hasOrgWideAccess } from '../../lib/orgAccess'
+import { RequirementApprovalModal } from '../../components/requirements/RequirementApprovalModal'
+import { RequirementTimeline } from '../../components/requirements/RequirementTimeline'
+import { RequirementHiringPanel } from '../../components/requirements/RequirementHiringPanel'
+import { ConfirmModal } from '../../components/ui/ConfirmModal'
 
 const TABS = [
     { id: 'details', label: 'Requirement Details' },
+    { id: 'interview-plan', label: 'Interview Stages' },
     { id: 'recruiters', label: 'Recruiter Assignment' },
-    { id: 'history', label: 'Approval History' },
-    { id: 'versions', label: 'Version History' },
+    { id: 'timeline', label: 'Timeline' },
     { id: 'candidates', label: 'Candidates' },
 ]
 
@@ -35,12 +63,22 @@ const RequirementDetail = () => {
     const queryClient = useQueryClient()
     const { user } = useAuth()
     const { addToast } = useToastStore()
+    const confirm = useConfirm()
     const tabFromUrl = searchParams.get('tab')
-    const [activeTab, setActiveTab] = useState(
-        () => (TABS.some((t) => t.id === tabFromUrl) ? tabFromUrl! : 'details')
+    const normalizedTab =
+        tabFromUrl === 'history' || tabFromUrl === 'versions' ? 'timeline' : tabFromUrl
+    const [activeTab, setActiveTab] = useState(() =>
+        TABS.some((t) => t.id === normalizedTab) ? normalizedTab! : 'details'
     )
     const [selectedRecruiter, setSelectedRecruiter] = useState('')
     const [candidateSearch, setCandidateSearch] = useState('')
+    const [approvalModal, setApprovalModal] = useState<{
+        action: 'APPROVE' | 'REJECT'
+    } | null>(null)
+    const [removeRecruiterTarget, setRemoveRecruiterTarget] = useState<{
+        id: string
+        name: string
+    } | null>(null)
 
     React.useEffect(() => {
         if (tabFromUrl && TABS.some((t) => t.id === tabFromUrl)) {
@@ -76,20 +114,23 @@ const RequirementDetail = () => {
     const suggestedMatches = matchingProfiles.filter((m) => !m.alreadyLinked)
 
     // Derived Data
-    const recruiters = users.filter(u => ['RECRUITER', 'HR_MANAGER', 'HR_HEAD', 'ADMIN'].includes(u.role))
+    const recruiters = users.filter((u) => u.role === 'RECRUITER' && u.status === 'ACTIVE')
     const hiringManager = users.find(
         (u) =>
             u.uid === requirement?.hiringManager ||
             u.name === requirement?.hiringManager
     )
-    const isHr = ['ADMIN', 'HR_MANAGER', 'HR_HEAD'].includes(user?.role || '')
+    const isHr = ['ADMIN', 'HR_MANAGER', 'HR_HEAD', 'TEAM_LEAD'].includes(user?.role || '')
+    const canApprove = canApproveRequirement(user?.role)
+    const adminMustDelegate = requiresHrHeadDelegationForApproval(user?.role)
+    const isHiringManager = user?.role === 'HIRING_MANAGER'
     const isAdmin = user?.role === 'ADMIN'
-    const canManagePortal = isAdmin || isHr
-
+    const canEditOrgWide = hasOrgWideAccess(user?.role)
+    const canEditInterviewPlan = canEditInterviewPlanByRole(user?.role)
     const { data: departmentCatalog = [] } = useQuery({
         queryKey: ['department-catalog'],
         queryFn: api.departments.list,
-        enabled: isAdmin,
+        enabled: canEditOrgWide,
     })
     const departmentNames = departmentCatalog.map((d) => d.name)
 
@@ -100,7 +141,6 @@ const RequirementDetail = () => {
                 .map((r) => ({
                     value: r.uid,
                     label: r.name,
-                    sublabel: `${r.role.replace('_', ' ')} · ${r.email}`,
                 })),
         [recruiters, requirement?.recruiters]
     )
@@ -116,31 +156,35 @@ const RequirementDetail = () => {
     const previewMatches = suggestedMatches.slice(0, CANDIDATES_PREVIEW_LIMIT)
     const previewLinked = filteredCandidates.slice(0, CANDIDATES_PREVIEW_LIMIT)
 
-    const versionTimeline = useMemo(() => {
-        const list = [...(requirement?.versions ?? [])] as RequirementVersion[]
-        return list.sort(
-            (a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()
-        )
-    }, [requirement?.versions])
-
-    const versionKind = (ver: RequirementVersion): RequirementVersion['kind'] =>
-        ver.kind ??
-        (typeof ver.changes?.candidateId === 'string' ? 'CANDIDATE_LINKED' : 'UPDATE')
-
     // Mutations
     const approveMutation = useMutation({
-        mutationFn: () => api.requirements.approve(id!, { uid: user!.uid, role: user!.role }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+        mutationFn: (options?: { onBehalfOfHrHead?: boolean }) =>
+            api.requirements.approve(id!, options),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            queryClient.invalidateQueries({ queryKey: ['requirements'] })
+            queryClient.invalidateQueries({ queryKey: ['pendingRequirements'] })
+            setApprovalModal(null)
+            addToast('Requirement approved', 'success')
+        },
+        onError: (err: unknown) => {
+            addToast(err instanceof ApiError ? err.message : 'Failed to approve', 'error')
+        },
     })
 
     const rejectMutation = useMutation({
-        mutationFn: () => api.requirements.reject(id!, { uid: user!.uid, role: user!.role }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requirement', id] })
-    })
-
-    const closeMutation = useMutation({
-        mutationFn: () => api.requirements.updateStatus(id!, 'CLOSED'),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+        mutationFn: (options?: { onBehalfOfHrHead?: boolean }) =>
+            api.requirements.reject(id!, options),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            queryClient.invalidateQueries({ queryKey: ['requirements'] })
+            queryClient.invalidateQueries({ queryKey: ['pendingRequirements'] })
+            setApprovalModal(null)
+            addToast('Requirement rejected', 'success')
+        },
+        onError: (err: unknown) => {
+            addToast(err instanceof ApiError ? err.message : 'Failed to reject', 'error')
+        },
     })
 
     const linkCandidateMutation = useMutation({
@@ -155,41 +199,29 @@ const RequirementDetail = () => {
     })
 
     const assignRecruiterMutation = useMutation({
-        mutationFn: (recruiterId: string) =>
-            api.requirements.assignRecruiter(id!, recruiterId, requirement?.recruiters || []),
+        mutationFn: (recruiterId: string) => api.requirements.assignRecruiter(id!, recruiterId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['requirement', id] })
+            queryClient.invalidateQueries({ queryKey: ['requirements'] })
             setSelectedRecruiter('')
-        }
+            addToast('Recruiter assigned', 'success')
+        },
+        onError: (err: unknown) => {
+            addToast(err instanceof ApiError ? err.message : 'Failed to assign recruiter', 'error')
+        },
     })
 
-    const holdMutation = useMutation({
-        mutationFn: () => api.requirements.updateStatus(id!, 'ON_HOLD'),
+    const unassignRecruiterMutation = useMutation({
+        mutationFn: (recruiterId: string) => api.requirements.unassignRecruiter(id!, recruiterId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['requirement', id] })
             queryClient.invalidateQueries({ queryKey: ['requirements'] })
-            addToast('Requirement placed on hold', 'success')
+            setRemoveRecruiterTarget(null)
+            addToast('Recruiter removed', 'success')
         },
-        onError: () => addToast('Failed to update status', 'error'),
-    })
-
-    const releaseMutation = useMutation({
-        mutationFn: () => api.requirements.updateStatus(id!, 'LIVE'),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
-            queryClient.invalidateQueries({ queryKey: ['requirements'] })
-            addToast('Requirement is live again', 'success')
+        onError: (err: unknown) => {
+            addToast(err instanceof ApiError ? err.message : 'Failed to remove recruiter', 'error')
         },
-        onError: () => addToast('Failed to update status', 'error'),
-    })
-
-    const visibilityMutation = useMutation({
-        mutationFn: (visible: boolean) => api.requirements.setVisibility(id!, visible),
-        onSuccess: (_data, visible) => {
-            queryClient.invalidateQueries({ queryKey: ['requirement', id] })
-            addToast(visible ? 'Visible on candidate portal' : 'Hidden from candidate portal', 'success')
-        },
-        onError: () => addToast('Failed to update visibility', 'error'),
     })
 
     const deleteMutation = useMutation({
@@ -214,11 +246,26 @@ const RequirementDetail = () => {
         },
     })
 
-    const handleApproval = (action: 'APPROVE' | 'REJECT' | 'CLOSE') => {
-        if (!confirm(`Are you sure you want to ${action.toLowerCase()} this requirement?`)) return
-        if (action === 'APPROVE') approveMutation.mutate()
-        else if (action === 'REJECT') rejectMutation.mutate()
-        else if (action === 'CLOSE') closeMutation.mutate()
+    const handleApproval = async (action: 'APPROVE' | 'REJECT') => {
+        if (adminMustDelegate) {
+            setApprovalModal({ action })
+            return
+        }
+        const ok = await confirm({
+            title: action === 'APPROVE' ? 'Approve requirement' : 'Reject requirement',
+            message: `Are you sure you want to ${action.toLowerCase()} this requirement?`,
+            confirmLabel: action === 'APPROVE' ? 'Approve' : 'Reject',
+            variant: action === 'REJECT' ? 'danger' : 'primary',
+        })
+        if (!ok) return
+        if (action === 'APPROVE') approveMutation.mutate({})
+        else rejectMutation.mutate({})
+    }
+
+    const confirmApprovalModal = (options: { onBehalfOfHrHead: boolean }) => {
+        if (!approvalModal) return
+        if (approvalModal.action === 'APPROVE') approveMutation.mutate(options)
+        else rejectMutation.mutate(options)
     }
 
     if (isLoading) return <div className="p-12 text-center animate-pulse">Loading requirement...</div>
@@ -227,11 +274,12 @@ const RequirementDetail = () => {
     const isPending = requirement.status === 'PENDING_APPROVAL'
     const isLive = requirement.status === 'LIVE'
     const isOnHold = requirement.status === 'ON_HOLD'
-    const isClosed = requirement.status === 'CLOSED'
+    const isClosed = requirement.status === 'CLOSED' || requirement.status === 'CANCELLED'
+    const isCancelled = requirement.status === 'CANCELLED'
     const isRejected = requirement.status === 'REJECTED'
-    const portalVisible = requirement.visibleToCandidates ?? true
-
-    const canEdit = isAdmin || isHr || user?.uid === requirement.createdBy
+    const showAdminEditor =
+      canUseAdminRequirementEditor(user?.role) && canEditRequirement(user?.role, requirement, user)
+    const showHmEditButton = canUseHiringManagerEditPage(user?.role, requirement, user)
 
     return (
         <div className="p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
@@ -249,6 +297,7 @@ const RequirementDetail = () => {
                             isPending ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
                                 isLive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
                                     isOnHold ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" :
+                                    isCancelled ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
                                     isClosed ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400" :
                                         isRejected ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
                                             "bg-slate-100 text-slate-700"
@@ -281,7 +330,7 @@ const RequirementDetail = () => {
 
                 <div className="flex items-center gap-3 pt-2">
                     {/* Role-Based Actions */}
-                    {isHr && isPending && (
+                    {canApprove && isPending && (
                         <>
                             <button
                                 onClick={() => handleApproval('REJECT')}
@@ -298,30 +347,44 @@ const RequirementDetail = () => {
                         </>
                     )}
 
-                    {(canEdit || isAdmin) && (
+                    {isPending && !canApprove && (
+                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-900 dark:text-amber-100 text-sm font-medium">
+                            <Clock size={18} className="shrink-0" />
+                            {isHiringManager
+                                ? 'Awaiting HR Head approval — hiring managers cannot approve their own requirements.'
+                                : 'Awaiting HR Head approval.'}
+                        </div>
+                    )}
+
+                    {showHmEditButton && (
+                        <Link
+                            to={`/requirements/${requirement.id}/edit`}
+                            className="app-card-interactive inline-flex items-center gap-2 px-5 py-2.5 text-primary dark:text-foreground text-sm font-bold hover:bg-slate-50 dark:hover:bg-muted/60 transition-all"
+                        >
+                            <Edit size={16} /> Edit requirement
+                        </Link>
+                    )}
+                    {showAdminEditor && (
                         <button
                             type="button"
                             onClick={() => setActiveTab('details')}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-primary dark:text-white text-sm font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all"
+                            className="app-card-interactive inline-flex items-center gap-2 px-5 py-2.5 text-primary dark:text-foreground text-sm font-bold hover:bg-slate-50 dark:hover:bg-muted/60 transition-all"
                         >
                             <Edit size={16} /> {isAdmin ? 'Edit (admin)' : 'Edit'}
-                        </button>
-                    )}
-
-                    {isHr && (isLive || isOnHold) && (
-                        <button
-                            onClick={() => handleApproval('CLOSE')}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-sm font-bold shadow-sm transition-all active:scale-95"
-                        >
-                            <Lock size={16} /> Close
                         </button>
                     )}
 
                     {isAdmin && (
                         <button
                             type="button"
-                            onClick={() => {
-                                if (!confirm(`Delete "${requirement.title}"? Linked candidates will be unassigned. This cannot be undone.`)) return
+                            onClick={async () => {
+                                const ok = await confirm({
+                                    title: 'Delete requirement',
+                                    message: `Delete "${requirement.title}"? Linked candidates will be unassigned. This cannot be undone.`,
+                                    confirmLabel: 'Delete',
+                                    variant: 'danger',
+                                })
+                                if (!ok) return
                                 deleteMutation.mutate()
                             }}
                             disabled={deleteMutation.isPending}
@@ -333,39 +396,23 @@ const RequirementDetail = () => {
                 </div>
             </div>
 
-            {/* 3.0 Tabs */}
-            <div className="border-b border-slate-200 dark:border-white/10 flex gap-8 mb-8 overflow-x-auto">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={clsx(
-                            "pb-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap",
-                            activeTab === tab.id
-                                ? "border-primary dark:border-white text-primary dark:text-white"
-                                : "border-transparent text-slate-400 hover:text-primary dark:hover:text-white"
-                        )}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
+            <AnimatedTabNav
+                layoutId="requirement-detail-tabs"
+                variant="pill"
+                className="mb-8 overflow-x-auto custom-scrollbar"
+                aria-label="Requirement sections"
+                tabs={TABS.map((tab) => ({ id: tab.id, label: tab.label }))}
+                activeId={activeTab}
+                onChange={setActiveTab}
+            />
 
-            {/* Content Area with Animations */}
             <div className="relative min-h-[400px]">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
-                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, y: -10, filter: 'blur(10px)' }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
-                    >
+                <TabContent activeKey={activeTab}>
                         {activeTab === 'details' && (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 {/* Left Column (2/3) */}
                                 <div className="lg:col-span-2 space-y-6">
-                                    {isAdmin && (
+                                    {showAdminEditor && (
                                         <AdminRequirementEdit
                                             requirement={requirement}
                                             users={users}
@@ -373,68 +420,15 @@ const RequirementDetail = () => {
                                         />
                                     )}
 
-                                    {canManagePortal && (isLive || isOnHold) && (
-                                        <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
-                                            <h3 className="text-lg font-bold mb-4 text-primary dark:text-white">Portal &amp; posting controls</h3>
-                                            <div className="flex flex-wrap gap-3">
-                                                {isLive && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (!confirm('Put this requirement on hold? It will be hidden from the candidate portal.')) return
-                                                            holdMutation.mutate()
-                                                        }}
-                                                        disabled={holdMutation.isPending}
-                                                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-200 bg-orange-50 text-orange-800 text-sm font-bold hover:bg-orange-100 disabled:opacity-50"
-                                                    >
-                                                        <PauseCircle size={16} /> Put on hold
-                                                    </button>
-                                                )}
-                                                {isOnHold && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => releaseMutation.mutate()}
-                                                        disabled={releaseMutation.isPending}
-                                                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm font-bold hover:bg-emerald-100 disabled:opacity-50"
-                                                    >
-                                                        <PlayCircle size={16} /> Resume (go live)
-                                                    </button>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => visibilityMutation.mutate(!portalVisible)}
-                                                    disabled={visibilityMutation.isPending || isOnHold}
-                                                    title={isOnHold ? 'Resume the job before changing portal visibility' : undefined}
-                                                    className={clsx(
-                                                        'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold disabled:opacity-50',
-                                                        portalVisible
-                                                            ? 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                                                            : 'border-primary/20 bg-primary/5 text-primary hover:bg-primary/10'
-                                                    )}
-                                                >
-                                                    {portalVisible ? (
-                                                        <>
-                                                            <EyeOff size={16} /> Hide from candidate portal
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Eye size={16} /> Show on candidate portal
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                            <p className="text-xs text-slate-500 mt-3">
-                                                {isOnHold
-                                                    ? 'On hold: hidden from open positions and linked candidates see a hold message.'
-                                                    : portalVisible
-                                                      ? 'Visible: live jobs appear on the candidate dashboard open positions list.'
-                                                      : 'Hidden: candidates linked to this job will not see job details on their portal.'}
-                                            </p>
-                                        </section>
-                                    )}
+                                    <RequirementPortalControls
+                                        requirement={requirement}
+                                        userRole={user?.role}
+                                        userId={user?.uid}
+                                        userName={user?.name}
+                                    />
 
                                     {/* Job Description & Skills */}
-                                    <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-sm">
+                                    <section className="app-card border-slate-200 p-8 shadow-sm">
                                         <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-primary dark:text-white">
                                             <FileText size={20} className="text-primary/60 dark:text-white/60" /> Job description & skills
                                         </h3>
@@ -464,7 +458,7 @@ const RequirementDetail = () => {
                                     </section>
 
                                     {/* Hiring Manager Details Card */}
-                                    <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-sm">
+                                    <section className="app-card border-slate-200 p-8 shadow-sm">
                                         <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-primary dark:text-white">
                                             <Monitor size={20} className="text-primary/60 dark:text-white/60" /> Hiring Manager Details
                                         </h3>
@@ -476,37 +470,30 @@ const RequirementDetail = () => {
 
                                 {/* Right Column (1/3) */}
                                 <div className="space-y-6">
+                                    <RequirementHiringPanel
+                                        requirement={requirement}
+                                        userRole={user?.role}
+                                    />
+
                                     {/* Position Details Card */}
-                                    <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                                    <div className="app-card border-slate-200 p-6 shadow-sm">
                                         <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Position Details</h3>
 
                                         <div className="space-y-6">
                                             <div>
                                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Department</p>
-                                                {isAdmin ? (
-                                                    <select
+                                                {canEditOrgWide ? (
+                                                    <AppSelect
                                                         value={requirement.department}
                                                         disabled={departmentMutation.isPending}
-                                                        onChange={(e) => {
-                                                            const next = e.target.value
+                                                        onChange={(next) => {
                                                             if (next && next !== requirement.department) {
                                                                 departmentMutation.mutate(next)
                                                             }
                                                         }}
-                                                        className="w-full text-sm font-bold text-primary dark:text-white border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 bg-white dark:bg-white/5 disabled:opacity-50"
-                                                    >
-                                                        {requirement.department &&
-                                                            !departmentNames.includes(requirement.department) && (
-                                                                <option value={requirement.department}>
-                                                                    {requirement.department}
-                                                                </option>
-                                                            )}
-                                                        {departmentNames.map((name) => (
-                                                            <option key={name} value={name}>
-                                                                {name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                        options={departmentSelectOptions(departmentNames, requirement.department).filter((o) => o.value !== '')}
+                                                        aria-label="Department"
+                                                    />
                                                 ) : (
                                                     <p className="text-sm font-bold text-primary dark:text-white">
                                                         {requirement.department}
@@ -529,17 +516,70 @@ const RequirementDetail = () => {
                                                     </p>
                                                 </div>
                                                 <div>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Seniority</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {requirement.seniorityLevel ? seniorityLabel(requirement.seniorityLevel) : '—'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Employment</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {employmentTypeLabel(requirement.employmentType)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Work mode</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {requirement.workMode
+                                                            ? workModeLabel(requirement.workMode)
+                                                            : requirement.isRemote
+                                                              ? 'Remote'
+                                                              : '—'}
+                                                    </p>
+                                                </div>
+                                                <div className="col-span-2">
                                                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Location</p>
-                                                    <p className="text-sm font-bold text-primary dark:text-white">{requirement.location || 'Remote'}</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {formatRequirementLocation(requirement)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Experience</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {formatExperienceRange(
+                                                            requirement.experienceMinYears,
+                                                            requirement.experienceMaxYears
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">CTC band</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {requirement.salaryBand || '—'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Target start</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {formatDateLabel(requirement.targetStartDate)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Hiring deadline</p>
+                                                    <p className="text-sm font-bold text-primary dark:text-white">
+                                                        {formatDateLabel(requirement.hiringDeadline)}
+                                                    </p>
                                                 </div>
                                             </div>
 
                                             <div>
                                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-2">Hiring Manager</p>
                                                 <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-xl">
-                                                    <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                                                        {hiringManager?.avatar ? <img src={hiringManager.avatar} className="size-full rounded-full" /> : (hiringManager?.name?.[0] || '?')}
-                                                    </div>
+                                                    <UserAvatar
+                                                        name={hiringManager?.name || 'Unknown'}
+                                                        avatar={hiringManager?.avatar}
+                                                        size="sm"
+                                                    />
                                                     <div>
                                                         <p className="font-bold text-sm text-primary dark:text-white">{hiringManager?.name || 'Unknown'}</p>
                                                         <p className="text-[10px] text-slate-500">{hiringManager?.role || 'Hiring Manager'}</p>
@@ -550,49 +590,103 @@ const RequirementDetail = () => {
                                     </div>
 
                                     {/* Approval Progress Card */}
-                                    <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 size-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                                        <h3 className="text-xs font-black uppercase tracking-widest text-white/40 mb-6 relative z-10">Approval Progress</h3>
+                                    <div className="app-card border-slate-200 p-6 shadow-sm">
+                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-white/40 mb-6">
+                                            Approval Progress
+                                        </h3>
 
-                                        <div className="relative z-10 space-y-6">
-                                            {/* Step 1: Requested */}
+                                        <div className="space-y-6">
                                             <div className="relative pl-8">
                                                 <div className="absolute left-0 top-1 size-4 rounded-full bg-emerald-500 flex items-center justify-center">
                                                     <Check size={10} className="text-white" />
                                                 </div>
                                                 <div className="absolute left-2 top-6 w-0.5 h-10 bg-emerald-500/30"></div>
-                                                <p className="text-sm font-bold text-white">Requested</p>
-                                                <p className="text-[10px] text-white/50">{format(new Date(requirement.createdAt), 'MM/dd/yyyy')}</p>
-                                            </div>
-
-                                            {/* Step 2: Pending HR Decision */}
-                                            <div className="relative pl-8">
-                                                <div className={clsx(
-                                                    "absolute left-0 top-1 size-4 rounded-full border-2 flex items-center justify-center",
-                                                    isPending ? "border-white bg-white" :
-                                                        !isPending ? "border-emerald-500 bg-emerald-500" : "border-white/20"
-                                                )}>
-                                                    {!isPending && !isRejected && <Check size={10} className="text-white" />}
-                                                    {isPending && <div className="size-1.5 rounded-full bg-slate-900"></div>}
-                                                </div>
-                                                <div className="absolute left-2 top-6 w-0.5 h-10 bg-white/10"></div>
-                                                <p className={clsx("text-sm font-bold", isPending ? "text-white" : "text-white/60")}>Pending HR Decision</p>
-                                                {isPending && <p className="text-[10px] text-white/50">Current Step</p>}
-                                            </div>
-
-                                            {/* Step 3: Live */}
-                                            <div className="relative pl-8">
-                                                <div className={clsx(
-                                                    "absolute left-0 top-1 size-4 rounded-full border-2 flex items-center justify-center",
-                                                    isLive ? "border-white bg-white" :
-                                                        isClosed ? "border-slate-500 bg-slate-500" : "border-white/20"
-                                                )}>
-                                                    {isLive && <div className="size-1.5 rounded-full bg-slate-900"></div>}
-                                                </div>
-                                                <p className={clsx("text-sm font-bold", (isLive || isOnHold) ? "text-white" : "text-white/60")}>
-                                                    {isClosed ? 'Closed' : isRejected ? 'Rejected' : isOnHold ? 'On hold' : 'Live on Job Board'}
+                                                <p className="text-sm font-bold text-primary dark:text-white">Requested</p>
+                                                <p className="text-[10px] text-slate-500 dark:text-white/50">
+                                                    {format(new Date(requirement.createdAt), 'MM/dd/yyyy')}
                                                 </p>
-                                                {isLive ? <p className="text-[10px] text-white/50">Active</p> : isOnHold ? <p className="text-[10px] text-white/50">Paused</p> : <p className="text-[10px] text-white/30">Upcoming</p>}
+                                            </div>
+
+                                            <div className="relative pl-8">
+                                                <div
+                                                    className={clsx(
+                                                        'absolute left-0 top-1 size-4 rounded-full border-2 flex items-center justify-center',
+                                                        isPending
+                                                            ? 'border-primary bg-primary dark:border-white dark:bg-white'
+                                                            : !isPending
+                                                              ? 'border-emerald-500 bg-emerald-500'
+                                                              : 'border-slate-200 dark:border-white/20'
+                                                    )}
+                                                >
+                                                    {!isPending && !isRejected && (
+                                                        <Check size={10} className="text-white" />
+                                                    )}
+                                                    {isPending && (
+                                                        <div className="size-1.5 rounded-full bg-white dark:bg-primary" />
+                                                    )}
+                                                </div>
+                                                <div className="absolute left-2 top-6 w-0.5 h-10 bg-slate-200 dark:bg-white/10"></div>
+                                                <p
+                                                    className={clsx(
+                                                        'text-sm font-bold',
+                                                        isPending
+                                                            ? 'text-primary dark:text-white'
+                                                            : 'text-slate-500 dark:text-white/60'
+                                                    )}
+                                                >
+                                                    Pending HR Decision
+                                                </p>
+                                                {isPending && (
+                                                    <p className="text-[10px] text-slate-500 dark:text-white/50">
+                                                        Current Step
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            <div className="relative pl-8">
+                                                <div
+                                                    className={clsx(
+                                                        'absolute left-0 top-1 size-4 rounded-full border-2 flex items-center justify-center',
+                                                        isLive
+                                                            ? 'border-emerald-500 bg-emerald-500'
+                                                            : isClosed
+                                                              ? 'border-slate-400 bg-slate-400'
+                                                              : 'border-slate-200 dark:border-white/20'
+                                                    )}
+                                                >
+                                                    {isLive && (
+                                                        <div className="size-1.5 rounded-full bg-white" />
+                                                    )}
+                                                </div>
+                                                <p
+                                                    className={clsx(
+                                                        'text-sm font-bold',
+                                                        isLive || isOnHold
+                                                            ? 'text-primary dark:text-white'
+                                                            : 'text-slate-500 dark:text-white/60'
+                                                    )}
+                                                >
+                                                    {isClosed
+                                                        ? 'Closed'
+                                                        : isRejected
+                                                          ? 'Rejected'
+                                                          : isOnHold
+                                                            ? 'On hold'
+                                                            : 'Live on Job Board'}
+                                                </p>
+                                                {isLive ? (
+                                                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                                        Active
+                                                    </p>
+                                                ) : isOnHold ? (
+                                                    <p className="text-[10px] text-orange-600 dark:text-orange-400">
+                                                        Paused
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-[10px] text-slate-400 dark:text-white/30">
+                                                        Upcoming
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -600,9 +694,18 @@ const RequirementDetail = () => {
                             </div>
                         )}
 
+                        {activeTab === 'interview-plan' && id && (
+                            <div className="app-card border-slate-200 p-8 shadow-sm max-w-3xl">
+                                <InterviewPlanEditor
+                                    requirementId={id}
+                                    canEdit={canEditInterviewPlan}
+                                />
+                            </div>
+                        )}
+
                         {/* Recruiter Assignment Tab */}
                         {activeTab === 'recruiters' && (
-                            <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-sm max-w-3xl">
+                            <div className="app-card border-slate-200 p-8 shadow-sm max-w-3xl">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-lg font-bold text-primary dark:text-white">Assigned Recruiters</h3>
                                     {isHr && (
@@ -618,7 +721,7 @@ const RequirementDetail = () => {
                                             <button
                                                 onClick={() => selectedRecruiter && assignRecruiterMutation.mutate(selectedRecruiter)}
                                                 disabled={!selectedRecruiter}
-                                                className="px-4 py-2 bg-primary dark:bg-white text-white dark:text-primary rounded-lg text-sm font-bold disabled:opacity-50 shrink-0"
+                                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-bold disabled:opacity-50 shrink-0"
                                             >
                                                 Assign
                                             </button>
@@ -630,17 +733,41 @@ const RequirementDetail = () => {
                                     <p className="text-slate-500 italic">No recruiters assigned yet.</p>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {requirement.recruiters?.map(rid => {
-                                            const recruiter = users.find(u => u.uid === rid)
+                                        {requirement.recruiters?.map((rid) => {
+                                            const recruiter = users.find((u) => u.uid === rid)
                                             return (
-                                                <div key={rid} className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-                                                    <div className="size-10 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-primary dark:text-white font-bold">
+                                                <div
+                                                    key={rid}
+                                                    className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5"
+                                                >
+                                                    <div className="size-10 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-primary dark:text-white font-bold shrink-0">
                                                         {recruiter?.name?.[0] || '?'}
                                                     </div>
-                                                    <div>
-                                                        <p className="font-bold text-sm text-primary dark:text-white">{recruiter?.name || 'Unknown User'}</p>
-                                                        <p className="text-xs text-slate-500">{recruiter?.email}</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-sm text-primary dark:text-white truncate">
+                                                            {recruiter?.name || 'Unknown User'}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 truncate">
+                                                            {recruiter?.email}
+                                                        </p>
                                                     </div>
+                                                    {isHr && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setRemoveRecruiterTarget({
+                                                                    id: rid,
+                                                                    name: recruiter?.name ?? 'this recruiter',
+                                                                })
+                                                            }
+                                                            disabled={unassignRecruiterMutation.isPending}
+                                                            className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                                            aria-label={`Remove ${recruiter?.name ?? 'recruiter'}`}
+                                                            title="Remove recruiter"
+                                                        >
+                                                            <UserMinus size={18} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )
                                         })}
@@ -649,44 +776,21 @@ const RequirementDetail = () => {
                             </div>
                         )}
 
-                        {/* Approval History Tab */}
-                        {activeTab === 'history' && (
-                            <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-sm max-w-3xl">
-                                <h3 className="text-lg font-bold mb-6 text-primary dark:text-white">Approval Timeline</h3>
-                                <div className="relative border-l-2 border-slate-200 dark:border-white/10 ml-3 space-y-8">
-                                    {requirement.approvalHistory?.map((event, idx) => (
-                                        <div key={idx} className="relative pl-8">
-                                            <div className={clsx(
-                                                "absolute -left-[9px] top-0 size-4 rounded-full border-2 border-white dark:border-black",
-                                                event.action === 'APPROVED' ? "bg-emerald-500" :
-                                                    event.action === 'REJECTED' ? "bg-red-500" : "bg-blue-500"
-                                            )}></div>
-                                            <div>
-                                                <p className="text-sm font-bold text-primary dark:text-white">
-                                                    {event.action} by {users.find(u => u.uid === event.by)?.name || event.by}
-                                                </p>
-                                                <p className="text-xs text-slate-500 mt-1">
-                                                    {format(new Date(event.at), 'PPP p')} • {event.role}
-                                                </p>
-                                                {event.comments && (
-                                                    <p className="mt-2 text-sm bg-slate-50 dark:bg-white/5 p-3 rounded-lg italic text-slate-600">
-                                                        "{event.comments}"
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {!requirement.approvalHistory?.length && (
-                                        <p className="pl-8 text-slate-500 italic">No history recorded.</p>
-                                    )}
-                                </div>
+                        {/* Timeline */}
+                        {activeTab === 'timeline' && (
+                            <div className="app-card border-slate-200 p-8 shadow-sm max-w-4xl">
+                                <h3 className="text-lg font-bold text-primary dark:text-white">Timeline</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-6">
+                                    Approvals, requirement edits, recruiter assignments, and portal visibility.
+                                </p>
+                                <RequirementTimeline requirement={requirement} users={users} />
                             </div>
                         )}
 
                         {/* Candidates Tab */}
                         {activeTab === 'candidates' && (
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start max-w-6xl">
-                                <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                                <section className="app-card border-slate-200 p-6 shadow-sm">
                                     <div className="flex items-center justify-between gap-2 mb-2">
                                         <h3 className="text-lg font-bold text-primary dark:text-white">
                                             Matching profiles
@@ -765,7 +869,7 @@ const RequirementDetail = () => {
                                     </div>
                                 </section>
 
-                                <section className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                                <section className="app-card border-slate-200 p-6 shadow-sm">
                                     <div className="flex items-center justify-between gap-2 mb-2">
                                         <h3 className="text-lg font-bold text-primary dark:text-white">
                                             Linked candidates ({candidates.length})
@@ -849,162 +953,37 @@ const RequirementDetail = () => {
                             </div>
                         )}
 
-                        {/* Version History Tab */}
-                        {activeTab === 'versions' && (
-                            <div className="max-w-4xl">
-                                    <h3 className="text-lg font-bold text-primary dark:text-white mb-2">
-                                        Version history
-                                    </h3>
-                                    <p className="text-sm text-slate-500 mb-6">
-                                        Requirement edits and candidate links, with snapshots of linked candidates and
-                                        matching profiles at each point in time.
-                                    </p>
-                                    <div className="space-y-4">
-                                        {versionTimeline.map((ver, idx) => {
-                                            const kind = versionKind(ver)
-                                            const changer =
-                                                users.find((u) => u.uid === ver.changedBy)?.name || ver.changedBy
-                                            return (
-                                                <div
-                                                    key={`${ver.changedAt}-${idx}`}
-                                                    className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6"
-                                                >
-                                                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-                                                        <div>
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <h4 className="font-bold text-primary dark:text-white">
-                                                                    Version {ver.version}
-                                                                </h4>
-                                                                <span
-                                                                    className={clsx(
-                                                                        'px-2 py-0.5 rounded-md text-[10px] font-black uppercase',
-                                                                        kind === 'CANDIDATE_LINKED'
-                                                                            ? 'bg-emerald-100 text-emerald-800'
-                                                                            : 'bg-blue-100 text-blue-800'
-                                                                    )}
-                                                                >
-                                                                    {kind === 'CANDIDATE_LINKED'
-                                                                        ? 'Candidate linked'
-                                                                        : 'Requirement updated'}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-xs text-slate-500 mt-1">
-                                                                {changer} · {format(new Date(ver.changedAt), 'PPP p')}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    {kind === 'CANDIDATE_LINKED' && (
-                                                        <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30">
-                                                            <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-                                                                Linked:{' '}
-                                                                {String(
-                                                                    ver.changes.candidateName ??
-                                                                        ver.linkedCandidates?.find(
-                                                                            (lc) => lc.id === ver.changes.candidateId
-                                                                        )?.name ??
-                                                                        'Candidate'
-                                                                )}
-                                                            </p>
-                                                            {typeof ver.changes.matchScore === 'number' && (
-                                                                <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
-                                                                    Match score: {ver.changes.matchScore}%
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    {kind === 'UPDATE' && Object.keys(ver.changes).length > 0 && (
-                                                        <div className="mb-4 bg-slate-50 dark:bg-black/20 rounded-lg p-4 text-xs font-mono overflow-x-auto">
-                                                            {Object.entries(ver.changes).map(([key, val]) => (
-                                                                <div key={key} className="flex gap-2 py-0.5">
-                                                                    <span className="text-slate-500 shrink-0">{key}:</span>
-                                                                    <span className="text-primary dark:text-white break-all">
-                                                                        {typeof val === 'string'
-                                                                            ? val
-                                                                            : JSON.stringify(val)}
-                                                                    </span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-white/10">
-                                                        <div>
-                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-                                                                Linked at this point ({ver.linkedCandidates?.length ?? 0})
-                                                            </p>
-                                                            {ver.linkedCandidates?.length ? (
-                                                                <ul className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
-                                                                    {ver.linkedCandidates.map((lc) => (
-                                                                        <li key={lc.id}>
-                                                                            <Link
-                                                                                to={`/candidates/${lc.id}`}
-                                                                                className="text-xs font-bold text-primary dark:text-white hover:underline"
-                                                                            >
-                                                                                {lc.name}
-                                                                            </Link>
-                                                                            <span className="text-[10px] text-slate-500 ml-2">
-                                                                                {lc.matchScore}% · {lc.status}
-                                                                            </span>
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            ) : (
-                                                                <p className="text-xs text-slate-500 italic">None linked</p>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-                                                                Top matches at this point ({ver.matchingProfiles?.length ?? 0})
-                                                            </p>
-                                                            {ver.matchingProfiles?.length ? (
-                                                                <ul className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
-                                                                    {ver.matchingProfiles.map((mp) => (
-                                                                        <li
-                                                                            key={mp.candidateId}
-                                                                            className="flex justify-between gap-2 text-xs"
-                                                                        >
-                                                                            <Link
-                                                                                to={`/candidates/${mp.candidateId}`}
-                                                                                className="font-bold text-primary dark:text-white hover:underline truncate"
-                                                                            >
-                                                                                {mp.name}
-                                                                                {mp.alreadyLinked && (
-                                                                                    <span className="text-emerald-600 ml-1">
-                                                                                        (linked)
-                                                                                    </span>
-                                                                                )}
-                                                                            </Link>
-                                                                            <span className="font-black text-slate-500 shrink-0">
-                                                                                {mp.matchScore}%
-                                                                            </span>
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            ) : (
-                                                                <p className="text-xs text-slate-500 italic">
-                                                                    No snapshot recorded
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                        {versionTimeline.length === 0 && (
-                                            <div className="text-center p-12 text-slate-500 rounded-2xl border border-dashed border-slate-200">
-                                                No version history yet. Edit the requirement or link a candidate to
-                                                create entries.
-                                            </div>
-                                        )}
-                                    </div>
-                            </div>
-                        )}
-                    </motion.div>
-                </AnimatePresence>
+                </TabContent>
             </div>
 
+            <RequirementApprovalModal
+                open={approvalModal !== null}
+                action={approvalModal?.action ?? 'APPROVE'}
+                requirementTitle={requirement.title}
+                requiresHrHeadDelegation={adminMustDelegate}
+                isPending={approveMutation.isPending || rejectMutation.isPending}
+                onClose={() => setApprovalModal(null)}
+                onConfirm={confirmApprovalModal}
+            />
+
+            <ConfirmModal
+                open={removeRecruiterTarget !== null}
+                title="Remove recruiter"
+                message={
+                    removeRecruiterTarget
+                        ? `Remove ${removeRecruiterTarget.name} from this requirement? They will no longer be assigned to this job.`
+                        : ''
+                }
+                confirmLabel="Remove"
+                variant="danger"
+                isPending={unassignRecruiterMutation.isPending}
+                onClose={() => setRemoveRecruiterTarget(null)}
+                onConfirm={() => {
+                    if (removeRecruiterTarget) {
+                        unassignRecruiterMutation.mutate(removeRecruiterTarget.id)
+                    }
+                }}
+            />
         </div>
     )
 }

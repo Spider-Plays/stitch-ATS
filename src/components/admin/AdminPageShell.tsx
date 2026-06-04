@@ -1,28 +1,31 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { Settings2, type LucideIcon } from 'lucide-react'
+import { PageHeader } from '../layout/PageHeader'
 
 type AdminPageShellProps = {
   title: string
   description: string
   children: React.ReactNode
+  eyebrow?: string
+  icon?: LucideIcon
 }
 
-export function AdminPageShell({ title, description, children }: AdminPageShellProps) {
+export function AdminPageShell({
+  title,
+  description,
+  children,
+  eyebrow = 'Administration',
+  icon: Icon = Settings2,
+}: AdminPageShellProps) {
   return (
-    <div className="max-w-3xl mx-auto animate-in fade-in duration-500">
-      <Link
-        to="/admin"
-        className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-primary dark:hover:text-white mb-6"
-      >
-        <ArrowLeft size={16} aria-hidden />
-        Administration
-      </Link>
-
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">{title}</h1>
-        <p className="text-primary/60 dark:text-white/60 font-medium mt-2">{description}</p>
-      </div>
+    <div className="max-w-7xl mx-auto w-full space-y-6 animate-in fade-in duration-500 pb-10">
+      <PageHeader
+        highlighted
+        icon={Icon}
+        eyebrow={eyebrow}
+        title={title}
+        description={description}
+      />
 
       {children}
     </div>

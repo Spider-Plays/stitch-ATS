@@ -1,4 +1,4 @@
-import { apiRequest } from '../../lib/apiClient'
+import { apiRequest, getToken } from '../../lib/apiClient'
 import { Interview } from '../../types'
 
 export const interviewService = {
@@ -26,4 +26,17 @@ export const interviewService = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  fetchCandidateResume: async (interviewId: string): Promise<Blob | null> => {
+    const token = getToken()
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch(`/api/interviews/${interviewId}/candidate-resume`, { headers })
+    if (res.status === 404) return null
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error || res.statusText)
+    }
+    return res.blob()
+  },
 }

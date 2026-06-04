@@ -1,12 +1,12 @@
 import React from 'react'
-import { Outlet } from 'react-router-dom'
 import VendorSidebar from '../components/VendorSidebar'
+import { AnimatedOutlet } from '../components/motion/AnimatedOutlet'
 
 const VendorPortalLayout = () => (
-  <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+  <div className="min-h-screen app-shell-bg">
     <VendorSidebar />
-    <main className="flex-1 ml-64 p-6 min-h-screen">
-      <Outlet />
+    <main className="app-main-canvas flex-1 ml-[var(--sidebar-width)] p-6 md:p-8 min-h-screen custom-scrollbar">
+      <AnimatedOutlet />
     </main>
   </div>
 )

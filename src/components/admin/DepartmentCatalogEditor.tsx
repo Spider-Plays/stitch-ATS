@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { useToastStore } from '../../store/toastStore'
+import { useConfirm } from '../../hooks/useConfirm'
 import { ApiError } from '../../lib/apiClient'
 import type { DepartmentCatalogItem } from '../../services/http/departments'
 import clsx from 'clsx'
@@ -14,6 +15,7 @@ type DepartmentCatalogEditorProps = {
 export function DepartmentCatalogEditor({ departments, variant = 'page' }: DepartmentCatalogEditorProps) {
   const queryClient = useQueryClient()
   const { addToast } = useToastStore()
+  const confirm = useConfirm()
   const [newName, setNewName] = useState('')
 
   const createMutation = useMutation({
@@ -42,7 +44,7 @@ export function DepartmentCatalogEditor({ departments, variant = 'page' }: Depar
     <div className={variant === 'page' ? 'space-y-6' : ''}>
       <div className={clsx(
         variant === 'page'
-          ? 'bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6'
+          ? 'app-card p-6'
           : 'px-6 py-4 border-b border-primary/10 dark:border-white/10 space-y-3'
       )}>
         <p className="text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider">
@@ -59,7 +61,7 @@ export function DepartmentCatalogEditor({ departments, variant = 'page' }: Depar
             type="button"
             disabled={newName.trim().length < 1 || createMutation.isPending}
             onClick={() => createMutation.mutate()}
-            className="px-4 py-2 rounded-xl bg-primary dark:bg-white text-white dark:text-primary text-sm font-bold disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
           >
             Add
           </button>
@@ -68,7 +70,7 @@ export function DepartmentCatalogEditor({ departments, variant = 'page' }: Depar
 
       <div className={clsx(
         variant === 'page'
-          ? 'bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6'
+          ? 'app-card p-6'
           : 'flex-1 overflow-y-auto px-6 py-4 custom-scrollbar'
       )}>
         <p className="text-xs font-bold text-primary/50 dark:text-white/50 uppercase tracking-wider mb-4">
@@ -83,10 +85,14 @@ export function DepartmentCatalogEditor({ departments, variant = 'page' }: Depar
               {d.name}
               <button
                 type="button"
-                onClick={() => {
-                  if (confirm(`Remove "${d.name}" from the catalog?`)) {
-                    deleteMutation.mutate(d.id)
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Remove department',
+                    message: `Remove "${d.name}" from the catalog?`,
+                    confirmLabel: 'Remove',
+                    variant: 'danger',
+                  })
+                  if (ok) deleteMutation.mutate(d.id)
                 }}
                 className={clsx(
                   'p-0.5 rounded-full text-primary/40 hover:text-red-500',

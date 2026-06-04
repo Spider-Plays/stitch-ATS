@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { mapCandidate } from '../utils/mappers.js'
 import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
@@ -25,13 +26,33 @@ import {
 } from '../lib/resumeParse.js'
 import { getCatalogSkillNames } from '../lib/skillCatalog.js'
 import { serializeSkills, parseSkillList } from '../lib/skills.js'
-import { computeMatchScore } from '../lib/profileMatching.js'
+import {
+  computeMatchScore,
+  loadCandidateResumeText,
+} from '../lib/profileMatching.js'
+import {
+  assertCanMutateCandidate,
+  assertCanViewCandidate,
+  buildCandidateListWhere,
+  CandidateAccessError,
+} from '../lib/candidateAccess.js'
+import {
+  assertCanViewRequirement,
+  RequirementAccessError,
+} from '../lib/requirementAccess.js'
+import { assertCanChangeCandidateStatus } from '../lib/candidateStagePermissions.js'
 
 const router = Router()
 router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
 
-router.get('/', async (_req, res) => {
-  const rows = await prisma.candidate.findMany({ orderBy: { appliedDate: 'desc' } })
+router.get('/', async (req, res) => {
+  try {
+  const auth = req.auth!
+  const listWhere = await buildCandidateListWhere(auth)
+  const rows = await prisma.candidate.findMany({
+    where: listWhere,
+    orderBy: { appliedDate: 'desc' },
+  })
   const requirementIds = [
     ...new Set(rows.map((r) => r.requirementId).filter((id): id is string => !!id)),
   ]
@@ -62,11 +83,31 @@ router.get('/', async (_req, res) => {
       })
     )
   )
+  } catch (err) {
+    console.error('List candidates failed:', err)
+    const message =
+      err instanceof Error && err.message.includes('does not exist')
+        ? 'Database schema is out of date. Restart the API server or run: cd server && npx prisma db push'
+        : 'Failed to load candidates'
+    res.status(500).json({ error: message })
+  }
 })
 
 router.get('/by-requirement/:requirementId', async (req, res) => {
+  try {
+    await assertCanViewRequirement(req.auth!, req.params.requirementId)
+  } catch (err) {
+    if (err instanceof RequirementAccessError) {
+      return res.status(403).json({ error: err.message })
+    }
+    throw err
+  }
+  const listWhere = await buildCandidateListWhere(req.auth!)
   const rows = await prisma.candidate.findMany({
-    where: { requirementId: req.params.requirementId },
+    where: {
+      requirementId: req.params.requirementId,
+      ...listWhere,
+    },
     orderBy: { appliedDate: 'desc' },
   })
   res.json(rows.map((c) => mapCandidate(c)))
@@ -121,6 +162,7 @@ router.get('/check-email', async (req, res) => {
 
 router.get('/:id/resume', async (req, res) => {
   try {
+    await assertCanViewCandidate(req.auth!, req.params.id)
     const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
     if (!row) return res.status(404).json({ error: 'Not found' })
     if (!row.resumeFileName) return res.status(404).json({ error: 'No resume uploaded' })
@@ -136,6 +178,9 @@ router.get('/:id/resume', async (req, res) => {
     )
     res.send(buffer)
   } catch (err) {
+    if (err instanceof CandidateAccessError) {
+      return res.status(403).json({ error: err.message })
+    }
     console.error('Resume download failed:', err)
     res.status(500).json({ error: 'Failed to load resume' })
   }
@@ -143,6 +188,7 @@ router.get('/:id/resume', async (req, res) => {
 
 router.post('/:id/resume', requireRoles(...STAFF_MUTATE), handleUploadResume, async (req, res) => {
   try {
+    await assertCanMutateCandidate(req.auth!, req.params.id)
     const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
     if (!row) return res.status(404).json({ error: 'Not found' })
     if (!req.file) return res.status(400).json({ error: 'Resume file is required' })
@@ -210,6 +256,9 @@ router.post('/:id/resume', requireRoles(...STAFF_MUTATE), handleUploadResume, as
 
     res.json(mapCandidate(updated))
   } catch (err) {
+    if (err instanceof CandidateAccessError) {
+      return res.status(403).json({ error: err.message })
+    }
     console.error('Resume upload failed:', err)
     const message = err instanceof Error ? err.message : 'Failed to save resume'
     res.status(500).json({ error: message })
@@ -217,6 +266,14 @@ router.post('/:id/resume', requireRoles(...STAFF_MUTATE), handleUploadResume, as
 })
 
 router.delete('/:id/resume', async (req, res) => {
+  try {
+    await assertCanMutateCandidate(req.auth!, req.params.id)
+  } catch (err) {
+    if (err instanceof CandidateAccessError) {
+      return res.status(403).json({ error: err.message })
+    }
+    throw err
+  }
   const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
   if (!row) return res.status(404).json({ error: 'Not found' })
 
@@ -235,6 +292,14 @@ router.delete('/:id/resume', async (req, res) => {
 })
 
 router.get('/:id', async (req, res) => {
+  try {
+    await assertCanViewCandidate(req.auth!, req.params.id)
+  } catch (err) {
+    if (err instanceof CandidateAccessError) {
+      return res.status(403).json({ error: err.message })
+    }
+    throw err
+  }
   const row = await prisma.candidate.findUnique({ where: { id: req.params.id } })
   if (!row) return res.status(404).json({ error: 'Not found' })
   const [requirement, recruiter] = await Promise.all([
@@ -363,7 +428,11 @@ router.post('/', requireRoles(...STAFF_MUTATE), async (req, res) => {
 
 router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
   try {
+    await assertCanMutateCandidate(req.auth!, req.params.id)
     const b = req.body
+    const existing = await prisma.candidate.findUnique({ where: { id: req.params.id } })
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+
     if (b.email !== undefined) {
       const duplicate = await findCandidateByEmail(b.email, req.params.id)
       if (duplicate) {
@@ -374,6 +443,46 @@ router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
       }
     }
 
+    const primarySkills =
+      b.primarySkills !== undefined
+        ? serializeSkills(parseSkillList(b.primarySkills))
+        : undefined
+    const secondarySkills =
+      b.secondarySkills !== undefined
+        ? serializeSkills(parseSkillList(b.secondarySkills))
+        : undefined
+
+    const nextRequirementId =
+      b.requirementId !== undefined
+        ? b.requirementId === '' || b.requirementId === null
+          ? null
+          : b.requirementId
+        : existing.requirementId
+
+    let matchScore: number | undefined =
+      b.matchScore !== undefined ? b.matchScore : undefined
+
+    const shouldRecalcMatch =
+      b.requirementId !== undefined ||
+      b.primarySkills !== undefined ||
+      b.secondarySkills !== undefined
+
+    if (shouldRecalcMatch && nextRequirementId) {
+      const requirement = await prisma.requirement.findUnique({
+        where: { id: nextRequirementId },
+      })
+      if (requirement) {
+        const merged = {
+          ...existing,
+          primarySkills: primarySkills ?? existing.primarySkills,
+          secondarySkills: secondarySkills ?? existing.secondarySkills,
+          requirementId: nextRequirementId,
+        }
+        const resumeText = await loadCandidateResumeText(merged)
+        matchScore = computeMatchScore(merged, requirement, resumeText).score
+      }
+    }
+
     const row = await prisma.candidate.update({
       where: { id: req.params.id },
       data: {
@@ -381,11 +490,9 @@ router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
         ...(b.email !== undefined && { email: b.email }),
         ...(b.role !== undefined && { role: b.role }),
         ...(b.status !== undefined && { status: b.status }),
-        ...(b.matchScore !== undefined && { matchScore: b.matchScore }),
+        ...(matchScore !== undefined && { matchScore }),
         ...(b.source !== undefined && { source: b.source }),
-        ...(b.requirementId !== undefined && {
-          requirementId: b.requirementId === '' ? null : b.requirementId,
-        }),
+        ...(b.requirementId !== undefined && { requirementId: nextRequirementId }),
         ...(b.jobTitle !== undefined && { jobTitle: b.jobTitle }),
         ...(b.avatar !== undefined && { avatar: b.avatar }),
         ...(b.phone !== undefined && { phone: b.phone }),
@@ -400,9 +507,34 @@ router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
         ...(b.pan !== undefined && {
           pan: b.pan?.trim() ? b.pan.trim().toUpperCase() : null,
         }),
+        ...(primarySkills !== undefined && { primarySkills }),
+        ...(secondarySkills !== undefined && { secondarySkills }),
         updatedAt: new Date(),
       },
     })
+
+    if (existing.requirementId && existing.requirementId !== row.requirementId) {
+      await syncRequirementFilled(existing.requirementId)
+    }
+    if (row.requirementId) {
+      await syncRequirementFilled(row.requirementId)
+    }
+
+    const [requirement, recruiter] = await Promise.all([
+      row.requirementId
+        ? prisma.requirement.findUnique({
+            where: { id: row.requirementId },
+            select: { id: true, jobCode: true, client: true, title: true },
+          })
+        : null,
+      row.createdBy
+        ? prisma.user.findUnique({
+            where: { id: row.createdBy },
+            select: { id: true, name: true },
+          })
+        : null,
+    ])
+
     await logActivity({
       entityType: 'CANDIDATE',
       entityId: row.id,
@@ -410,31 +542,110 @@ router.patch('/:id', requireRoles(...STAFF_MUTATE), async (req, res) => {
       performedBy: req.auth!.userId,
       details: Object.keys(req.body),
     })
-    res.json(mapCandidate(row))
+    res.json(mapCandidate(row, { requirement, recruiter }))
   } catch (err) {
+    if (err instanceof CandidateAccessError) {
+      return res.status(403).json({ error: err.message })
+    }
     console.error('Candidate update failed:', err)
     res.status(500).json({ error: 'Failed to update candidate' })
   }
 })
 
-router.patch('/:id/status', requireRoles(...STAFF_MUTATE), async (req, res) => {
-  const { status } = req.body
-  const row = await prisma.candidate.update({
-    where: { id: req.params.id },
-    data: { status, updatedAt: new Date() },
-  })
-  if (status === 'HIRED' && row.requirementId) {
-    await syncRequirementFilled(row.requirementId)
+function parseDateField(value: unknown, label: string): Date | null {
+  if (value == null || value === '') return null
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid ${label}`)
   }
-  await logActivity({
-    entityType: 'CANDIDATE',
-    entityId: row.id,
-    action: 'STATUS_CHANGED',
-    performedBy: req.auth!.userId,
-    performerRole: req.auth!.role,
-    details: { newStatus: status },
-  })
-  res.json(mapCandidate(row))
+  const d = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ${label}`)
+  return d
+}
+
+router.patch('/:id/status', requireRoles(...STAFF_MUTATE), async (req, res) => {
+  try {
+    await assertCanMutateCandidate(req.auth!, req.params.id)
+    const { status, milestone } = req.body as {
+      status: string
+      milestone?: Record<string, string>
+    }
+
+    if (!status || typeof status !== 'string') {
+      return res.status(400).json({ error: 'Status is required' })
+    }
+
+    const existing = await prisma.candidate.findUnique({
+      where: { id: req.params.id },
+      select: { status: true },
+    })
+    if (!existing) {
+      return res.status(404).json({ error: 'Candidate not found' })
+    }
+
+    try {
+      assertCanChangeCandidateStatus(existing.status, status, req.auth!.role)
+    } catch (e) {
+      return res.status(403).json({
+        error: e instanceof Error ? e.message : 'Cannot change status',
+      })
+    }
+
+    const data: Prisma.CandidateUpdateInput = { status, updatedAt: new Date() }
+    const activityDetails: Record<string, unknown> = { newStatus: status }
+
+    if (status === 'OFFER') {
+      if (!milestone?.offerDate || !milestone?.offerMonth || !milestone?.offerQuarter) {
+        return res.status(400).json({ error: 'Offer date, month, and quarter are required' })
+      }
+      if (!milestone.expectedJoiningDate) {
+        return res.status(400).json({ error: 'Expected joining date is required' })
+      }
+      data.offerDate = parseDateField(milestone.offerDate, 'offer date')
+      data.offerMonth = milestone.offerMonth
+      data.offerQuarter = milestone.offerQuarter
+      data.expectedJoiningDate = parseDateField(
+        milestone.expectedJoiningDate,
+        'expected joining date'
+      )
+      activityDetails.offerDate = milestone.offerDate
+      activityDetails.offerMonth = milestone.offerMonth
+      activityDetails.offerQuarter = milestone.offerQuarter
+      activityDetails.expectedJoiningDate = milestone.expectedJoiningDate
+    } else if (status === 'HIRED') {
+      if (!milestone?.joiningDate || !milestone?.joiningMonth || !milestone?.joiningQuarter) {
+        return res.status(400).json({ error: 'Joining date, month, and quarter are required' })
+      }
+      data.joiningDate = parseDateField(milestone.joiningDate, 'joining date')
+      data.joiningMonth = milestone.joiningMonth
+      data.joiningQuarter = milestone.joiningQuarter
+      activityDetails.joiningDate = milestone.joiningDate
+      activityDetails.joiningMonth = milestone.joiningMonth
+      activityDetails.joiningQuarter = milestone.joiningQuarter
+    }
+
+    const row = await prisma.candidate.update({
+      where: { id: req.params.id },
+      data,
+    })
+    if (status === 'HIRED' && row.requirementId) {
+      await syncRequirementFilled(row.requirementId)
+    }
+    await logActivity({
+      entityType: 'CANDIDATE',
+      entityId: row.id,
+      action: 'STATUS_CHANGED',
+      performedBy: req.auth!.userId,
+      performerRole: req.auth!.role,
+      details: activityDetails,
+    })
+    res.json(mapCandidate(row))
+  } catch (err) {
+    if (err instanceof CandidateAccessError) {
+      return res.status(403).json({ error: err.message })
+    }
+    const msg = err instanceof Error ? err.message : 'Failed to update status'
+    res.status(400).json({ error: msg })
+  }
 })
 
 router.delete('/:id', requireRoles('ADMIN'), async (req, res) => {

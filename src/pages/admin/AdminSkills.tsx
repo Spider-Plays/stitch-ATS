@@ -25,7 +25,7 @@ const AdminSkills = () => {
       description="Skills listed here are available when creating requirements and candidate profiles."
     >
       {isLoading && (
-        <p className="text-primary/60 dark:text-white/60 font-medium">Loading skills…</p>
+        <p className="text-page-desc">Loading skills…</p>
       )}
 
       {isError && !isLoading && (

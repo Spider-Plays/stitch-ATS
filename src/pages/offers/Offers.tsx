@@ -5,6 +5,8 @@ import { Plus, Clock, ArrowRight, FileText } from 'lucide-react'
 import { api } from '../../services/api'
 import clsx from 'clsx'
 import { ListSearchBar } from '../../components/ui/ListSearchBar'
+import { PageHeader } from '../../components/layout/PageHeader'
+import { heroBtnPrimary } from '../../components/layout/PageHero'
 import { matchesAnySearch } from '../../lib/textSearch'
 
 const Offers = () => {
@@ -58,21 +60,21 @@ const Offers = () => {
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight">Offers</h1>
-                    <p className="text-primary/60 dark:text-white/60 font-medium mt-1">Manage candidate offers and negotiations.</p>
-                </div>
-                <Link to="/offers/new">
-                    <button className="flex items-center gap-2 px-6 py-3 bg-primary dark:bg-white text-white dark:text-primary rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 dark:shadow-none">
+            <PageHeader
+                highlighted
+                icon={FileText}
+                eyebrow="Compensation"
+                title="Offers"
+                description="Manage candidate offers and negotiations."
+                actions={
+                    <Link to="/offers/new" className={heroBtnPrimary}>
                         <Plus size={18} />
-                        <span>Create Offer</span>
-                    </button>
-                </Link>
-            </div>
+                        Create Offer
+                    </Link>
+                }
+            />
 
-            <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm">
+            <div className="app-card p-4 rounded-2xl border border-primary/10 dark:border-white/10 shadow-sm">
                 <ListSearchBar
                     value={searchTerm}
                     onChange={setSearchTerm}
@@ -86,7 +88,7 @@ const Offers = () => {
                 {filteredOffers.map(offer => {
                     const candidate = getCandidate(offer.candidateId)
                     return (
-                        <Link key={offer.id} to={`/offers/${offer.id}`} className="group relative bg-white dark:bg-white/5 rounded-2xl border border-primary/10 dark:border-white/10 p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 block">
+                        <Link key={offer.id} to={`/offers/${offer.id}`} className="group relative app-card rounded-2xl border border-primary/10 dark:border-white/10 p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 block">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="size-12 rounded-xl bg-primary/5 dark:bg-white/10 flex items-center justify-center text-primary dark:text-white font-bold text-lg">
                                     {candidate?.name?.charAt(0) || '?'}
@@ -103,16 +105,16 @@ const Offers = () => {
 
                             <div className="grid grid-cols-2 gap-4 py-4 border-t border-primary/5 dark:border-white/5 mb-4">
                                 <div>
-                                    <p className="text-[10px] font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider mb-1">Salaire Base</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Salaire Base</p>
                                     <p className="font-bold text-primary dark:text-white">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumSignificantDigits: 3 }).format(offer.baseSalary)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold text-primary/40 dark:text-white/40 uppercase tracking-wider mb-1">Equity</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Equity</p>
                                     <p className="font-bold text-primary dark:text-white">{offer.equity ? offer.equity.toLocaleString() : '-'}</p>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between text-xs font-bold text-primary/40 dark:text-white/40">
+                            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                     <Clock size={14} /> {new Date(offer.createdAt).toLocaleDateString()}
                                 </span>
@@ -125,13 +127,13 @@ const Offers = () => {
                 })}
                 {filteredOffers.length === 0 && (
                     <div className="col-span-full p-12 text-center bg-primary/[0.02] dark:bg-white/[0.02] rounded-2xl border border-dashed border-primary/10 dark:border-white/10">
-                        <div className="size-16 mx-auto bg-primary/5 dark:bg-white/5 rounded-full flex items-center justify-center text-primary/40 dark:text-white/40 mb-4">
+                        <div className="size-16 mx-auto bg-primary/5 dark:bg-white/5 rounded-full flex items-center justify-center text-muted-foreground mb-4">
                             <FileText size={32} />
                         </div>
                         <h3 className="font-bold text-primary dark:text-white text-lg">
                             {searchTerm.trim() ? 'No offers match your search' : 'No offers yet'}
                         </h3>
-                        <p className="text-primary/40 dark:text-white/40 font-medium">
+                        <p className="text-muted-foreground font-medium">
                             {searchTerm.trim()
                                 ? 'Try a different name, job title, or status.'
                                 : 'Create your first offer to get started.'}

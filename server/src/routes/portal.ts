@@ -25,6 +25,29 @@ import {
   resolveResumeMime,
   saveResumeFile,
 } from '../lib/resumeStorage.js'
+import {
+  isRequirementListedOnPortal,
+  portalJobClosedReason,
+  resolvePortalJobStatus,
+} from '../lib/portalApplicationStatus.js'
+
+const PORTAL_UPDATE_ACTIONS = [
+  'APPLIED',
+  'STATUS_CHANGED',
+  'INTERVIEW_SCHEDULED',
+  'INTERVIEW_RESCHEDULED',
+  'INTERVIEW_UPDATED',
+  'INTERVIEW_CANCELLED',
+] as const
+
+const PORTAL_UPDATE_LABELS: Record<string, string> = {
+  APPLIED: 'Application submitted',
+  STATUS_CHANGED: 'Pipeline status updated',
+  INTERVIEW_SCHEDULED: 'Interview scheduled',
+  INTERVIEW_RESCHEDULED: 'Interview rescheduled',
+  INTERVIEW_UPDATED: 'Interview updated',
+  INTERVIEW_CANCELLED: 'Interview cancelled',
+}
 
 const router = Router()
 router.use(requireAuth, requireActiveUser, requireRoles('CANDIDATE'))
@@ -87,6 +110,104 @@ function profileStatusPayload(candidate: { id: string } & Parameters<typeof isCa
   return {
     profileComplete: missing.length === 0,
     missingFields: missing.map((k) => PROFILE_FIELD_LABELS[k] ?? k),
+  }
+}
+
+function parseActivityDetails(raw: string | null | undefined): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(raw || '{}')
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
+function mapPortalApplication(
+  candidate: {
+    id: string
+    status: string
+    appliedDate: Date
+    matchScore: number
+    requirementId: string | null
+  },
+  requirement: {
+    id: string
+    jobCode: string | null
+    client: string | null
+    title: string
+    department: string
+    location: string | null
+    status: string
+    visibleToCandidates: boolean
+    description: string | null
+  },
+  appliedAt: Date,
+  isCurrent: boolean
+) {
+  const listedOnPortal = isRequirementListedOnPortal(requirement)
+  const portalJobStatus = resolvePortalJobStatus(requirement, candidate.status)
+  return {
+    requirementId: requirement.id,
+    jobCode: requirement.jobCode ?? requirement.id.slice(-8).toUpperCase(),
+    title: requirement.title,
+    department: requirement.department,
+    client: requirement.client ?? undefined,
+    location: requirement.location ?? undefined,
+    description: requirement.description ?? undefined,
+    requirementStatus: requirement.status,
+    pipelineStatus: candidate.status,
+    portalJobStatus,
+    closedReason: portalJobClosedReason(requirement, candidate.status),
+    matchScore: Math.round(candidate.matchScore),
+    appliedAt: appliedAt.toISOString(),
+    isCurrent,
+    listedOnPortal,
+  }
+}
+
+async function candidateAppliedToRequirement(
+  candidateId: string,
+  requirementId: string
+): Promise<boolean> {
+  const logs = await prisma.activityLog.findMany({
+    where: {
+      entityType: 'CANDIDATE',
+      entityId: candidateId,
+      action: 'APPLIED',
+    },
+  })
+  return logs.some((l) => {
+    const d = parseActivityDetails(l.details)
+    return d.requirementId === requirementId
+  })
+}
+
+function mapPortalUpdateEntry(log: {
+  id: string
+  action: string
+  timestamp: Date
+  performerName: string | null
+  details: string | null
+}) {
+  const details = parseActivityDetails(log.details)
+  const label = PORTAL_UPDATE_LABELS[log.action] ?? log.action.replace(/_/g, ' ')
+  let summary = label
+  if (log.action === 'STATUS_CHANGED' && typeof details.newStatus === 'string') {
+    summary = `Status updated to ${details.newStatus}`
+  }
+  if (log.action === 'APPLIED' && typeof details.title === 'string') {
+    summary = `Applied for ${details.title}`
+  }
+  if (log.action.startsWith('INTERVIEW_') && typeof details.stageName === 'string') {
+    summary = `${label}: ${details.stageName}`
+  }
+  return {
+    id: log.id,
+    action: log.action,
+    title: label,
+    summary,
+    at: log.timestamp.toISOString(),
+    performerName: log.performerName ?? undefined,
   }
 }
 
@@ -364,6 +485,151 @@ router.post('/positions/:id/apply', async (req, res) => {
   res.status(201).json({
     alreadyApplied: false,
     candidate: mapCandidate(row, { requirement }),
+  })
+})
+
+router.get('/applications', async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } })
+  if (!user) return res.status(404).json({ error: 'User not found' })
+
+  const candidate = await findCandidateByEmail(user.email)
+  if (!candidate) {
+    return res.json({ applications: [] })
+  }
+
+  const applyLogs = await prisma.activityLog.findMany({
+    where: {
+      entityType: 'CANDIDATE',
+      entityId: candidate.id,
+      action: 'APPLIED',
+    },
+    orderBy: { timestamp: 'desc' },
+  })
+
+  const applications: ReturnType<typeof mapPortalApplication>[] = []
+  const seenReqIds = new Set<string>()
+
+  if (candidate.requirementId) {
+    const requirement = await prisma.requirement.findUnique({
+      where: { id: candidate.requirementId },
+    })
+    if (requirement) {
+      const logForReq = applyLogs.find((l) => {
+        const d = parseActivityDetails(l.details)
+        return d.requirementId === requirement.id
+      })
+      applications.push(
+        mapPortalApplication(
+          candidate,
+          requirement,
+          logForReq?.timestamp ?? candidate.appliedDate,
+          true
+        )
+      )
+      seenReqIds.add(requirement.id)
+    }
+  }
+
+  for (const log of applyLogs) {
+    const details = parseActivityDetails(log.details)
+    const reqId = typeof details.requirementId === 'string' ? details.requirementId : ''
+    if (!reqId || seenReqIds.has(reqId)) continue
+
+    const requirement = await prisma.requirement.findUnique({ where: { id: reqId } })
+    if (!requirement) continue
+
+    seenReqIds.add(reqId)
+    applications.push(
+      mapPortalApplication(candidate, requirement, log.timestamp, reqId === candidate.requirementId)
+    )
+  }
+
+  res.json({ applications })
+})
+
+router.get('/applications/:requirementId', async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } })
+  if (!user) return res.status(404).json({ error: 'User not found' })
+
+  const candidate = await findCandidateByEmail(user.email)
+  if (!candidate) return res.status(404).json({ error: 'Application not found' })
+
+  const requirementId = req.params.requirementId
+  const hasApplied = await candidateAppliedToRequirement(candidate.id, requirementId)
+  if (!hasApplied) {
+    return res.status(404).json({ error: 'You have not applied to this position' })
+  }
+
+  const requirement = await prisma.requirement.findUnique({
+    where: { id: requirementId },
+  })
+  if (!requirement) return res.status(404).json({ error: 'Position not found' })
+
+  const applyLogs = await prisma.activityLog.findMany({
+    where: {
+      entityType: 'CANDIDATE',
+      entityId: candidate.id,
+      action: 'APPLIED',
+    },
+    orderBy: { timestamp: 'desc' },
+  })
+  const applyLog = applyLogs.find((l) => {
+    const d = parseActivityDetails(l.details)
+    return d.requirementId === requirementId
+  })
+
+  const isCurrent = candidate.requirementId === requirementId
+  const application = mapPortalApplication(
+    candidate,
+    requirement,
+    applyLog?.timestamp ?? candidate.appliedDate,
+    isCurrent
+  )
+
+  const [interviewRows, offerRows, activityRows] = await Promise.all([
+    prisma.interview.findMany({
+      where: { candidateId: candidate.id, requirementId },
+      orderBy: { scheduledAt: 'desc' },
+    }),
+    prisma.offer.findMany({
+      where: { candidateId: candidate.id, requirementId },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.activityLog.findMany({
+      where: {
+        entityType: 'CANDIDATE',
+        entityId: candidate.id,
+        action: { in: [...PORTAL_UPDATE_ACTIONS] },
+      },
+      orderBy: { timestamp: 'desc' },
+      take: 80,
+    }),
+  ])
+
+  const interviewIdsForReq = new Set(interviewRows.map((i) => i.id))
+
+  const updates = activityRows
+    .filter((log) => {
+      const d = parseActivityDetails(log.details)
+      if (log.action === 'APPLIED') {
+        return d.requirementId === requirementId
+      }
+      if (log.action === 'STATUS_CHANGED') {
+        return isCurrent
+      }
+      if (log.action.startsWith('INTERVIEW_')) {
+        const interviewId = typeof d.interviewId === 'string' ? d.interviewId : ''
+        return interviewIdsForReq.has(interviewId)
+      }
+      return false
+    })
+    .map(mapPortalUpdateEntry)
+
+  res.json({
+    application,
+    interviews: interviewRows.map(mapInterview),
+    offers: offerRows.map(mapOffer),
+    updates,
   })
 })
 

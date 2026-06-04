@@ -1,4 +1,4 @@
-import type { Requirement } from '@prisma/client'
+import type { Prisma, Requirement } from '@prisma/client'
 import { prisma } from './prisma.js'
 import { rankCandidatesForRequirement } from './profileMatching.js'
 
@@ -55,9 +55,13 @@ export async function snapshotLinkedCandidates(
 
 export async function snapshotMatchingProfiles(
   requirement: Requirement,
-  requirementId: string
+  requirementId: string,
+  candidateWhere: Prisma.CandidateWhereInput = {}
 ): Promise<VersionMatchingProfile[]> {
-  const candidates = await prisma.candidate.findMany({ orderBy: { updatedAt: 'desc' } })
+  const candidates = await prisma.candidate.findMany({
+    where: candidateWhere,
+    orderBy: { updatedAt: 'desc' },
+  })
   const ranked = await rankCandidatesForRequirement(candidates, requirement, requirementId)
   const candidateById = new Map(candidates.map((c) => [c.id, c]))
 
@@ -83,6 +87,7 @@ export async function appendRequirementVersion(
     kind?: 'UPDATE' | 'CANDIDATE_LINKED'
     changes: Record<string, unknown>
     incrementVersion?: boolean
+    candidateWhere?: Prisma.CandidateWhereInput
   }
 ) {
   const existing = await prisma.requirement.findUnique({ where: { id: requirementId } })
@@ -91,7 +96,11 @@ export async function appendRequirementVersion(
   const versions = parseRequirementVersions(existing.versions)
   const [linkedCandidates, matchingProfiles] = await Promise.all([
     snapshotLinkedCandidates(requirementId),
-    snapshotMatchingProfiles(existing, requirementId),
+    snapshotMatchingProfiles(
+      existing,
+      requirementId,
+      entry.candidateWhere ?? {}
+    ),
   ])
 
   const nextVersion = entry.incrementVersion

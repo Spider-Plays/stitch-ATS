@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom'
 import AppRoutes from './routes'
 import { AuthProvider } from './contexts/AuthContext'
 import { Toaster } from './components/ui/Toaster'
+import { ConfirmHost } from './components/ui/ConfirmHost'
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -20,6 +21,7 @@ function App() {
                 <BrowserRouter>
                     <AppRoutes />
                     <Toaster />
+                    <ConfirmHost />
                 </BrowserRouter>
             </AuthProvider>
         </QueryClientProvider>

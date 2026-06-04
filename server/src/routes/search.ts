@@ -3,6 +3,8 @@ import { prisma } from '../lib/prisma.js'
 import { mapCandidate, mapRequirement, mapUser, mapInterview } from '../utils/mappers.js'
 import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
 import { INTERNAL_ROLES } from '../lib/roles.js'
+import { buildCandidateListWhere } from '../lib/candidateAccess.js'
+import { buildRequirementListWhere } from '../lib/requirementAccess.js'
 
 const router = Router()
 router.use(requireAuth, requireActiveUser, requireRoles(...INTERNAL_ROLES))
@@ -13,25 +15,37 @@ router.get('/', async (req, res) => {
     return res.json({ candidates: [], requirements: [], users: [], interviews: [] })
   }
 
+  const auth = req.auth!
+  const [candidateScope, requirementScope] = await Promise.all([
+    buildCandidateListWhere(auth),
+    buildRequirementListWhere(auth),
+  ])
+  const textMatch = {
+    OR: [
+      { name: { contains: q, mode: 'insensitive' as const } },
+      { email: { contains: q, mode: 'insensitive' as const } },
+      { role: { contains: q, mode: 'insensitive' as const } },
+      { jobTitle: { contains: q, mode: 'insensitive' as const } },
+    ],
+  }
+
   const [candidates, requirements, users, matchingCandidates] = await Promise.all([
     prisma.candidate.findMany({
-      where: {
-        OR: [
-          { name: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
-          { role: { contains: q, mode: 'insensitive' } },
-          { jobTitle: { contains: q, mode: 'insensitive' } },
-        ],
-      },
+      where: { AND: [candidateScope, textMatch] },
       take: 8,
       orderBy: { updatedAt: 'desc' },
     }),
     prisma.requirement.findMany({
       where: {
-        OR: [
-          { title: { contains: q, mode: 'insensitive' } },
-          { department: { contains: q, mode: 'insensitive' } },
-          { hiringManager: { contains: q, mode: 'insensitive' } },
+        AND: [
+          requirementScope,
+          {
+            OR: [
+              { title: { contains: q, mode: 'insensitive' } },
+              { department: { contains: q, mode: 'insensitive' } },
+              { hiringManager: { contains: q, mode: 'insensitive' } },
+            ],
+          },
         ],
       },
       take: 8,
@@ -51,9 +65,14 @@ router.get('/', async (req, res) => {
     }),
     prisma.candidate.findMany({
       where: {
-        OR: [
-          { name: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
+        AND: [
+          candidateScope,
+          {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { email: { contains: q, mode: 'insensitive' } },
+            ],
+          },
         ],
       },
       select: { id: true, name: true, role: true },
