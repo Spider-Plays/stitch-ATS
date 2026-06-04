@@ -164,7 +164,7 @@ export function HiringManagerRequirementEdit({ requirement }: HiringManagerRequi
           <div>
             <label className={labelClass}>Seniority</label>
             <AppSelect
-              value={seniorityLevel}
+              value={seniorityLevel ?? ''}
               onChange={(v) => setSeniorityLevel(v as Requirement['seniorityLevel'] | '')}
               options={SENIORITY_OPTIONS}
               aria-label="Seniority"

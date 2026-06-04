@@ -19,6 +19,7 @@ export const CANDIDATE_STAGE_ORDER: CandidateStatus[] = [
   'INTERVIEW',
   'OFFER',
   'HIRED',
+  'JOINED',
   'REJECTED',
 ]
 
@@ -30,6 +31,7 @@ const STAGE_GROUP_TITLES: Record<CandidateStatus, string> = {
   INTERVIEW: 'Interview',
   OFFER: 'Offer',
   HIRED: 'Hired',
+  JOINED: 'Joined',
   REJECTED: 'Rejected',
 }
 
@@ -62,6 +64,7 @@ export function candidateStatusClass(status: CandidateStatus): string {
     case 'OFFER':
       return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 border-blue-200/80 dark:border-blue-500/30'
     case 'HIRED':
+    case 'JOINED':
       return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-500/30'
     case 'REJECTED':
       return 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 border-red-200/80 dark:border-red-500/30'

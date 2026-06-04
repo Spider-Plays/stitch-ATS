@@ -199,6 +199,7 @@ export interface Candidate {
     avatar?: string
     resumeFileName?: string
     resumeMimeType?: string
+    resumeUrl?: string
     hasResume?: boolean
     phone?: string
     location?: string

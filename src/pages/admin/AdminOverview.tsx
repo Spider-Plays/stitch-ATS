@@ -82,7 +82,14 @@ const AdminOverview = () => {
   })
 
   const metrics = useMemo(
-    () => adminSetupMetrics(users, departments, clients, skills, panelLevels),
+    () =>
+      adminSetupMetrics(
+        users,
+        departments.map((d) => d.name),
+        clients.map((c) => c.name),
+        skills,
+        panelLevels
+      ),
     [users, departments, clients, skills, panelLevels]
   )
   const tasks = useMemo(() => adminSetupTasks(metrics), [metrics])

@@ -48,7 +48,7 @@ const PortalJobs = () => {
     const q = search.trim()
     if (!q) return jobs
     return jobs.filter((j) =>
-      matchesAnySearch(q, [j.title, j.department, j.client, j.location, j.jobCode])
+      matchesAnySearch([j.title, j.department, j.client, j.location, j.jobCode], q)
     )
   }, [jobs, search])
 

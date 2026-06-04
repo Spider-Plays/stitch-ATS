@@ -45,6 +45,7 @@ const STAGE_DOT_COLORS: Record<CandidateStatus, string> = {
   INTERVIEW: 'bg-violet-500',
   OFFER: 'bg-amber-500',
   HIRED: 'bg-emerald-500',
+  JOINED: 'bg-emerald-600',
   REJECTED: 'bg-red-400',
 }
 

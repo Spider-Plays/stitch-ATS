@@ -5,7 +5,7 @@ import { candidateStatusLabel } from '../../lib/candidatePage'
 import type { CandidateStatus } from '../../types'
 import { StitchLogo } from '../branding/StitchLogo'
 
-const LOGIN_PIPELINE_STATUSES: CandidateStatus[] = [
+const LOGIN_PIPELINE_STATUSES = [
   'SOURCED',
   'APPLIED',
   'SCREENING',
@@ -13,9 +13,11 @@ const LOGIN_PIPELINE_STATUSES: CandidateStatus[] = [
   'INTERVIEW',
   'OFFER',
   'HIRED',
-]
+] as const satisfies readonly CandidateStatus[]
 
-const LOGIN_PIPELINE_COUNTS: Record<(typeof LOGIN_PIPELINE_STATUSES)[number], number> = {
+type LoginPipelineStatus = (typeof LOGIN_PIPELINE_STATUSES)[number]
+
+const LOGIN_PIPELINE_COUNTS: Record<LoginPipelineStatus, number> = {
   SOURCED: 24,
   APPLIED: 18,
   SCREENING: 12,

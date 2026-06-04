@@ -21,6 +21,7 @@ import {
     BadgeCheck,
     Building2,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
 import { AppSelect } from '../../components/ui/AppSelect'
 import { LANGUAGE_OPTIONS } from '../../lib/selectOptions'
@@ -73,7 +74,7 @@ function SettingsSection({
     children,
     action,
 }: {
-    icon: React.ComponentType<{ size?: number; className?: string }>
+    icon: LucideIcon
     title: string
     description: string
     children: React.ReactNode
@@ -104,7 +105,7 @@ function ProfileDetailRow({
     value,
     muted,
 }: {
-    icon: React.ComponentType<{ size?: number; className?: string }>
+    icon: LucideIcon
     label: string
     value: string
     muted?: boolean
@@ -135,7 +136,7 @@ function PreferenceRow({
     description,
     control,
 }: {
-    icon: React.ComponentType<{ size?: number; className?: string }>
+    icon: LucideIcon
     title: string
     description: string
     control: React.ReactNode
