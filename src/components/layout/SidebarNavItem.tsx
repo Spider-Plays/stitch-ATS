@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
+import { prefetchRoute } from '../../lib/routePrefetch'
 
 type SidebarNavItemProps = {
   to: string
@@ -21,6 +22,8 @@ export function SidebarNavItem({
   return (
     <Link
       to={to}
+      onMouseEnter={() => prefetchRoute(to)}
+      onFocus={() => prefetchRoute(to)}
       className={clsx(
         'sidebar-nav-item',
         active &&

@@ -5,13 +5,15 @@ import { prisma } from '../lib/prisma.js'
 import { mapUser } from '../utils/mappers.js'
 import { requireAuth, requireActiveUser, requireRoles } from '../middleware/auth.js'
 import { generateTempPassword } from '../lib/password.js'
-import { sendInviteEmail, sendAdminPasswordEmail } from '../services/email.js'
 import { sanitizeFeatureTags } from '../lib/userTags.js'
+import { logTemporaryPassword } from '../lib/devPasswordLog.js'
+import { env } from '../config/env.js'
 
 const router = Router()
 router.use(requireAuth, requireActiveUser)
 
-const inviteRoles = [
+const staffRoles = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -32,57 +34,51 @@ router.get(
   res.json(users.map(mapUser))
 })
 
-router.post('/invite', requireRoles('ADMIN'), async (req, res) => {
+router.post('/', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const body = z
     .object({
       email: z.string().email(),
-      name: z.string().min(1).optional(),
-      role: z.enum(inviteRoles),
+      name: z.string().min(1, 'Name is required'),
+      role: z.enum(staffRoles),
       department: z.string().max(120).optional(),
+      phoneNumber: z.string().max(40).optional(),
+      address: z.string().max(500).optional(),
+      temporaryPassword: z.string().min(8, 'Temporary password must be at least 8 characters'),
     })
     .parse(req.body)
+
+  if (body.role === 'SUPER_ADMIN' && req.auth!.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ error: 'Only Super Admin can create Super Admin accounts' })
+  }
 
   const email = body.email.toLowerCase()
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) return res.status(409).json({ error: 'A user with this email already exists' })
 
-  const tempPassword = generateTempPassword()
-  const passwordHash = await bcrypt.hash(tempPassword, 10)
-  const name = body.name?.trim() || email.split('@')[0]
+  const passwordHash = await bcrypt.hash(body.temporaryPassword, 10)
 
   const user = await prisma.user.create({
     data: {
       email,
       passwordHash,
-      name,
+      name: body.name.trim(),
       role: body.role,
       department: body.department?.trim() || null,
+      phoneNumber: body.phoneNumber?.trim() || null,
+      address: body.address?.trim() || null,
       status: 'ACTIVE',
       permissions: '[]',
       themePreference: 'system',
       authProvider: 'local',
+      mustChangePassword: true,
     },
   })
 
-  const emailResult = await sendInviteEmail({
-    to: email,
-    name,
-    role: body.role,
-    tempPassword,
-  })
-
-  if (!emailResult.sent && emailResult.reason === 'error') {
-    await prisma.user.delete({ where: { id: user.id } })
-    return res.status(502).json({ error: `Invite email failed: ${emailResult.message}` })
+  if (!env.isProduction) {
+    logTemporaryPassword('New user (share with member)', email, body.temporaryPassword)
   }
 
-  res.status(201).json({
-    user: mapUser(user),
-    emailSent: emailResult.sent,
-    ...(emailResult.sent === false && emailResult.reason === 'not_configured'
-      ? { temporaryPassword: tempPassword }
-      : {}),
-  })
+  res.status(201).json({ user: mapUser(user) })
 })
 
 router.patch('/me', async (req, res) => {
@@ -109,7 +105,7 @@ router.patch('/me', async (req, res) => {
   res.json(mapUser(user))
 })
 
-router.get('/:id/login-history', requireRoles('ADMIN'), async (req, res) => {
+router.get('/:id/login-history', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } })
   if (!user) return res.status(404).json({ error: 'Not found' })
 
@@ -130,13 +126,13 @@ router.get('/:id/login-history', requireRoles('ADMIN'), async (req, res) => {
   )
 })
 
-router.get('/:id', requireRoles('ADMIN'), async (req, res) => {
+router.get('/:id', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } })
   if (!user) return res.status(404).json({ error: 'Not found' })
   res.json(mapUser(user))
 })
 
-router.patch('/:id', requireRoles('ADMIN'), async (req, res) => {
+router.patch('/:id', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const body = z
     .object({
       name: z.string().min(1).optional(),
@@ -164,12 +160,11 @@ router.patch('/:id', requireRoles('ADMIN'), async (req, res) => {
   res.json(mapUser(user))
 })
 
-router.post('/:id/reset-password', requireRoles('ADMIN'), async (req, res) => {
+router.post('/:id/reset-password', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const body = z
     .object({
       newPassword: z.string().min(8).optional(),
       generateTemporary: z.boolean().optional(),
-      sendEmail: z.boolean().optional().default(true),
     })
     .refine((d) => Boolean(d.newPassword || d.generateTemporary), {
       message: 'Provide newPassword or set generateTemporary to true',
@@ -181,44 +176,34 @@ router.post('/:id/reset-password', requireRoles('ADMIN'), async (req, res) => {
 
   const plainPassword = body.generateTemporary ? generateTempPassword() : body.newPassword!
   const passwordHash = await bcrypt.hash(plainPassword, 10)
+  const forceChangeOnLogin = Boolean(body.generateTemporary)
 
   await prisma.user.update({
     where: { id: target.id },
     data: {
       passwordHash,
+      mustChangePassword: forceChangeOnLogin,
       passwordResetToken: null,
       passwordResetExpires: null,
     },
   })
 
-  let emailSent = false
-  let emailWarning: string | undefined
-  if (body.sendEmail) {
-    const emailResult = await sendAdminPasswordEmail({
-      to: target.email,
-      name: target.name,
-      password: plainPassword,
-      setByAdmin: true,
-    })
-    emailSent = emailResult.sent
-    if (!emailResult.sent) {
-      if (emailResult.reason === 'error') {
-        emailWarning = emailResult.message
-      } else if (emailResult.reason === 'not_configured') {
-        emailWarning = 'Email is not configured; share the password with the user manually.'
-      }
-    }
+  if (forceChangeOnLogin && !env.isProduction) {
+    logTemporaryPassword('Admin temporary password (share with user)', target.email, plainPassword)
   }
 
   res.json({
     ok: true,
-    emailSent,
-    ...(emailWarning ? { emailWarning } : {}),
-    ...(!emailSent && body.generateTemporary ? { temporaryPassword: plainPassword } : {}),
+    ...(forceChangeOnLogin
+      ? {
+          temporaryPassword: plainPassword,
+          message: 'Share this temporary password with the user. They must change it on first sign-in.',
+        }
+      : { message: 'Password updated.' }),
   })
 })
 
-router.patch('/:id/tags', requireRoles('ADMIN'), async (req, res) => {
+router.patch('/:id/tags', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const { tags } = z.object({ tags: z.array(z.string()) }).parse(req.body)
   const sanitized = sanitizeFeatureTags(tags)
   const user = await prisma.user.update({
@@ -228,8 +213,11 @@ router.patch('/:id/tags', requireRoles('ADMIN'), async (req, res) => {
   res.json(mapUser(user))
 })
 
-router.patch('/:id/role', requireRoles('ADMIN'), async (req, res) => {
+router.patch('/:id/role', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const { role } = z.object({ role: z.string() }).parse(req.body)
+  if (role === 'SUPER_ADMIN' && req.auth!.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ error: 'Only Super Admin can assign the Super Admin role' })
+  }
   if (req.params.id === req.auth!.userId) {
     return res.status(400).json({ error: 'Cannot change your own role' })
   }
@@ -240,7 +228,7 @@ router.patch('/:id/role', requireRoles('ADMIN'), async (req, res) => {
   res.json(mapUser(user))
 })
 
-router.patch('/:id/status', requireRoles('ADMIN'), async (req, res) => {
+router.patch('/:id/status', requireRoles('SUPER_ADMIN'), async (req, res) => {
   const { status } = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) }).parse(req.body)
   if (req.params.id === req.auth!.userId) {
     return res.status(400).json({ error: 'Cannot change your own status' })
@@ -250,6 +238,18 @@ router.patch('/:id/status', requireRoles('ADMIN'), async (req, res) => {
     data: { status },
   })
   res.json(mapUser(user))
+})
+
+router.delete('/:id', requireRoles('SUPER_ADMIN'), async (req, res) => {
+  if (req.params.id === req.auth!.userId) {
+    return res.status(400).json({ error: 'Cannot delete your own account' })
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } })
+  if (!user) return res.status(404).json({ error: 'User not found' })
+
+  await prisma.user.delete({ where: { id: user.id } })
+  res.status(204).send()
 })
 
 export default router

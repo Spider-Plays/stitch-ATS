@@ -46,14 +46,12 @@ export const userService = {
     data: {
       newPassword?: string
       generateTemporary?: boolean
-      sendEmail?: boolean
     }
   ) =>
     apiRequest<{
       ok: boolean
-      emailSent: boolean
+      message?: string
       temporaryPassword?: string
-      emailWarning?: string
     }>(
       `/users/${uid}/reset-password`,
       { method: 'POST', body: JSON.stringify(data) }
@@ -84,15 +82,21 @@ export const userService = {
       body: JSON.stringify({ tags }),
     }),
 
-  invite: async (data: {
+  create: async (data: {
     email: string
-    name?: string
+    name: string
     role: UserRole
     department?: string
-  }): Promise<{ user: User; emailSent: boolean; temporaryPassword?: string }> => {
-    return apiRequest('/users/invite', {
+    phoneNumber?: string
+    address?: string
+    temporaryPassword: string
+  }): Promise<{ user: User }> => {
+    return apiRequest('/users', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   },
+
+  delete: (uid: string) =>
+    apiRequest<void>(`/users/${uid}`, { method: 'DELETE' }),
 }

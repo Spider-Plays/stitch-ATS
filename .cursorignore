@@ -1,0 +1,17 @@
+﻿# Secrets — keep out of AI context during API testing / agent runs
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+
+# Local uploads and credentials
+server/uploads/
+*.pem
+*.key
+credentials.json
+
+# Postman / Insomnia exports often contain tokens
+*postman*.json
+*insomnia*.json

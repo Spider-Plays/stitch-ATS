@@ -47,3 +47,15 @@ export function insertPlanStage(
 export function removePlanStage(plan: InterviewPlan, stageId: string): InterviewPlanStageInput[] {
   return planStagesToPayload(plan.stages.filter((s) => s.id !== stageId))
 }
+
+export function renamePlanStage(
+  plan: InterviewPlan,
+  stageId: string,
+  name: string
+): InterviewPlanStageInput[] {
+  const trimmed = name.trim()
+  if (!trimmed) return planStagesToPayload(plan.stages)
+  return planStagesToPayload(plan.stages).map((s) =>
+    s.id === stageId ? { ...s, name: trimmed } : s
+  )
+}

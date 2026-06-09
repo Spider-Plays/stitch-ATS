@@ -5,23 +5,18 @@ import Header from '../components/Header'
 import { AdminSubNav } from '../components/admin/AdminSubNav'
 import { AnimatedOutlet } from '../components/motion/AnimatedOutlet'
 import { useAuth } from '../hooks/useAuth'
+import { isAdminRole } from '@/permissions'
 import { bindSidebarViewportSync, useSidebarStore } from '../store/sidebarStore'
 
 const MainLayout = () => {
     const { pathname } = useLocation()
-    const { user, refreshUser } = useAuth()
+    const { user } = useAuth()
     const collapsed = useSidebarStore((s) => s.collapsed)
     const setCollapsed = useSidebarStore((s) => s.setCollapsed)
 
-    useEffect(() => {
-        refreshUser().catch(() => {})
-        // Refresh once when entering the staff app so feature tags assigned by admin are picked up.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-
     useEffect(() => bindSidebarViewportSync(), [])
     const showAdminSubNav =
-        user?.role === 'ADMIN' &&
+        isAdminRole(user?.role) &&
         (pathname === '/admin' || pathname.startsWith('/admin/'))
 
     return (

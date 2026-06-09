@@ -15,7 +15,7 @@ import {
   filterCandidates,
   sortCandidates,
   type CandidateFilter,
-} from '../../lib/candidatePage'
+} from '@/pages/candidates/_shared/candidate.utils'
 import { matchesAnySearch } from '../../lib/textSearch'
 import { ApiError } from '../../lib/apiClient'
 import { employeeReferralSourceLabel } from '../../lib/featureCandidates'

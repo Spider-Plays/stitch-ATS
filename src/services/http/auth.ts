@@ -1,6 +1,6 @@
 import { apiRequest, setToken, clearToken } from '../../lib/apiClient'
 import { User } from '../../types'
-import { PageKey } from '../../lib/pageAccess'
+import { PageKey } from '@/permissions'
 
 export type AuthSession = {
   user: User

@@ -21,4 +21,18 @@ export default defineConfig({
             "@": path.resolve(__dirname, "./src"),
         },
     },
+    build: {
+        chunkSizeWarningLimit: 600,
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    'vendor-query': ['@tanstack/react-query'],
+                    'vendor-motion': ['framer-motion'],
+                    'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+                    'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+                },
+            },
+        },
+    },
 })

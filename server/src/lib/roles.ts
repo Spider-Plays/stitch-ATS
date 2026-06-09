@@ -1,5 +1,6 @@
 /** Role groups for route guards */
 export const INTERNAL_ROLES = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -13,6 +14,7 @@ export const INTERNAL_ROLES = [
 export const EMPLOYEE_ROLE = 'EMPLOYEE' as const
 
 export const STAFF_MUTATE = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -20,12 +22,13 @@ export const STAFF_MUTATE = [
   'TEAM_LEAD',
 ] as const
 
-/** HR Head directly; Admin with on-behalf-of-HR-Head flag (see requirementApproval). */
-export const REQ_APPROVERS = ['HR_HEAD', 'ADMIN'] as const
+/** HR Head and Super Admin approve directly; Admin with on-behalf-of-HR-Head flag. */
+export const REQ_APPROVERS = ['HR_HEAD', 'SUPER_ADMIN', 'ADMIN'] as const
 
-export const OFFER_ROLES = ['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'TEAM_LEAD'] as const
+export const OFFER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_HEAD', 'HR_MANAGER', 'TEAM_LEAD'] as const
 
 export const INTERVIEW_SCHEDULERS = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -35,9 +38,24 @@ export const INTERVIEW_SCHEDULERS = [
 ] as const
 
 export const INTERVIEW_PLAN_EDITORS = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
   'TEAM_LEAD',
   'RECRUITER',
 ] as const
+
+export function isAdminRole(role: string): boolean {
+  return role === 'ADMIN' || role === 'SUPER_ADMIN'
+}
+
+export function isSuperAdminRole(role: string): boolean {
+  return role === 'SUPER_ADMIN'
+}
+
+export function roleMatchesAllowed(userRole: string, allowedRoles: readonly string[]): boolean {
+  if (allowedRoles.includes(userRole)) return true
+  if (userRole === 'SUPER_ADMIN' && allowedRoles.includes('ADMIN')) return true
+  return false
+}

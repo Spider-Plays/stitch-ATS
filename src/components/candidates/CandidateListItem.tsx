@@ -17,7 +17,7 @@ import {
   candidateStatusClass,
   candidateStatusLabel,
   recruiterDisplay,
-} from '../../lib/candidatePage'
+} from '@/pages/candidates/_shared/candidate.utils'
 
 export type CandidateMenuItem = {
   id: string

@@ -359,6 +359,7 @@ export interface Offer {
 }
 
 export type UserRole =
+  | 'SUPER_ADMIN'
   | 'ADMIN'
   | 'HR_HEAD'
   | 'HR_MANAGER'
@@ -390,6 +391,8 @@ export interface User {
     department?: string;
     lastLogin?: string;
     vendorId?: string;
+    /** True after admin-created account — user must set a new password on first sign-in */
+    mustChangePassword?: boolean;
 }
 
 export interface LoginHistoryEntry {

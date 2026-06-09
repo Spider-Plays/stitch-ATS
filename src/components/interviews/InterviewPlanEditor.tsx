@@ -107,39 +107,46 @@ function SortableStageRow({
         type="text"
         value={stage.name}
         onChange={(e) => onUpdate({ name: e.target.value })}
+        onPointerDown={(e) => e.stopPropagation()}
         disabled={!canEdit}
         className="flex-1 px-3 py-2 rounded-lg border border-primary/10 dark:border-white/10 bg-white dark:bg-white/5 font-bold text-sm text-primary dark:text-white disabled:opacity-60"
-        placeholder="Stage name"
+        placeholder="Round name"
+        aria-label={`Round ${index + 1} name`}
       />
-      <AppSelect
-        className="min-w-[120px]"
-        size="sm"
-        value={stage.interviewType}
-        onChange={(v) =>
-          onUpdate({
-            interviewType: v as InterviewPlanStage['interviewType'],
-          })
-        }
-        disabled={!canEdit}
-        options={INTERVIEW_TYPES.map((t) => ({
-          value: t,
-          label: t.replace('_', ' '),
-        }))}
-        aria-label="Interview type"
-      />
-      <AppSelect
-        className="min-w-[100px]"
-        size="sm"
-        value={String(stage.defaultDuration)}
-        onChange={(v) => onUpdate({ defaultDuration: Number(v) })}
-        disabled={!canEdit}
-        options={INTERVIEW_DURATION_OPTIONS}
-        aria-label="Duration"
-      />
+      <div className="min-w-[120px]" onPointerDown={(e) => e.stopPropagation()}>
+        <AppSelect
+          className="w-full"
+          size="sm"
+          value={stage.interviewType}
+          onChange={(v) =>
+            onUpdate({
+              interviewType: v as InterviewPlanStage['interviewType'],
+            })
+          }
+          disabled={!canEdit}
+          options={INTERVIEW_TYPES.map((t) => ({
+            value: t,
+            label: t.replace('_', ' '),
+          }))}
+          aria-label="Interview type"
+        />
+      </div>
+      <div className="min-w-[100px]" onPointerDown={(e) => e.stopPropagation()}>
+        <AppSelect
+          className="w-full"
+          size="sm"
+          value={String(stage.defaultDuration)}
+          onChange={(v) => onUpdate({ defaultDuration: Number(v) })}
+          disabled={!canEdit}
+          options={INTERVIEW_DURATION_OPTIONS}
+          aria-label="Duration"
+        />
+      </div>
       {canEdit && canRemove && (
         <button
           type="button"
           onClick={onRemove}
+          onPointerDown={(e) => e.stopPropagation()}
           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
           title="Remove stage"
         >
@@ -271,7 +278,7 @@ export function InterviewPlanEditor({ requirementId, canEdit }: InterviewPlanEdi
         <p className="text-sm text-primary/60 dark:text-white/60 mt-1">
           Candidates must complete each stage (including feedback) before the next can be scheduled.
           Default: L1 → L2 → HR.
-          {canEdit && ' Drag stages to reorder.'}
+          {canEdit && ' Edit round names inline, drag to reorder, then click Save stages.'}
         </p>
       </div>
 

@@ -8,6 +8,7 @@ import { env } from '../config/env.js'
 import { mapUser } from '../utils/mappers.js'
 import { getAllowedPagesForRole } from '../lib/pageAccess.js'
 import { requireAuth, requireActiveUser } from '../middleware/auth.js'
+import { authRateLimiter } from '../middleware/rateLimit.js'
 import { sendPasswordResetEmail } from '../services/email.js'
 import { recordUserLogin } from '../lib/recordLogin.js'
 
@@ -25,7 +26,7 @@ const registerCandidateSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 
-router.post('/register-candidate', async (req, res, next) => {
+router.post('/register-candidate', authRateLimiter, async (req, res, next) => {
   try {
     const parsed = registerCandidateSchema.safeParse(req.body)
     if (!parsed.success) {
@@ -66,7 +67,7 @@ router.post('/register-candidate', async (req, res, next) => {
   }
 })
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', authRateLimiter, async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'Invalid credentials' })
@@ -128,7 +129,12 @@ router.post('/change-password', requireAuth, requireActiveUser, async (req, res)
   const passwordHash = await bcrypt.hash(newPassword, 10)
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: {
+      passwordHash,
+      mustChangePassword: false,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    },
   })
 
   const token = jwt.sign(
@@ -137,10 +143,11 @@ router.post('/change-password', requireAuth, requireActiveUser, async (req, res)
     { expiresIn: '7d' }
   )
 
-  res.json({ token, user: mapUser(updated) })
+  const allowedPages = await getAllowedPagesForRole(updated.role)
+  res.json({ token, user: mapUser(updated), allowedPages })
 })
 
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', authRateLimiter, async (req, res) => {
   const { email } = z.object({ email: z.string().email() }).parse(req.body)
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
@@ -162,7 +169,7 @@ router.post('/forgot-password', async (req, res) => {
   res.json({ ok: true, message: 'If that email exists, a reset link was sent.' })
 })
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', authRateLimiter, async (req, res) => {
   const { token, newPassword } = z
     .object({
       token: z.string().min(1),
@@ -183,6 +190,7 @@ router.post('/reset-password', async (req, res) => {
     where: { id: user.id },
     data: {
       passwordHash,
+      mustChangePassword: false,
       passwordResetToken: null,
       passwordResetExpires: null,
     },

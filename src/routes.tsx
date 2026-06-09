@@ -1,205 +1,259 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
-
-// Pages
-import Dashboard from './pages/Dashboard'
-import Login from './pages/auth/Login'
-import Signup from './pages/auth/Signup'
 import { RequireAuth } from './components/RequireAuth'
-import NewCandidate from './pages/candidates/NewCandidate'
-import CandidateDetail from './pages/candidates/CandidateProfile'
-import CandidatesList from './pages/candidates/CandidatesList'
-import Pipeline from './pages/pipeline/Pipeline'
-import RequirementDetail from './pages/requirements/RequirementDetail'
-import EditRequirement from './pages/requirements/EditRequirement'
-import RequirementMatchingProfiles from './pages/requirements/RequirementMatchingProfiles'
-import RequirementLinkedCandidates from './pages/requirements/RequirementLinkedCandidates'
-import NewRequirement from './pages/requirements/NewRequirement'
-import RequirementsList from './pages/requirements/RequirementsList'
-import UserManagement from './pages/admin/UserManagement'
-import UserDetail from './pages/admin/UserDetail'
-import RoleAccessEditor from './pages/admin/RoleAccessEditor'
-import AdminOverview from './pages/admin/AdminOverview'
-import AdminDepartments from './pages/admin/AdminDepartments'
-import AdminClients from './pages/admin/AdminClients'
-import AdminSkills from './pages/admin/AdminSkills'
-import AdminInterviewPanels from './pages/admin/AdminInterviewPanels'
-import CandidateDashboard from './pages/candidate-portal/CandidateDashboard'
-import PortalJobDetail from './pages/candidate-portal/PortalJobDetail'
-import PortalOnboarding from './pages/candidate-portal/PortalOnboarding'
-import PortalJobs from './pages/candidate-portal/PortalJobs'
-import PortalAppliedJobs from './pages/candidate-portal/PortalAppliedJobs'
-import PortalApplicationUpdates from './pages/candidate-portal/PortalApplicationUpdates'
-import CandidateLogin from './pages/candidate-portal/CandidateLogin'
-import CandidateSignup from './pages/candidate-portal/CandidateSignup'
-import { PortalIndexRedirect } from './pages/candidate-portal/PortalIndexRedirect'
-import { PortalProfileGate } from './components/portal/PortalProfileGate'
-import CandidatePortalLayout from './layouts/CandidatePortalLayout'
-import Interviews from './pages/interviews/Interviews'
-import ScheduleInterview from './pages/interviews/ScheduleInterview'
-import InterviewCandidateResume from './pages/interviews/InterviewCandidateResume'
-import FeedbackForm from './pages/feedback/FeedbackForm'
-import Offers from './pages/offers/Offers'
-import NewOffer from './pages/offers/NewOffer'
-import OfferDetail from './pages/offers/OfferDetail'
-import Notifications from './pages/notifications/Notifications'
+import { RequireSuperAdmin } from './components/RequireSuperAdmin'
+import { lazyPage } from './lib/lazyRoute'
+import { REFERRAL_PORTAL_ROLES } from '@/permissions'
 
-import Settings from './pages/settings/Settings'
-import NotFound from './pages/NotFound'
+import CandidatePortalLayout from './layouts/CandidatePortalLayout'
 import VendorPortalLayout from './layouts/VendorPortalLayout'
-import VendorDashboard from './pages/vendor-portal/VendorDashboard'
-import VendorPositions from './pages/vendor-portal/VendorPositions'
-import VendorJobDetail from './pages/vendor-portal/VendorJobDetail'
-import VendorSubmissions from './pages/vendor-portal/VendorSubmissions'
-import VendorsList from './pages/vendors/VendorsList'
-import VendorDetail from './pages/vendors/VendorDetail'
-import NewVendor from './pages/vendors/NewVendor'
-import CareersCandidates from './pages/features/CareersCandidates'
-import EmployeeReferralCandidates from './pages/features/EmployeeReferralCandidates'
-import MisDashboard from './pages/features/MisDashboard'
 import ReferralPortalLayout from './layouts/ReferralPortalLayout'
-import ReferralLogin from './pages/referral-portal/ReferralLogin'
-import ReferralDashboard from './pages/referral-portal/ReferralDashboard'
-import ReferralJobs from './pages/referral-portal/ReferralJobs'
-import ReferralJobDetail from './pages/referral-portal/ReferralJobDetail'
-import ReferralList from './pages/referral-portal/ReferralList'
-import ReferralDetail from './pages/referral-portal/ReferralDetail'
-import ReferralProgram from './pages/referral-portal/ReferralProgram'
-import { REFERRAL_PORTAL_ROLES } from './lib/referralPortalRoles'
+
+const Dashboard = lazyPage(() => import('./pages/dashboard/Dashboard'))
+const Login = lazyPage(() => import('./pages/auth/login/Login'))
+const SetPassword = lazyPage(() => import('./pages/auth/set-password/SetPassword'))
+const Signup = lazyPage(() => import('./pages/auth/signup/Signup'))
+const NewCandidate = lazyPage(() => import('./pages/candidates/new/NewCandidate'))
+const CandidateDetail = lazyPage(() => import('./pages/candidates/profile/CandidateProfile'))
+const CandidatesList = lazyPage(() => import('./pages/candidates/list/CandidatesList'))
+const Pipeline = lazyPage(() => import('./pages/pipeline/board/Pipeline'))
+const RequirementDetail = lazyPage(() => import('./pages/requirements/detail/RequirementDetail'))
+const EditRequirement = lazyPage(() => import('./pages/requirements/edit/EditRequirement'))
+const RequirementMatchingProfiles = lazyPage(
+  () => import('./pages/requirements/matching-profiles/RequirementMatchingProfiles')
+)
+const RequirementLinkedCandidates = lazyPage(
+  () => import('./pages/requirements/linked-candidates/RequirementLinkedCandidates')
+)
+const NewRequirement = lazyPage(() => import('./pages/requirements/new/NewRequirement'))
+const RequirementsList = lazyPage(() => import('./pages/requirements/list/RequirementsList'))
+const UserManagement = lazyPage(() => import('./pages/admin/users/UserManagement'))
+const UserDetail = lazyPage(() => import('./pages/admin/user-detail/UserDetail'))
+const RoleAccessEditor = lazyPage(() => import('./pages/admin/role-access/RoleAccessEditor'))
+const AdminOverview = lazyPage(() => import('./pages/admin/overview/AdminOverview'))
+const AdminDepartments = lazyPage(() => import('./pages/admin/departments/AdminDepartments'))
+const AdminClients = lazyPage(() => import('./pages/admin/clients/AdminClients'))
+const AdminSkills = lazyPage(() => import('./pages/admin/skills/AdminSkills'))
+const AdminInterviewPanels = lazyPage(() => import('./pages/admin/interview-panels/AdminInterviewPanels'))
+const CandidateDashboard = lazyPage(() => import('./pages/candidate-portal/dashboard/CandidateDashboard'))
+const PortalJobDetail = lazyPage(() => import('./pages/candidate-portal/job-detail/PortalJobDetail'))
+const PortalOnboarding = lazyPage(() => import('./pages/candidate-portal/onboarding/PortalOnboarding'))
+const PortalJobs = lazyPage(() => import('./pages/candidate-portal/jobs/PortalJobs'))
+const PortalAppliedJobs = lazyPage(() => import('./pages/candidate-portal/applied-jobs/PortalAppliedJobs'))
+const PortalApplicationUpdates = lazyPage(
+  () => import('./pages/candidate-portal/application-updates/PortalApplicationUpdates')
+)
+const CandidateLogin = lazyPage(() => import('./pages/candidate-portal/login/CandidateLogin'))
+const CandidateSignup = lazyPage(() => import('./pages/candidate-portal/signup/CandidateSignup'))
+const PortalIndexRedirect = lazyPage(
+  () => import('./pages/candidate-portal/index-redirect/PortalIndexRedirect').then((m) => ({
+    default: m.PortalIndexRedirect,
+  }))
+)
+const PortalProfileGate = lazyPage(() =>
+  import('./components/portal/PortalProfileGate').then((m) => ({ default: m.PortalProfileGate }))
+)
+const Interviews = lazyPage(() => import('./pages/interviews/list/Interviews'))
+const ScheduleInterview = lazyPage(() => import('./pages/interviews/schedule/ScheduleInterview'))
+const InterviewCandidateResume = lazyPage(
+  () => import('./pages/interviews/resume/InterviewCandidateResume')
+)
+const FeedbackForm = lazyPage(() => import('./pages/feedback/form/FeedbackForm'))
+const Offers = lazyPage(() => import('./pages/offers/list/Offers'))
+const NewOffer = lazyPage(() => import('./pages/offers/new/NewOffer'))
+const OfferDetail = lazyPage(() => import('./pages/offers/detail/OfferDetail'))
+const Notifications = lazyPage(() => import('./pages/notifications/list/Notifications'))
+const Settings = lazyPage(() => import('./pages/settings/account/Settings'))
+const NotFound = lazyPage(() => import('./pages/not-found/NotFound'))
+const VendorDashboard = lazyPage(() => import('./pages/vendor-portal/dashboard/VendorDashboard'))
+const VendorPositions = lazyPage(() => import('./pages/vendor-portal/positions/VendorPositions'))
+const VendorJobDetail = lazyPage(() => import('./pages/vendor-portal/job-detail/VendorJobDetail'))
+const VendorSubmissions = lazyPage(() => import('./pages/vendor-portal/submissions/VendorSubmissions'))
+const VendorsList = lazyPage(() => import('./pages/vendors/list/VendorsList'))
+const VendorDetail = lazyPage(() => import('./pages/vendors/detail/VendorDetail'))
+const NewVendor = lazyPage(() => import('./pages/vendors/new/NewVendor'))
+const CareersCandidates = lazyPage(() => import('./pages/features/careers/CareersCandidates'))
+const EmployeeReferralCandidates = lazyPage(
+  () => import('./pages/features/employee-referral/EmployeeReferralCandidates')
+)
+const MisDashboard = lazyPage(() => import('./pages/features/mis/MisDashboard'))
+const ReferralLogin = lazyPage(() => import('./pages/referral-portal/login/ReferralLogin'))
+const ReferralDashboard = lazyPage(() => import('./pages/referral-portal/dashboard/ReferralDashboard'))
+const ReferralJobs = lazyPage(() => import('./pages/referral-portal/jobs/ReferralJobs'))
+const ReferralJobDetail = lazyPage(() => import('./pages/referral-portal/job-detail/ReferralJobDetail'))
+const ReferralList = lazyPage(() => import('./pages/referral-portal/list/ReferralList'))
+const ReferralDetail = lazyPage(() => import('./pages/referral-portal/detail/ReferralDetail'))
+const ReferralProgram = lazyPage(() => import('./pages/referral-portal/program/ReferralProgram'))
 
 const AppRoutes = () => {
-    return (
-        <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/set-password" element={<SetPassword />} />
+      <Route path="/signup" element={<Signup />} />
 
-            {/* Employee Referral Portal */}
-            <Route path="/referral-portal/login" element={<ReferralLogin />} />
-            <Route
-                path="/referral-portal"
-                element={
-                    <RequireAuth allowedRoles={[...REFERRAL_PORTAL_ROLES]} skipPageCheck>
-                        <ReferralPortalLayout />
-                    </RequireAuth>
-                }
-            >
-                <Route path="dashboard" element={<ReferralDashboard />} />
-                <Route path="jobs" element={<ReferralJobs />} />
-                <Route path="jobs/:id" element={<ReferralJobDetail />} />
-                <Route path="referrals" element={<ReferralList />} />
-                <Route path="referrals/:id" element={<ReferralDetail />} />
-                <Route path="program" element={<ReferralProgram />} />
-                <Route index element={<Navigate to="dashboard" replace />} />
-            </Route>
+      <Route path="/referral-portal/login" element={<ReferralLogin />} />
+      <Route
+        path="/referral-portal"
+        element={
+          <RequireAuth allowedRoles={[...REFERRAL_PORTAL_ROLES]} skipPageCheck>
+            <ReferralPortalLayout />
+          </RequireAuth>
+        }
+      >
+        <Route path="dashboard" element={<ReferralDashboard />} />
+        <Route path="jobs" element={<ReferralJobs />} />
+        <Route path="jobs/:id" element={<ReferralJobDetail />} />
+        <Route path="referrals" element={<ReferralList />} />
+        <Route path="referrals/:id" element={<ReferralDetail />} />
+        <Route path="program" element={<ReferralProgram />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
 
-            {/* Vendor Portal */}
-            <Route path="/vendor-portal" element={<RequireAuth allowedRoles={['VENDOR']}><VendorPortalLayout /></RequireAuth>}>
-                <Route path="dashboard" element={<VendorDashboard />} />
-                <Route path="positions" element={<VendorPositions />} />
-                <Route path="positions/:id" element={<VendorJobDetail />} />
-                <Route path="submissions" element={<VendorSubmissions />} />
-                <Route index element={<Navigate to="dashboard" replace />} />
-            </Route>
+      <Route
+        path="/vendor-portal"
+        element={
+          <RequireAuth allowedRoles={['VENDOR']}>
+            <VendorPortalLayout />
+          </RequireAuth>
+        }
+      >
+        <Route path="dashboard" element={<VendorDashboard />} />
+        <Route path="positions" element={<VendorPositions />} />
+        <Route path="positions/:id" element={<VendorJobDetail />} />
+        <Route path="submissions" element={<VendorSubmissions />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
 
-            {/* Candidate Portal — public auth */}
-            <Route path="/portal/login" element={<CandidateLogin />} />
-            <Route path="/portal/signup" element={<CandidateSignup />} />
+      <Route path="/portal/login" element={<CandidateLogin />} />
+      <Route path="/portal/signup" element={<CandidateSignup />} />
 
-            <Route
-                path="/portal"
-                element={
-                    <RequireAuth allowedRoles={['CANDIDATE']}>
-                        <CandidatePortalLayout />
-                    </RequireAuth>
-                }
-            >
-                <Route index element={<PortalIndexRedirect />} />
-                <Route path="onboarding" element={<PortalOnboarding />} />
-                <Route path="profile" element={<Navigate to="/portal/onboarding" replace />} />
-                <Route element={<PortalProfileGate />}>
-                    <Route path="dashboard" element={<CandidateDashboard />} />
-                    <Route path="jobs" element={<PortalJobs />} />
-                    <Route path="jobs/applied/:requirementId" element={<PortalApplicationUpdates />} />
-                    <Route path="jobs/:id" element={<PortalJobDetail />} />
-                    <Route path="applied/:requirementId" element={<PortalAppliedJobs />} />
-                    <Route path="applied" element={<PortalAppliedJobs />} />
-                </Route>
-            </Route>
+      <Route
+        path="/portal"
+        element={
+          <RequireAuth allowedRoles={['CANDIDATE']}>
+            <CandidatePortalLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<PortalIndexRedirect />} />
+        <Route path="onboarding" element={<PortalOnboarding />} />
+        <Route path="profile" element={<Navigate to="/portal/onboarding" replace />} />
+        <Route element={<PortalProfileGate />}>
+          <Route path="dashboard" element={<CandidateDashboard />} />
+          <Route path="jobs" element={<PortalJobs />} />
+          <Route path="jobs/applied/:requirementId" element={<PortalApplicationUpdates />} />
+          <Route path="jobs/:id" element={<PortalJobDetail />} />
+          <Route path="applied/:requirementId" element={<PortalAppliedJobs />} />
+          <Route path="applied" element={<PortalAppliedJobs />} />
+        </Route>
+      </Route>
 
-            {/* Admin Only */}
-            <Route path="/admin" element={<RequireAuth allowedRoles={['ADMIN']}><MainLayout /></RequireAuth>}>
-                <Route index element={<AdminOverview />} />
-                <Route path="users" element={<UserManagement />} />
-                <Route path="users/:id" element={<UserDetail />} />
-                <Route path="departments" element={<AdminDepartments />} />
-                <Route path="clients" element={<AdminClients />} />
-                <Route path="skills" element={<AdminSkills />} />
-                <Route path="role-access" element={<RoleAccessEditor />} />
-                <Route path="interview-panels" element={<AdminInterviewPanels />} />
-            </Route>
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+            <MainLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<AdminOverview />} />
+        <Route
+          path="users"
+          element={
+            <RequireSuperAdmin>
+              <UserManagement />
+            </RequireSuperAdmin>
+          }
+        />
+        <Route
+          path="users/:id"
+          element={
+            <RequireSuperAdmin>
+              <UserDetail />
+            </RequireSuperAdmin>
+          }
+        />
+        <Route path="departments" element={<AdminDepartments />} />
+        <Route path="clients" element={<AdminClients />} />
+        <Route path="skills" element={<AdminSkills />} />
+        <Route
+          path="role-access"
+          element={
+            <RequireSuperAdmin>
+              <RoleAccessEditor />
+            </RequireSuperAdmin>
+          }
+        />
+        <Route path="interview-panels" element={<AdminInterviewPanels />} />
+      </Route>
 
-            {/* Vendor management (staff) */}
-            <Route
-                path="/vendors"
-                element={
-                    <RequireAuth allowedRoles={['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER']}>
-                        <MainLayout />
-                    </RequireAuth>
-                }
-            >
-                <Route index element={<VendorsList />} />
-                <Route path="new" element={<NewVendor />} />
-                <Route path=":id" element={<VendorDetail />} />
-            </Route>
+      <Route
+        path="/vendors"
+        element={
+          <RequireAuth allowedRoles={['SUPER_ADMIN', 'ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER']}>
+            <MainLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<VendorsList />} />
+        <Route path="new" element={<NewVendor />} />
+        <Route path=":id" element={<VendorDetail />} />
+      </Route>
 
-            {/* Internal Routes (Recruiters, Admin, etc.) */}
-            <Route path="/" element={<RequireAuth allowedRoles={['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER', 'TEAM_LEAD', 'HIRING_MANAGER', 'INTERVIEWER']}><MainLayout /></RequireAuth>}>
-                <Route index element={<Dashboard />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                {/* Admin Only Route moved to separate block */}
+      <Route
+        path="/"
+        element={
+          <RequireAuth
+            allowedRoles={[
+              'SUPER_ADMIN',
+              'ADMIN',
+              'HR_HEAD',
+              'HR_MANAGER',
+              'RECRUITER',
+              'TEAM_LEAD',
+              'HIRING_MANAGER',
+              'INTERVIEWER',
+            ]}
+          >
+            <MainLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="requirements" element={<RequirementsList />} />
+        <Route path="requirements/new" element={<NewRequirement />} />
+        <Route path="requirements/:id/matching-profiles" element={<RequirementMatchingProfiles />} />
+        <Route path="requirements/:id/linked-candidates" element={<RequirementLinkedCandidates />} />
+        <Route path="requirements/:id/edit" element={<EditRequirement />} />
+        <Route path="requirements/:id" element={<RequirementDetail />} />
+        <Route path="candidates" element={<CandidatesList />} />
+        <Route path="candidates/:id" element={<CandidateDetail />} />
+        <Route path="candidates/new" element={<NewCandidate />} />
+        <Route path="pipeline/:requirementId?" element={<Pipeline />} />
+        <Route path="interviews" element={<Interviews />} />
+        <Route path="interviews/new" element={<ScheduleInterview />} />
+        <Route path="interviews/:id/resume" element={<InterviewCandidateResume />} />
+        <Route path="interviews/:id/edit" element={<ScheduleInterview />} />
+        <Route path="interviews/:id/feedback" element={<FeedbackForm />} />
+        <Route path="offers" element={<Offers />} />
+        <Route path="offers/new" element={<NewOffer />} />
+        <Route path="offers/:id" element={<OfferDetail />} />
+        <Route path="features/careers" element={<CareersCandidates />} />
+        <Route path="features/employee-referral" element={<EmployeeReferralCandidates />} />
+        <Route path="features/mis" element={<MisDashboard />} />
+      </Route>
 
-                {/* Requirements */}
-                <Route path="requirements" element={<RequirementsList />} />
-                <Route path="requirements/new" element={<NewRequirement />} />
-                <Route path="requirements/:id/matching-profiles" element={<RequirementMatchingProfiles />} />
-                <Route path="requirements/:id/linked-candidates" element={<RequirementLinkedCandidates />} />
-                <Route path="requirements/:id/edit" element={<EditRequirement />} />
-                <Route path="requirements/:id" element={<RequirementDetail />} />
+      <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/notifications" element={<Notifications />} />
+      </Route>
 
-
-                {/* Candidates */}
-                <Route path="candidates" element={<CandidatesList />} />
-                <Route path="candidates/:id" element={<CandidateDetail />} />
-                <Route path="candidates/new" element={<NewCandidate />} />
-
-                <Route path="pipeline/:requirementId?" element={<Pipeline />} />
-
-                {/* Interviews & Offers */}
-                <Route path="interviews" element={<Interviews />} />
-                <Route path="interviews/new" element={<ScheduleInterview />} />
-                <Route path="interviews/:id/resume" element={<InterviewCandidateResume />} />
-                <Route path="interviews/:id/edit" element={<ScheduleInterview />} />
-                <Route path="interviews/:id/feedback" element={<FeedbackForm />} />
-                <Route path="offers" element={<Offers />} />
-                <Route path="offers/new" element={<NewOffer />} />
-                <Route path="offers/:id" element={<OfferDetail />} />
-
-                {/* Feature modules (gated by user tags) */}
-                <Route path="features/careers" element={<CareersCandidates />} />
-                <Route path="features/employee-referral" element={<EmployeeReferralCandidates />} />
-                <Route path="features/mis" element={<MisDashboard />} />
-            </Route>
-
-            {/* Settings & Notifications (Shared) */}
-            <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/notifications" element={<Notifications />} />
-            </Route>
-            {/* 404 - Catch all */}
-            <Route path="*" element={<NotFound />} />
-        </Routes>
-    )
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
 }
 
 export default AppRoutes

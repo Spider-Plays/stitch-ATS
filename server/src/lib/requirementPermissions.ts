@@ -1,6 +1,7 @@
 export const HIRING_STAGE_EDIT_ROLES = ['RECRUITER', 'HR_MANAGER', 'TEAM_LEAD'] as const
 
 export const POSTING_CONTROL_ROLES = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -9,6 +10,7 @@ export const POSTING_CONTROL_ROLES = [
 ] as const
 
 export const PORTAL_VISIBILITY_ROLES = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -16,14 +18,15 @@ export const PORTAL_VISIBILITY_ROLES = [
 ] as const
 
 export const REQUIREMENT_CREATE_ROLES = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
   'HIRING_MANAGER',
 ] as const
 
-/** HR Head approves directly; Admin may approve only on behalf of HR Head. */
-export const REQ_APPROVAL_ROLES = ['HR_HEAD', 'ADMIN'] as const
+/** HR Head and Super Admin approve directly; Admin may approve only on behalf of HR Head. */
+export const REQ_APPROVAL_ROLES = ['HR_HEAD', 'SUPER_ADMIN', 'ADMIN'] as const
 
 export type RequirementApprovalContext = {
   createdBy: string | null
@@ -50,7 +53,7 @@ export function assertCanManageRequirementPosting(
   auth: { userId: string; role: string; name?: string },
   requirement: { createdBy: string | null; hiringManager: string }
 ): void {
-  if (['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'TEAM_LEAD'].includes(auth.role)) {
+  if (['SUPER_ADMIN', 'ADMIN', 'HR_HEAD', 'HR_MANAGER', 'TEAM_LEAD'].includes(auth.role)) {
     return
   }
   if (auth.role === 'HIRING_MANAGER') {
@@ -87,7 +90,7 @@ export function assertCanApproveRequirement(
     throw new Error('You cannot approve a requirement you submitted')
   }
 
-  if (auth.role === 'HR_HEAD') {
+  if (auth.role === 'HR_HEAD' || auth.role === 'SUPER_ADMIN') {
     return
   }
 

@@ -3,6 +3,7 @@
  * Emails/passwords must match server/src/config/devUsers.ts — run `npm run db:seed` in server/.
  */
 export const DEV_LOGIN_ACCOUNTS = [
+  { label: 'Super Admin', role: 'SUPER_ADMIN', email: 'dev-superadmin@local.test', password: 'DevTest123!' },
   { label: 'Admin', role: 'ADMIN', email: 'dev-admin@local.test', password: 'DevTest123!' },
   { label: 'HR Head', role: 'HR_HEAD', email: 'dev-hrhead@local.test', password: 'DevTest123!' },
   { label: 'HR Manager', role: 'HR_MANAGER', email: 'dev-hrmanager@local.test', password: 'DevTest123!' },

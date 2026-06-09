@@ -8,8 +8,8 @@ import { ApiError } from '../../lib/apiClient'
 import { computeRequirementAgeing, hiringStageClass, hiringStageLabel } from '../../lib/requirementHiring'
 import { AppSelect } from '../ui/AppSelect'
 import { hiringStageSelectOptions } from '../../lib/selectOptions'
-import { requirementStatusClass, requirementStatusLabel } from '../../lib/requirementPage'
-import { canUpdateHiringStage } from '../../lib/requirementPermissions'
+import { requirementStatusClass, requirementStatusLabel } from '@/pages/requirements/_shared/requirement.utils'
+import { canUpdateHiringStage } from '@/permissions'
 
 type RequirementHiringPanelProps = {
   requirement: Requirement

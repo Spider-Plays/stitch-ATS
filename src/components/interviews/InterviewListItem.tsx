@@ -19,8 +19,8 @@ import {
   getInterviewDisplayLabel,
   interviewDisplayStatusClass,
 } from '../../lib/interviewDisplayStatus'
-import { formatInterviewTime, isUpcoming, needsFeedback, stageLabel, stageOrderLabel } from '../../lib/interviewPage'
-import { showInterviewerSessionActions } from '../../lib/interviewPermissions'
+import { formatInterviewTime, isUpcoming, needsFeedback, stageLabel, stageOrderLabel } from '@/pages/interviews/_shared/interview.utils'
+import { showInterviewerSessionActions } from '@/permissions'
 
 interface InterviewListItemProps {
   interview: Interview

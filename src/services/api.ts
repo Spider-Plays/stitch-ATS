@@ -119,9 +119,10 @@ export const api = {
         resetPassword: userService.resetPassword,
         updateRole: userService.updateRole,
         toggleStatus: userService.toggleStatus,
-        invite: userService.invite,
+        create: userService.create,
         getLoginHistory: userService.getLoginHistory,
         updateTags: userService.updateTags,
+        delete: userService.delete,
     },
     interviews: {
         list: interviewService.getAll,
@@ -147,6 +148,7 @@ export const api = {
         getByCandidateId: offerService.getByCandidateId,
         create: offerService.create,
         update: offerService.update,
-        updateStatus: offerService.updateStatus
+        updateStatus: offerService.updateStatus,
+        remove: offerService.remove,
     },
 }

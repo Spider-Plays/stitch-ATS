@@ -277,35 +277,46 @@ router.put('/:id/interview-plan', requireRoles(...INTERVIEW_PLAN_EDITORS), async
       })
     }
 
-    const saved = await prisma.$transaction(async (tx) => {
-      const tempOffset = 10_000
-      for (let i = 0; i < existing.length; i++) {
-        await tx.interviewPlanStage.update({
-          where: { id: existing[i].id },
-          data: { order: tempOffset + i },
-        })
-      }
+    const removedIdSet = new Set(removedIds)
+    const survivingExisting = existing.filter((s) => !removedIdSet.has(s.id))
 
-      const rows = []
-      for (let i = 0; i < incomingStages.length; i++) {
-        const { stageId, fields } = incomingStages[i]
-        if (stageId && existingById.has(stageId)) {
-          rows.push(
-            await tx.interviewPlanStage.update({
-              where: { id: stageId },
-              data: { order: i, ...fields },
-            })
-          )
-        } else {
-          rows.push(
-            await tx.interviewPlanStage.create({
-              data: { planId: plan.id, order: i, ...fields },
-            })
-          )
+    let saved
+    try {
+      saved = await prisma.$transaction(async (tx) => {
+        const tempOffset = 10_000
+        for (let i = 0; i < survivingExisting.length; i++) {
+          await tx.interviewPlanStage.update({
+            where: { id: survivingExisting[i].id },
+            data: { order: tempOffset + i },
+          })
         }
-      }
-      return rows
-    })
+
+        const rows = []
+        for (let i = 0; i < incomingStages.length; i++) {
+          const { stageId, fields } = incomingStages[i]
+          if (stageId && existingById.has(stageId) && !removedIdSet.has(stageId)) {
+            rows.push(
+              await tx.interviewPlanStage.update({
+                where: { id: stageId },
+                data: { order: i, ...fields },
+              })
+            )
+          } else {
+            rows.push(
+              await tx.interviewPlanStage.create({
+                data: { planId: plan.id, order: i, ...fields },
+              })
+            )
+          }
+        }
+        return rows
+      })
+    } catch (e) {
+      console.error('Interview plan update failed:', e)
+      return res.status(500).json({
+        error: 'Failed to update interview stages. Please try again.',
+      })
+    }
     updatedStages.push(...saved)
   } else {
     if (incoming.length < existing.length) {

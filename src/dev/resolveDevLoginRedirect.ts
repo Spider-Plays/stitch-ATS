@@ -1,4 +1,4 @@
-import { firstAllowedPath, type PageKey } from '../lib/pageAccess'
+import { firstAllowedPath, type PageKey } from '@/permissions'
 
 export type DevLoginSession = {
   user: { role: string }
@@ -14,7 +14,7 @@ export function resolveDevLoginRedirect(
   if (role === 'CANDIDATE' || clickedRole === 'CANDIDATE') return '/portal/dashboard'
   if (role === 'VENDOR' || clickedRole === 'VENDOR') return '/vendor-portal/dashboard'
   if (role === 'EMPLOYEE' || clickedRole === 'EMPLOYEE') return '/referral-portal/dashboard'
-  if (role === 'ADMIN') return '/admin'
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') return '/admin'
   if (session.allowedPages.length > 0) return firstAllowedPath(session.allowedPages)
   return '/dashboard'
 }

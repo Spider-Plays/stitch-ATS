@@ -11,7 +11,7 @@ import { formatDateLabel } from '../../lib/requirementFields'
 import {
   canControlPortalVisibility,
   canManageRequirementPosting,
-} from '../../lib/requirementPermissions'
+} from '@/permissions'
 import { Modal } from '../ui/Modal'
 
 type RequirementPortalControlsProps = {

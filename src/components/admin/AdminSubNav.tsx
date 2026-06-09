@@ -2,7 +2,8 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
-import { ADMIN_HUB_PAGES } from '../../lib/adminPages'
+import { adminHubPagesForRole } from '../../lib/adminPages'
+import { useAuth } from '../../hooks/useAuth'
 import { tabIndicatorSpring } from '../../lib/motion'
 
 export function isAdminNavActive(pathname: string, to: string): boolean {
@@ -12,6 +13,8 @@ export function isAdminNavActive(pathname: string, to: string): boolean {
 
 export function AdminSubNav() {
   const { pathname } = useLocation()
+  const { user } = useAuth()
+  const pages = adminHubPagesForRole(user?.role)
 
   return (
     <nav
@@ -23,7 +26,7 @@ export function AdminSubNav() {
       )}
     >
       <div className="flex items-center gap-1 min-w-max p-1 rounded-full bg-surface-container border border-outline-variant/40">
-        {ADMIN_HUB_PAGES.map(({ to, icon: Icon, title }) => {
+        {pages.map(({ to, icon: Icon, title }) => {
           const active = isAdminNavActive(pathname, to)
           return (
             <Link

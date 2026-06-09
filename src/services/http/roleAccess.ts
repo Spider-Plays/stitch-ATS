@@ -1,5 +1,5 @@
 import { apiRequest } from '../../lib/apiClient'
-import { ConfigurableRole, PageKey } from '../../lib/pageAccess'
+import { ConfigurableRole, PageKey } from '@/permissions'
 
 export type RoleAccessMap = Record<
   string,

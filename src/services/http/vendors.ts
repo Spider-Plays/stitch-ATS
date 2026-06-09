@@ -18,7 +18,13 @@ export const vendorService = {
     inviteContact?: boolean
     contactEmail?: string
   }) =>
-    apiRequest<{ vendor: Vendor; invitedUser?: User; temporaryPassword?: string }>('/vendors', {
+    apiRequest<{
+      vendor: Vendor
+      invitedUser?: User
+      emailSent?: boolean
+      emailWarning?: string
+      devHint?: string
+    }>('/vendors', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -52,7 +58,7 @@ export const vendorService = {
     apiRequest<void>(`/vendors/${id}/assignments/${requirementId}`, { method: 'DELETE' }),
 
   inviteUser: (id: string, data: { email: string; name?: string }) =>
-    apiRequest<{ user: User; emailSent: boolean; temporaryPassword?: string }>(
+    apiRequest<{ user: User; emailSent: boolean; emailWarning?: string; devHint?: string }>(
       `/vendors/${id}/invite`,
       { method: 'POST', body: JSON.stringify(data) }
     ),

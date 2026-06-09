@@ -8,7 +8,7 @@ import { getToken, clearToken } from '../lib/apiClient'
 
 import { ApiError } from '../lib/apiClient'
 
-import { PageKey } from '../lib/pageAccess'
+import { PageKey } from '@/permissions'
 
 
 

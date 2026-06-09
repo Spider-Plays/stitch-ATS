@@ -1,7 +1,8 @@
-/** Dev-only test accounts. Seeded via `npm run db:seed`. Remove this file when done testing. */
+/** Dev-only test accounts. Seeded via `npm run db:seed` (blocked in production). */
 export const DEV_PASSWORD = 'DevTest123!'
 
 export const DEV_USERS = [
+  { email: 'dev-superadmin@local.test', password: DEV_PASSWORD, name: 'Dev Super Admin', role: 'SUPER_ADMIN', department: 'Operations' },
   { email: 'dev-admin@local.test', password: DEV_PASSWORD, name: 'Dev Admin', role: 'ADMIN', department: 'Operations' },
   { email: 'dev-hrhead@local.test', password: DEV_PASSWORD, name: 'Dev HR Head', role: 'HR_HEAD', department: 'HR' },
   { email: 'dev-hrmanager@local.test', password: DEV_PASSWORD, name: 'Dev HR Manager', role: 'HR_MANAGER', department: 'HR' },

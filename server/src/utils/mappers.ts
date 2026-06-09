@@ -20,6 +20,7 @@ export function mapUser(u: DbUser) {
     department: u.department ?? undefined,
     lastLogin: u.lastLogin?.toISOString(),
     vendorId: u.vendorId ?? undefined,
+    mustChangePassword: u.mustChangePassword,
   }
 }
 

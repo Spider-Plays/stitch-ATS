@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from './lib/prisma.js'
 import { withDbRetry } from './lib/dbRetry.js'
+import { env } from './config/env.js'
 import { DEV_PASSWORD } from './config/devUsers.js'
 import { SEED_USERS } from './config/users.js'
 
@@ -35,6 +36,11 @@ async function upsertDevUser(
 }
 
 async function main() {
+  if (env.isProduction) {
+    console.error('Refusing to seed dev users in production. Use npm run db:bootstrap instead.')
+    process.exit(1)
+  }
+
   if (SEED_USERS.length === 0) {
     console.log('No seed users configured. Run npm run db:bootstrap to create an admin.')
     return

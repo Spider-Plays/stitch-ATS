@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom'
 import { Briefcase, Calendar, ChevronRight, Phone, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import type { Candidate, CandidateStatus } from '../../types'
-import { recruiterDisplay } from '../../lib/candidatePage'
+import { recruiterDisplay } from '@/pages/candidates/_shared/candidate.utils'
 import { candidateStageSelectOptions, toCandidateStatus } from '../../lib/selectOptions'
 import { AppSelect } from '../ui/AppSelect'
-import { isHiredStageLocked } from '../../lib/candidatePermissions'
+import { isHiredStageLocked } from '@/permissions'
 
 interface PipelineKanbanCardProps {
   candidate: Candidate

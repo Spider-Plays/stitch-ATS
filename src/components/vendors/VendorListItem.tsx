@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import type { Vendor } from '../../types'
-import { vendorStatusClass, vendorStatusLabel } from '../../lib/vendorPage'
+import { vendorStatusClass, vendorStatusLabel } from '@/pages/vendors/_shared/vendor.utils'
 import { ActionsMenu, type ActionMenuItem } from '../ui/ActionsMenu'
 
 export type VendorMenuItem = {

@@ -1,8 +1,8 @@
 import React from 'react'
 import clsx from 'clsx'
 import type { Candidate, CandidateStatus } from '../../types'
-import { stageDotColor } from '../../lib/pipelinePage'
-import { candidateStatusClass } from '../../lib/candidatePage'
+import { stageDotColor } from '@/pages/pipeline/board/pipeline.utils'
+import { candidateStatusClass } from '@/pages/candidates/_shared/candidate.utils'
 import { PipelineKanbanCard } from './PipelineKanbanCard'
 
 interface PipelineKanbanColumnProps {

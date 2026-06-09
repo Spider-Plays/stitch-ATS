@@ -1,8 +1,8 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { FeatureTagKey, hasFeatureTag } from '../lib/userTags'
-import { firstAllowedPath } from '../lib/pageAccess'
+import { FeatureTagKey, hasFeatureTag } from '@/permissions'
+import { firstAllowedPath } from '@/permissions'
 
 export const RequireFeatureTag = ({
   tag,

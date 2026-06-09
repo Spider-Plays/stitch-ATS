@@ -14,6 +14,8 @@ export type AdminHubPage = {
   title: string
   description: string
   color: string
+  /** Visible only to Super Admin (e.g. user management). */
+  superAdminOnly?: boolean
 }
 
 /** Sub-pages linked from the Administration hub at `/admin`. */
@@ -22,8 +24,9 @@ export const ADMIN_HUB_PAGES: AdminHubPage[] = [
     to: '/admin/users',
     icon: Users,
     title: 'User management',
-    description: 'Invite users, assign roles, departments, and account status.',
+    description: 'Add users, assign roles, departments, and account status.',
     color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    superAdminOnly: true,
   },
   {
     to: '/admin/departments',
@@ -52,6 +55,7 @@ export const ADMIN_HUB_PAGES: AdminHubPage[] = [
     title: 'Role & page access',
     description: 'Control which sidebar pages each role can see.',
     color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    superAdminOnly: true,
   },
   {
     to: '/admin/interview-panels',
@@ -61,3 +65,8 @@ export const ADMIN_HUB_PAGES: AdminHubPage[] = [
     color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
   },
 ]
+
+export function adminHubPagesForRole(role?: string | null): AdminHubPage[] {
+  if (role === 'SUPER_ADMIN') return ADMIN_HUB_PAGES
+  return ADMIN_HUB_PAGES.filter((page) => !page.superAdminOnly)
+}

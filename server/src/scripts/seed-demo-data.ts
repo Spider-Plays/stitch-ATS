@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma.js'
+import { env } from '../config/env.js'
 import { DEV_USERS, DEV_PASSWORD } from '../config/devUsers.js'
 import {
   DEMO_CANDIDATES,
@@ -148,6 +149,11 @@ async function attachResume(
 }
 
 async function main() {
+  if (env.isProduction) {
+    console.error('Refusing to seed demo data in production.')
+    process.exit(1)
+  }
+
   if (FRESH) await clearHiringData()
 
   console.log('Seeding demo users...')

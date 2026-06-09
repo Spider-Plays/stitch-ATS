@@ -12,7 +12,7 @@ import {
   type HiredMilestoneInput,
   type OfferMilestoneInput,
 } from '../../lib/candidateMilestones'
-import { candidateStatusLabel } from '../../lib/candidatePage'
+import { candidateStatusLabel } from '@/pages/candidates/_shared/candidate.utils'
 import { AppSelect } from '../ui/AppSelect'
 import { quarterSelectOptions } from '../../lib/selectOptions'
 

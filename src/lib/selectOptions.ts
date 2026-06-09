@@ -3,7 +3,7 @@ import {
   CANDIDATE_STAGE_ORDER,
   candidateStatusClass,
   candidateStatusLabel,
-} from './candidatePage'
+} from '@/pages/candidates/_shared/candidate.utils'
 import {
   EMPLOYMENT_TYPES,
   SENIORITY_LEVELS,
@@ -74,6 +74,7 @@ export const REFERRAL_RELATIONSHIP_OPTIONS: AppSelectOption[] = [
 ]
 
 export const USER_ROLE_OPTIONS: AppSelectOption[] = [
+  { value: 'SUPER_ADMIN', label: 'Super Admin' },
   { value: 'ADMIN', label: 'Admin' },
   { value: 'HR_HEAD', label: 'HR Head' },
   { value: 'HR_MANAGER', label: 'HR Manager' },
@@ -95,16 +96,14 @@ export const USER_STATUS_FILTER_OPTIONS: AppSelectOption[] = [
   { value: 'DISABLED', label: 'Disabled only' },
 ]
 
-export const INVITE_ROLE_OPTIONS: AppSelectOption[] = [
-  { value: 'RECRUITER', label: 'Recruiter' },
-  { value: 'HR_MANAGER', label: 'HR Manager' },
-  { value: 'HR_HEAD', label: 'HR Head' },
-  { value: 'HIRING_MANAGER', label: 'Hiring Manager' },
-  { value: 'INTERVIEWER', label: 'Interviewer' },
-  { value: 'TEAM_LEAD', label: 'Team Lead' },
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'CANDIDATE', label: 'Candidate' },
+export const ADD_USER_ROLE_OPTIONS: AppSelectOption[] = [
+  ...USER_ROLE_OPTIONS,
+  { value: 'EMPLOYEE', label: 'Employee' },
+  { value: 'VENDOR', label: 'Vendor' },
 ]
+
+/** @deprecated Use ADD_USER_ROLE_OPTIONS */
+export const INVITE_ROLE_OPTIONS = ADD_USER_ROLE_OPTIONS
 
 export function candidateStageSelectOptions(): AppSelectOption[] {
   return CANDIDATE_STAGE_ORDER.map((status) => ({
@@ -135,6 +134,13 @@ export const CANDIDATE_SOURCE_OPTIONS: AppSelectOption[] = [
   { value: 'Agency', label: 'Agency' },
   { value: 'Recruiter Added', label: 'Recruiter Added' },
 ]
+
+export function userRoleLabel(role: UserRole | string): string {
+  const option =
+    USER_ROLE_OPTIONS.find((o) => o.value === role) ??
+    ADD_USER_ROLE_OPTIONS.find((o) => o.value === role)
+  return option?.label ?? role.replace(/_/g, ' ')
+}
 
 export function toRole(value: string): UserRole {
   return value as UserRole

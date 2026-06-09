@@ -4,11 +4,11 @@ import { api } from '../services/api'
 import { ApiError } from '../lib/apiClient'
 import { useToastStore } from '../store/toastStore'
 import { useAuth } from './useAuth'
-import { candidateStatusLabel } from '../lib/candidatePage'
+import { candidateStatusLabel } from '@/pages/candidates/_shared/candidate.utils'
 import {
   canChangeCandidateStage,
   HIRED_STAGE_LOCK_MESSAGE,
-} from '../lib/candidatePermissions'
+} from '@/permissions'
 import { requiresStageDetailsModal } from '../components/candidates/CandidateStageDetailsModal'
 import type { Candidate, CandidateStatus } from '../types'
 import type { HiredMilestoneInput, OfferMilestoneInput } from '../lib/candidateMilestones'

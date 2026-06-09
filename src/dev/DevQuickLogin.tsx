@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { DEV_LOGIN_ACCOUNTS } from './devLoginAccounts'
 import { resolveDevLoginRedirect } from './resolveDevLoginRedirect'
 import { ApiError } from '../lib/apiClient'
-import type { PageKey } from '../lib/pageAccess'
+import type { PageKey } from '@/permissions'
 import type { User } from '../types'
 import clsx from 'clsx'
 

@@ -26,4 +26,6 @@ export const offerService = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  remove: (id: string) => apiRequest<void>(`/offers/${id}`, { method: 'DELETE' }),
 }

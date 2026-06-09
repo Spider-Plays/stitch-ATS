@@ -5,8 +5,7 @@ import { SidebarBrand } from './layout/SidebarBrand'
 import { SidebarNavItem, SidebarSectionLabel } from './layout/SidebarNavItem'
 import { SidebarProfileFooter } from './layout/SidebarProfileFooter'
 import clsx from 'clsx'
-import { canAccessPage, PageKey } from '../lib/pageAccess'
-import { getAccessibleFeatureTags } from '../lib/userTags'
+import { canAccessPage, PageKey, getAccessibleFeatureTags, isAdminRole } from '@/permissions'
 
 const Sidebar = () => {
   const location = useLocation()
@@ -18,7 +17,7 @@ const Sidebar = () => {
   const navVariant = isRecruiter ? 'recruiter' : 'default'
 
   const show = (page: PageKey) => canAccessPage(allowedPages, page)
-  const isAdmin = role === 'ADMIN'
+  const isAdmin = isAdminRole(role)
   const featureModules = getAccessibleFeatureTags(role, user?.tags)
 
   return (

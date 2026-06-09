@@ -1,5 +1,6 @@
-/** Full operational access (all data); Administration section remains ADMIN-only. */
+/** Full operational access (all data); Administration section remains admin-only. */
 export const ORG_WIDE_ACCESS_ROLES = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -13,5 +14,13 @@ export function hasOrgWideAccess(role: string): boolean {
 }
 
 export function isAdminRole(role: string): boolean {
-  return role === 'ADMIN'
+  return role === 'ADMIN' || role === 'SUPER_ADMIN'
+}
+
+export function isSuperAdminRole(role: string): boolean {
+  return role === 'SUPER_ADMIN'
+}
+
+export function canManageUsers(role: string): boolean {
+  return isSuperAdminRole(role)
 }

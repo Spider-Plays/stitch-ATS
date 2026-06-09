@@ -9,6 +9,8 @@ import { generateTempPassword } from '../lib/password.js'
 import { sendInviteEmail } from '../services/email.js'
 import { logActivity } from '../services/activityLog.js'
 import { INTERNAL_ROLES } from '../lib/roles.js'
+import { logTemporaryPassword } from '../lib/devPasswordLog.js'
+import { clientErrorMessage, EMAIL_NOT_CONFIGURED_DEV_HINT, EMAIL_NOT_CONFIGURED_WARNING } from '../lib/safeError.js'
 
 const router = Router()
 const VENDOR_MANAGERS = ['ADMIN', 'HR_HEAD', 'HR_MANAGER', 'RECRUITER'] as const
@@ -31,11 +33,7 @@ router.get('/', requireRoles(...VENDOR_MANAGERS), async (_req, res) => {
     res.json(enriched)
   } catch (err) {
     console.error('GET /api/vendors failed:', err)
-    const msg = err instanceof Error ? err.message : 'Unknown error'
-    const hint = msg.includes('vendor') || msg.includes('Unknown arg')
-      ? 'Restart the API server after running: cd server && npx prisma generate'
-      : msg
-    res.status(500).json({ error: hint })
+    res.status(500).json({ error: clientErrorMessage(err) })
   }
 })
 
@@ -132,7 +130,9 @@ router.post('/', requireRoles(...VENDOR_MANAGERS), async (req, res) => {
   })
 
   let invitedUser: ReturnType<typeof mapUser> | undefined
-  let temporaryPassword: string | undefined
+  let inviteEmailSent: boolean | undefined
+  let inviteEmailWarning: string | undefined
+  let inviteDevHint: string | undefined
 
   if (body.inviteContact !== false) {
     const inviteEmail = (body.contactEmail ?? body.email).toLowerCase().trim()
@@ -158,8 +158,13 @@ router.post('/', requireRoles(...VENDOR_MANAGERS), async (req, res) => {
         tempPassword,
       })
       invitedUser = mapUser(user)
+      inviteEmailSent = emailResult.sent
       if (!emailResult.sent && emailResult.reason === 'not_configured') {
-        temporaryPassword = tempPassword
+        logTemporaryPassword('Vendor portal invite', inviteEmail, tempPassword)
+        inviteEmailWarning = EMAIL_NOT_CONFIGURED_WARNING
+        if (process.env.NODE_ENV !== 'production') {
+          inviteDevHint = EMAIL_NOT_CONFIGURED_DEV_HINT
+        }
       }
     }
   }
@@ -176,7 +181,9 @@ router.post('/', requireRoles(...VENDOR_MANAGERS), async (req, res) => {
   res.status(201).json({
     vendor: mapVendor(vendor),
     invitedUser,
-    temporaryPassword,
+    ...(inviteEmailSent !== undefined ? { emailSent: inviteEmailSent } : {}),
+    ...(inviteEmailWarning ? { emailWarning: inviteEmailWarning } : {}),
+    ...(inviteDevHint ? { devHint: inviteDevHint } : {}),
   })
 })
 
@@ -304,11 +311,20 @@ router.post('/:id/invite', requireRoles(...VENDOR_MANAGERS), async (req, res) =>
     tempPassword,
   })
 
+  if (!emailResult.sent && emailResult.reason === 'not_configured') {
+    logTemporaryPassword('Vendor user invite', email, tempPassword)
+  }
+
   res.status(201).json({
     user: mapUser(user),
     emailSent: emailResult.sent,
-    ...(emailResult.sent === false && emailResult.reason === 'not_configured'
-      ? { temporaryPassword: tempPassword }
+    ...(!emailResult.sent && emailResult.reason === 'not_configured'
+      ? {
+          emailWarning: EMAIL_NOT_CONFIGURED_WARNING,
+          ...(process.env.NODE_ENV !== 'production'
+            ? { devHint: EMAIL_NOT_CONFIGURED_DEV_HINT }
+            : {}),
+        }
       : {}),
   })
 })

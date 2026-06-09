@@ -73,8 +73,9 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
       prismaConnCodes.has(err.code))
   ) {
     return res.status(503).json({
-      error:
-        'Database unavailable. Wake your Neon project in the console or check DATABASE_URL in server/.env.',
+      error: env.isProduction
+        ? 'Database unavailable.'
+        : 'Database unavailable. Wake your Neon project in the console or check DATABASE_URL in server/.env.',
     })
   }
   if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'LIMIT_FILE_SIZE') {
@@ -88,10 +89,16 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   }
   if (err instanceof Prisma.PrismaClientValidationError) {
     const msg = err.message
-    if (msg.includes('hiringStage') || msg.includes('onHoldAt') || msg.includes('liveAt')) {
+    if (
+      msg.includes('hiringStage') ||
+      msg.includes('onHoldAt') ||
+      msg.includes('liveAt') ||
+      msg.includes('mustChangePassword')
+    ) {
       return res.status(503).json({
-        error:
-          'Server Prisma client is out of date. Stop the API, run `npm run db:generate --prefix server`, then restart `npm run dev`.',
+        error: env.isProduction
+          ? 'Server configuration is out of date.'
+          : 'Server Prisma client is out of date. Stop the API, run `npm run db:generate --prefix server`, then restart `npm run dev`.',
       })
     }
   }
@@ -110,8 +117,9 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
       stack.includes('interviewPanelLevel')
     ) {
       return res.status(503).json({
-        error:
-          'Server Prisma client is out of date. Stop the API, run `npm run db:generate --prefix server`, then restart `npm run dev`.',
+        error: env.isProduction
+          ? 'Server configuration is out of date.'
+          : 'Server Prisma client is out of date. Stop the API, run `npm run db:generate --prefix server`, then restart `npm run dev`.',
       })
     }
   }

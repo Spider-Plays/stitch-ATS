@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { APP_NAME } from '../../config/branding'
-import { candidateStatusLabel } from '../../lib/candidatePage'
+import { candidateStatusLabel } from '@/pages/candidates/_shared/candidate.utils'
 import type { CandidateStatus } from '../../types'
 import { StitchLogo } from '../branding/StitchLogo'
 

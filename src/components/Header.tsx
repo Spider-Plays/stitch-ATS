@@ -5,9 +5,8 @@ import { useSidebarStore } from '../store/sidebarStore'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { canApproveRequirement } from '../lib/requirementPermissions'
-import { isAssignedInterviewer } from '../lib/interviewPermissions'
-import { needsFeedback } from '../lib/interviewPage'
+import { canApproveRequirement, isAdminRole, isAssignedInterviewer } from '@/permissions'
+import { needsFeedback } from '@/pages/interviews/_shared/interview.utils'
 import clsx from 'clsx'
 
 const iconBtnClass =
@@ -30,14 +29,16 @@ const Header = () => {
         queryKey: ['pendingRequirements'],
         queryFn: api.requirements.getPending,
         enabled: canReviewPendingApprovals,
-        refetchInterval: 30000,
+        staleTime: 30_000,
+        refetchInterval: 60_000,
     })
 
     const { data: interviews = [] } = useQuery({
         queryKey: ['interviews', 'header-notifications'],
         queryFn: api.interviews.list,
         enabled: isInterviewer,
-        refetchInterval: 60000,
+        staleTime: 60_000,
+        refetchInterval: 120_000,
     })
 
     const { data: results } = useQuery({
@@ -59,7 +60,7 @@ const Header = () => {
         ? interviews.filter((i) => isAssignedInterviewer(i, user?.uid) && needsFeedback(i)).length
         : 0
     const showNotificationDot = pendingRequirements.length > 0 || interviewerFeedbackCount > 0
-    const isAdmin = user?.role === 'ADMIN'
+    const isAdmin = isAdminRole(user?.role)
     const hasResults =
         (results?.candidates?.length ?? 0) > 0 ||
         (results?.requirements?.length ?? 0) > 0 ||

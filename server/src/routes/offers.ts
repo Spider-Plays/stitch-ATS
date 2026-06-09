@@ -186,7 +186,24 @@ router.patch('/:id/status', requireRoles(...OFFER_ROLES), async (req, res) => {
 })
 
 router.delete('/:id', requireRoles('ADMIN'), async (req, res) => {
+  const existing = await prisma.offer.findUnique({ where: { id: req.params.id } })
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+
   await prisma.offer.delete({ where: { id: req.params.id } })
+
+  await logActivity({
+    entityType: 'OFFER',
+    entityId: existing.id,
+    action: 'DELETED',
+    performedBy: req.auth!.userId,
+    performerRole: req.auth!.role,
+    details: {
+      candidateId: existing.candidateId,
+      requirementId: existing.requirementId,
+      status: existing.status,
+    },
+  })
+
   res.status(204).send()
 })
 

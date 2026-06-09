@@ -56,7 +56,7 @@ export function hasFeatureTag(
   userTags: FeatureTagKey[] | undefined,
   tag: FeatureTagKey
 ): boolean {
-  if (role === 'ADMIN') return true
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') return true
   return (userTags ?? []).includes(tag)
 }
 

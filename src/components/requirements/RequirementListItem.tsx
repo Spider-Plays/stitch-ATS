@@ -17,7 +17,7 @@ import {
   priorityMeta,
   requirementStatusClass,
   requirementStatusLabel,
-} from '../../lib/requirementPage'
+} from '@/pages/requirements/_shared/requirement.utils'
 import { formatRequirementLocation, seniorityLabel } from '../../lib/requirementFields'
 
 export type RequirementMenuItem = {

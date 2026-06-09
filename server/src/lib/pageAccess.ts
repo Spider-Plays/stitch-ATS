@@ -2,6 +2,7 @@ import { prisma } from './prisma.js'
 
 /** Internal staff roles configurable in User Management → Role access */
 export const CONFIGURABLE_ROLES = [
+  'SUPER_ADMIN',
   'ADMIN',
   'HR_HEAD',
   'HR_MANAGER',
@@ -43,7 +44,8 @@ export const PAGE_DEFINITIONS: { key: PageKey; label: string; description: strin
 
 /** Default page access (matches original sidebar / route behavior) */
 export const DEFAULT_ROLE_PAGES: Record<ConfigurableRole, PageKey[]> = {
-  ADMIN: [...PAGE_KEYS],
+  SUPER_ADMIN: [...PAGE_KEYS],
+  ADMIN: PAGE_KEYS.filter((k) => k !== 'admin_users'),
   HR_HEAD: [
     'dashboard',
     'requirements',
@@ -115,10 +117,10 @@ export function defaultPagesForRole(role: string): PageKey[] {
 
 function finalizePagesForRole(role: string, pages: PageKey[]): PageKey[] {
   let result = [...pages]
-  if (role === 'ADMIN' && !result.includes('admin_users')) {
+  if (role === 'SUPER_ADMIN' && !result.includes('admin_users')) {
     result.push('admin_users')
   }
-  if (role !== 'ADMIN') {
+  if (role !== 'SUPER_ADMIN') {
     result = result.filter((p) => p !== 'admin_users')
   }
   if (role === 'INTERVIEWER' && !result.includes('candidates')) {
@@ -164,7 +166,7 @@ export async function getAllRolePageAccess(): Promise<
 
 export async function setRolePageAccess(role: string, pages: PageKey[]): Promise<PageKey[]> {
   let sanitized = sanitizePages(pages)
-  if (role === 'ADMIN') {
+  if (role === 'SUPER_ADMIN') {
     if (!sanitized.includes('admin_users')) sanitized.push('admin_users')
   } else {
     sanitized = sanitized.filter((p) => p !== 'admin_users')
@@ -190,7 +192,8 @@ export function pathnameToPageKey(pathname: string): PageKey | null {
   if (pathname.startsWith('/pipeline')) return 'pipeline'
   if (pathname.startsWith('/interviews')) return 'interviews'
   if (pathname.startsWith('/offers')) return 'offers'
-  if (pathname.startsWith('/admin')) return 'admin_users'
+  if (pathname.startsWith('/admin/users')) return 'admin_users'
+  if (pathname.startsWith('/admin')) return null
   if (pathname.startsWith('/notifications')) return 'notifications'
   if (pathname.startsWith('/settings')) return 'settings'
   return null
