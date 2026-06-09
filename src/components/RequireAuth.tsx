@@ -70,7 +70,7 @@ export const RequireAuth = ({
             if (pageKey === 'admin_users' && !canManageUsers(user.role)) {
                 return <Navigate to="/admin" replace />
             }
-            if (pageKey && !canAccessPage(allowedPages, pageKey)) {
+            if (pageKey && !canAccessPage(allowedPages, pageKey, user.role)) {
                 const fallback = firstAllowedPath(allowedPages)
                 return <Navigate to={fallback} replace />
             }

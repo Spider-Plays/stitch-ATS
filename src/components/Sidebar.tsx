@@ -16,7 +16,7 @@ const Sidebar = () => {
   const isRecruiter = role === 'RECRUITER'
   const navVariant = isRecruiter ? 'recruiter' : 'default'
 
-  const show = (page: PageKey) => canAccessPage(allowedPages, page)
+  const show = (page: PageKey) => canAccessPage(allowedPages, page, role)
   const isAdmin = isAdminRole(role)
   const featureModules = getAccessibleFeatureTags(role, user?.tags)
 

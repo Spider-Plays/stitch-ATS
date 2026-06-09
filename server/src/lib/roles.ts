@@ -55,7 +55,6 @@ export function isSuperAdminRole(role: string): boolean {
 }
 
 export function roleMatchesAllowed(userRole: string, allowedRoles: readonly string[]): boolean {
-  if (allowedRoles.includes(userRole)) return true
-  if (userRole === 'SUPER_ADMIN' && allowedRoles.includes('ADMIN')) return true
-  return false
+  if (userRole === 'SUPER_ADMIN') return true
+  return allowedRoles.includes(userRole)
 }

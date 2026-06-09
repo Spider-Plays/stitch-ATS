@@ -127,6 +127,7 @@ const RoleColumn = ({
     onReset,
     addOptions,
     saving,
+    readOnly,
 }: {
     role: ConfigurableRole
     enabledPages: PageDef[]
@@ -135,6 +136,7 @@ const RoleColumn = ({
     onReset: () => void
     addOptions: { value: string; label: string; sublabel?: string }[]
     saving: boolean
+    readOnly?: boolean
 }) => {
     const [pickerOpen, setPickerOpen] = useState(false)
     const [menuOpen, setMenuOpen] = useState(false)
@@ -151,6 +153,7 @@ const RoleColumn = ({
                     </span>
                 </div>
                 <div className="relative shrink-0">
+                    {!readOnly && (
                     <button
                         type="button"
                         onClick={() => setMenuOpen((o) => !o)}
@@ -159,7 +162,8 @@ const RoleColumn = ({
                     >
                         <MoreHorizontal size={18} />
                     </button>
-                    {menuOpen && (
+                    )}
+                    {menuOpen && !readOnly && (
                         <>
                             <button
                                 type="button"
@@ -186,18 +190,15 @@ const RoleColumn = ({
             </div>
 
             <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2 pb-20">
-                {enabledPages.map((page) => {
-                    const locked = role === 'SUPER_ADMIN' && page.key === 'admin_users'
-                    return (
+                {enabledPages.map((page) => (
                         <PageAccessCard
                             key={page.key}
                             page={page}
-                            locked={locked}
+                            locked={readOnly}
                             onRemove={() => onRemove(page.key)}
                             removing={saving}
                         />
-                    )
-                })}
+                    ))}
 
                 {enabledPages.length === 0 && (
                     <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-primary/5 dark:border-white/5 rounded-xl bg-primary/[0.02] dark:bg-white/[0.02] text-primary/30 dark:text-white/30">
@@ -205,6 +206,7 @@ const RoleColumn = ({
                     </div>
                 )}
 
+                {!readOnly && (
                 <div className="rounded-xl border border-dashed border-primary/15 dark:border-white/15 p-3 bg-primary/[0.02] dark:bg-white/[0.02]">
                     {pickerOpen ? (
                         <div className="space-y-2">
@@ -240,6 +242,7 @@ const RoleColumn = ({
                         </button>
                     )}
                 </div>
+                )}
             </div>
         </div>
     )
@@ -309,12 +312,9 @@ const RoleAccessEditor = () => {
     })
 
     const updateRolePages = (role: ConfigurableRole, pages: PageKey[]) => {
+        if (role === 'SUPER_ADMIN') return
         if (pages.length === 0) {
             addToast('Each role must have at least one page', 'error')
-            return
-        }
-        if (role === 'SUPER_ADMIN' && !pages.includes('admin_users')) {
-            addToast('Admin must keep User Management access', 'error')
             return
         }
         setAccessByRole((prev) => ({ ...prev, [role]: pages }))
@@ -395,7 +395,7 @@ const RoleAccessEditor = () => {
             />
 
             <p className="text-xs text-primary/50 dark:text-white/40 mb-4 -mt-2">
-                Candidate and Vendor portals use separate routes and are not configured here.
+                Candidate and Vendor portals use separate routes and are not configured here. Super Admin always has full access and cannot be restricted.
             </p>
 
             {isLoading ? (
@@ -422,12 +422,12 @@ const RoleAccessEditor = () => {
                             <RoleColumn
                                 key={role}
                                 role={role}
+                                readOnly={role === 'SUPER_ADMIN'}
                                 enabledPages={enabledPages}
                                 saving={saveMutation.isPending || resetMutation.isPending}
                                 addOptions={addOptions}
                                 onAdd={(pageKey) => updateRolePages(role, [...rolePages, pageKey])}
                                 onRemove={(pageKey) => {
-                                    if (role === 'SUPER_ADMIN' && pageKey === 'admin_users') return
                                     const next = rolePages.filter((k) => k !== pageKey)
                                     updateRolePages(role, next)
                                 }}

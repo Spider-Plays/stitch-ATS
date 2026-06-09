@@ -130,6 +130,10 @@ function finalizePagesForRole(role: string, pages: PageKey[]): PageKey[] {
 }
 
 export async function getAllowedPagesForRole(role: string): Promise<PageKey[]> {
+  if (role === 'SUPER_ADMIN') {
+    return [...PAGE_KEYS]
+  }
+
   if (role === 'CANDIDATE' || role === 'VENDOR' || role === 'EMPLOYEE') {
     return []
   }
@@ -154,6 +158,10 @@ export async function getAllRolePageAccess(): Promise<
 
   const result: Record<string, { pages: PageKey[]; updatedAt?: string }> = {}
   for (const role of CONFIGURABLE_ROLES) {
+    if (role === 'SUPER_ADMIN') {
+      result[role] = { pages: [...PAGE_KEYS] }
+      continue
+    }
     const row = byRole.get(role)
     const raw = row?.pages ? parsePages(row.pages) : defaultPagesForRole(role)
     result[role] = {
@@ -165,12 +173,12 @@ export async function getAllRolePageAccess(): Promise<
 }
 
 export async function setRolePageAccess(role: string, pages: PageKey[]): Promise<PageKey[]> {
-  let sanitized = sanitizePages(pages)
   if (role === 'SUPER_ADMIN') {
-    if (!sanitized.includes('admin_users')) sanitized.push('admin_users')
-  } else {
-    sanitized = sanitized.filter((p) => p !== 'admin_users')
+    return [...PAGE_KEYS]
   }
+
+  let sanitized = sanitizePages(pages)
+  sanitized = sanitized.filter((p) => p !== 'admin_users')
   if (sanitized.length === 0) {
     throw new Error('At least one page must be enabled')
   }

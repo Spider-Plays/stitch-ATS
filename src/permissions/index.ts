@@ -100,7 +100,21 @@ export const PAGE_DEFINITIONS: { key: PageKey; label: string; description: strin
   { key: 'settings', label: 'Settings', description: 'Account and app settings' },
 ]
 
-export function canAccessPage(allowedPages: PageKey[] | undefined, page: PageKey): boolean {
+/** Super Admin always receives every page key regardless of role-access config. */
+export function effectiveAllowedPages(
+  role: string | undefined | null,
+  allowedPages: PageKey[] | undefined
+): PageKey[] {
+  if (isSuperAdminRole(role)) return [...PAGE_KEYS]
+  return allowedPages ?? []
+}
+
+export function canAccessPage(
+  allowedPages: PageKey[] | undefined,
+  page: PageKey,
+  role?: string | null
+): boolean {
+  if (isSuperAdminRole(role)) return true
   if (!allowedPages?.length) return false
   return allowedPages.includes(page)
 }
@@ -177,8 +191,8 @@ export function canAccessAdminHub(role?: string | null): boolean {
 
 /** True when a user's role satisfies a route guard that lists allowed roles. */
 export function roleMatchesAllowed(userRole: string, allowedRoles: readonly string[]): boolean {
+  if (userRole === ROLES.SUPER_ADMIN) return true
   if (allowedRoles.includes(userRole)) return true
-  if (userRole === ROLES.SUPER_ADMIN && allowedRoles.includes(ROLES.ADMIN)) return true
   return false
 }
 
